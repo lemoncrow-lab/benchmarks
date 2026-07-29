@@ -1,0 +1,86 @@
+{
+    "results": {
+        "tool": {
+            "name": "pytest",
+            "version": "8.4.1"
+        },
+        "summary": {
+            "tests": 7,
+            "passed": 6,
+            "failed": 1,
+            "skipped": 0,
+            "pending": 0,
+            "other": 0,
+            "start": 1785292506.4385405,
+            "stop": 1785292518.0686057
+        },
+        "tests": [
+            {
+                "name": "test_outputs.py::test_import",
+                "status": "passed",
+                "duration": 0.010819884249940515,
+                "start": 1785292506.4829102,
+                "stop": 1785292506.4939234,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            },
+            {
+                "name": "test_outputs.py::test_send_non_interactive_command",
+                "status": "passed",
+                "duration": 1.5034516609739512,
+                "start": 1785292506.4940636,
+                "stop": 1785292507.9977791,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            },
+            {
+                "name": "test_outputs.py::test_send_interactive_command",
+                "status": "failed",
+                "raw_status": "call_failed",
+                "duration": 0.5172724281437695,
+                "start": 1785292507.9980183,
+                "stop": 1785292508.5338652,
+                "retries": 0,
+                "file_path": "test_outputs.py",
+                "trace": "def test_send_interactive_command():\n        \"\"\"Test that the headless terminal can interact with interactive programs.\"\"\"\n        from headless_terminal import HeadlessTerminal\n    \n        terminal = HeadlessTerminal()\n    \n        terminal.send_keystrokes(\"vim /app/vim.txt\")\n>       terminal.send_keystrokes(\"\\n\", wait_sec=2)\n\n/tests/test_outputs.py:37: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \nheadless_terminal.py:111: in send_keystrokes\n    self._drain(wait_sec)\nheadless_terminal.py:86: in _drain\n    self._stream.feed(data)\n/usr/local/lib/python3.13/site-packages/pyte/streams.py:424: in feed\n    super(ByteStream, self).feed(data_str)\n/usr/local/lib/python3.13/site-packages/pyte/streams.py:205: in feed\n    taking_plain_text = send(data[offset:offset + 1])\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/usr/local/lib/python3.13/site-packages/pyte/streams.py:213: in _send_to_parser\n    return self._parser.send(data)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <pyte.streams.ByteStream object at 0x743f9e41c410>\n\n    def _parser_fsm(self) -> ParserGenerator:\n        \"\"\"An FSM implemented as a coroutine.\n    \n        This generator is not the most beautiful, but it is as performant\n        as possible. When a process generates a lot of output, then this\n        will be the bottleneck, because it processes just one character\n        at a time.\n    \n        Don't change anything without profiling first.\n        \"\"\"\n        basic = self.basic\n        assert self.listener is not None\n        listener = self.listener\n        draw = listener.draw\n        debug = listener.debug\n    \n        ESC, CSI_C1 = ctrl.ESC, ctrl.CSI_C1\n        OSC_C1 = ctrl.OSC_C1\n        SP_OR_GT = ctrl.SP + \">\"\n        NUL_OR_DEL = ctrl.NUL + ctrl.DEL\n        CAN_OR_SUB = ctrl.CAN + ctrl.SUB\n        ALLOWED_IN_CSI = \"\".join([ctrl.BEL, ctrl.BS, ctrl.HT, ctrl.LF,\n                                  ctrl.VT, ctrl.FF, ctrl.CR])\n        OSC_TERMINATORS = set([ctrl.ST_C0, ctrl.ST_C1, ctrl.BEL])\n    \n        def create_dispatcher(mapping: Mapping[str, str]) -> Dict[str, Callable[..., None]]:\n            return defaultdict(lambda: debug, dict(\n                (event, getattr(listener, attr))\n                for event, attr in mapping.items()))\n    \n        basic_dispatch = create_dispatcher(basic)\n        sharp_dispatch = create_dispatcher(self.sharp)\n        escape_dispatch = create_dispatcher(self.escape)\n        csi_dispatch = create_dispatcher(self.csi)\n    \n        while True:\n            # ``True`` tells ``Screen.feed`` that it is allowed to send\n            # chunks of plain text directly to the listener, instead\n            # of this generator.\n            char = yield True\n    \n            if char == ESC:\n                # Most non-VT52 commands start with a left-bracket after the\n                # escape and then a stream of parameters and a command; with\n                # a single notable exception -- :data:`escape.DECOM` sequence,\n                # which starts with a sharp.\n                #\n                # .. versionchanged:: 0.4.10\n                #\n                #    For compatibility with Linux terminal stream also\n                #    recognizes ``ESC % C`` sequences for selecting control\n                #    character set. However, in the current version these\n                #    are noop.\n                char = yield None\n                if char == \"[\":\n                    char = CSI_C1  # Go to CSI.\n                elif char == \"]\":\n                    char = OSC_C1  # Go to OSC.\n                else:\n                    if char == \"#\":\n                        sharp_dispatch[(yield None)]()\n                    elif char == \"%\":\n                        self.select_other_charset((yield None))\n                    elif char in \"()\":\n                        code = yield None\n                        if self.use_utf8:\n                            continue\n    \n                        # See http://www.cl.cam.ac.uk/~mgk25/unicode.html#term\n                        # for the why on the UTF-8 restriction.\n                        listener.define_charset(code, mode=char)\n                    else:\n                        escape_dispatch[char]()\n                    continue    # Don't go to CSI.\n    \n            if char in basic:\n                # Ignore shifts in UTF-8 mode. See\n                # http://www.cl.cam.ac.uk/~mgk25/unicode.html#term for\n                # the why on UTF-8 restriction.\n                if (char == ctrl.SI or char == ctrl.SO) and self.use_utf8:\n                    continue\n    \n                basic_dispatch[char]()\n            elif char == CSI_C1:\n                # All parameters are unsigned, positive decimal integers, with\n                # the most significant digit sent first. Any parameter greater\n                # than 9999 is set to 9999. If you do not specify a value, a 0\n                # value is assumed.\n                #\n                # .. seealso::\n                #\n                #    `VT102 User Guide <http://vt100.net/docs/vt102-ug/>`_\n                #        For details on the formatting of escape arguments.\n                #\n                #    `VT220 Programmer Ref. <http://vt100.net/docs/vt220-rm/>`_\n                #        For details on the characters valid for use as\n                #        arguments.\n                params = []\n                current = \"\"\n                private = False\n                while True:\n                    char = yield None\n                    if char == \"?\":\n                        private = True\n                    elif char in ALLOWED_IN_CSI:\n                        basic_dispatch[char]()\n                    elif char in SP_OR_GT:\n                        pass  # Secondary DA is not supported atm.\n                    elif char in CAN_OR_SUB:\n                        # If CAN or SUB is received during a sequence, the\n                        # current sequence is aborted; terminal displays\n                        # the substitute character, followed by characters\n                        # in the sequence received after CAN or SUB.\n                        draw(char)\n                        break\n                    elif char.isdigit():\n                        current += char\n                    elif char == \"$\":\n                        # XTerm-specific ESC]...$[a-z] sequences are not\n                        # currently supported.\n                        yield None\n                        break\n                    else:\n                        params.append(min(int(current or 0), 9999))\n    \n                        if char == \";\":\n                            current = \"\"\n                        else:\n                            if private:\n>                               csi_dispatch[char](*params, private=True)\nE                               TypeError: Screen.select_graphic_rendition() got an unexpected keyword argument 'private'\n\n/usr/local/lib/python3.13/site-packages/pyte/streams.py:353: TypeError",
+                "message": "The test failed in the call phase"
+            },
+            {
+                "name": "test_outputs.py::test_cancel_command",
+                "status": "passed",
+                "duration": 1.502617133781314,
+                "start": 1785292508.5340374,
+                "stop": 1785292510.036942,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            },
+            {
+                "name": "test_outputs.py::test_startup_files",
+                "status": "passed",
+                "duration": 1.013044151943177,
+                "start": 1785292510.0371978,
+                "stop": 1785292511.0504856,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            },
+            {
+                "name": "test_outputs.py::test_shell_state_persists_between_commands",
+                "status": "passed",
+                "duration": 1.5031948189716786,
+                "start": 1785292511.0507443,
+                "stop": 1785292512.5541604,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            },
+            {
+                "name": "test_outputs.py::test_background_commands",
+                "status": "passed",
+                "duration": 5.513697145041078,
+                "start": 1785292512.5543575,
+                "stop": 1785292518.068333,
+                "retries": 0,
+                "file_path": "test_outputs.py"
+            }
+        ]
+    }
+}
