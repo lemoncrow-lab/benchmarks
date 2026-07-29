@@ -41,7 +41,16 @@ data needs refreshing.
   rolled up across its 5 reps. Columns: `task, n_reps, n_pass, n_fail,
   n_no_data, pass_rate, avg_input_tokens, avg_output_tokens,
   avg_cache_tokens, avg_total_tokens, total_cost_usd, avg_cost_usd,
-  total_duration_seconds, avg_duration_seconds`.
+  total_duration_seconds, avg_duration_seconds, total_cost_usd_1h_tier,
+  avg_cost_usd_1h_tier`. The `_1h_tier` columns re-price every trial's real
+  token split at the 1-hour cache-write rate (the tier LemonCrow's harness
+  bills at) instead of baseline's real 5-minute rate -- rolled up from
+  `tbench_opus48_claudecode_2.1.205_turns.csv`'s `cost_usd_1h_tier` column.
+  Use these directly for a same-tier cost comparison against a LemonCrow
+  run; no need to re-derive the tier math each time.
+  (`benchmarks/harbor/normalized_token_cost.py` still exists for a live
+  per-task diff against a specific LemonCrow run, but the grand baseline
+  totals are now precomputed here.)
 
 - **`summary.txt`** -- single-run-level rollup: totals and per-trial /
   per-task(x5) averages for tokens, cost, and duration; overall pass rate;
@@ -66,9 +75,18 @@ data needs refreshing.
 
 One row per trial: `trial_id, task, trial_name, n_turns, n_tool_calls,
 prompt_tokens, completion_tokens, cache_read_tokens, cache_creation_tokens,
-cost_usd`. `n_turns` = number of agent-authored steps in the trial's
-trajectory (Harbor's ATIF format), directly comparable to LemonCrow's own
-`num_turns` from `agent/claude-run.json`.
+cost_usd, cost_usd_1h_tier`. `n_turns` = number of agent-authored steps in
+the trial's trajectory (Harbor's ATIF format), directly comparable to
+LemonCrow's own `num_turns` from `agent/claude-run.json`. `cost_usd_1h_tier`
+re-prices `(prompt_tokens - cache_creation_tokens - cache_read_tokens) *
+$5/MTok + completion_tokens * $25/MTok + cache_creation_tokens *
+$10/MTok + cache_read_tokens * $0.50/MTok` -- i.e. this trial's real token
+split at the 1-hour cache-write rate instead of baseline's real 5-minute
+rate -- so it's directly comparable to a LemonCrow trial's `cost_usd`
+(LemonCrow's harness always bills at the 1-hour tier) without conflating
+"who sends cheaper tokens" with "who's stuck on a pricier cache tier".
+Computed for all 445 rows, including the 34 with a blank `cost_usd` --
+their token counts are still real (see Known gaps).
 
 Contrary to earlier assumptions in this repo's history, baseline's full
 per-trial trajectory *is* fetchable, just not from a documented endpoint:
