@@ -1,6 +1,6 @@
 # Golden-comment score: Greptile (its own comments)
 
-Report `golden50-greptile-api`, 2026-10-26T18:05:48+00:00. Scored 50 of 50 pull requests of corpus `golden-comment-prs`.
+Report `golden50-greptile-api`, 2026-10-26T18:24:52+00:00. Scored 50 of 50 pull requests of corpus `golden-comment-prs`.
 
 * Reviewer: another reviewer's saved comments (greptile-comments-api-normalised); same judge and rule.
 * Answer key: https://github.com/ai-code-review-evaluations/golden_comments at `3f2c8ab794b4` (read at run time, not stored here).
