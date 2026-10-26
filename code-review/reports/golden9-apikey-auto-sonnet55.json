@@ -1,0 +1,1086 @@
+{
+  "aggregate": {
+    "auto": {
+      "catch": {
+        "by_rule": {
+          "location": 0,
+          "symbol": 0
+        },
+        "caught": 0,
+        "ci95": null,
+        "expected": 0,
+        "labelled_prs": 0,
+        "missed": [],
+        "missed_by_cause": {
+          "asked_not_reported": 0,
+          "no_risk_candidate": 0,
+          "not_asked": 0
+        },
+        "rate": null
+      },
+      "complete": 9,
+      "context_tokens": {
+        "max": 14115.0,
+        "mean": 8266.444444,
+        "median": 7180.0,
+        "n": 9,
+        "p90": 14015.0,
+        "total": 74398.0
+      },
+      "cost_per_catch_usd": null,
+      "errored": 0,
+      "findings": {
+        "p0": 1,
+        "p1": 3,
+        "p2": 6,
+        "per_review": {
+          "p0": 0.111,
+          "p1": 0.333,
+          "p2": 0.667,
+          "total": 1.111
+        },
+        "total": 10
+      },
+      "incomplete": 0,
+      "input_tokens": {
+        "max": 109811.0,
+        "mean": 59245.444444,
+        "median": 60428.0,
+        "n": 9,
+        "p90": 84734.2,
+        "total": 533209.0
+      },
+      "model_calls": {
+        "max": 6.0,
+        "mean": 3.444444,
+        "median": 3.0,
+        "n": 9,
+        "p90": 5.2,
+        "total": 31.0
+      },
+      "model_seconds": {
+        "max": 69.995,
+        "mean": 44.019,
+        "median": 39.793,
+        "n": 9,
+        "p90": 61.6478,
+        "total": 396.171
+      },
+      "noise": {
+        "ci95": null,
+        "duplicates": 0,
+        "findings": 0,
+        "rate": null,
+        "rate_excluding_duplicates": null,
+        "rate_p0_p1": null,
+        "unmatched": 0,
+        "unmatched_p0_p1": 0
+      },
+      "output_tokens": {
+        "max": 8724.0,
+        "mean": 5094.888889,
+        "median": 4670.0,
+        "n": 9,
+        "p90": 7737.6,
+        "total": 45854.0
+      },
+      "provider_usd": {
+        "max": 0.294532,
+        "mean": 0.16944,
+        "median": 0.156776,
+        "n": 9,
+        "p90": 0.24049,
+        "total": 1.524958
+      },
+      "prs": 9,
+      "ran": 9,
+      "skipped": 0,
+      "tokens_unreported_reviews": 0,
+      "usd_unreported_reviews": 0,
+      "wall_seconds": {
+        "max": 79.461811,
+        "mean": 53.001913,
+        "median": 46.614534,
+        "n": 9,
+        "p90": 76.580337,
+        "total": 477.017216
+      },
+      "zero_call_reviews": 0
+    }
+  },
+  "baseline": {
+    "against_labels": {
+      "caught": 0,
+      "ci95": null,
+      "comments": 0,
+      "expected": 0,
+      "labelled_prs_with_comments": 0,
+      "noise_rate": null,
+      "rate": null,
+      "unmatched": 0
+    },
+    "by_depth": {
+      "auto": {
+        "agreed": 0,
+        "near_misses": 0,
+        "ours_only": 0,
+        "share_of_theirs_we_also_raised": null,
+        "theirs_only": 0
+      }
+    },
+    "inline_comments": 0,
+    "judged": {
+      "invalid": 0,
+      "valid": 0
+    },
+    "prs_with_comments": 0,
+    "summary_comments": 0
+  },
+  "corpus": {
+    "digest": "99c49a245cf9af19f3df610fc5b3a6e6157bfb7ee2fac3eb1d5e1e3fffe9ce5e",
+    "id": "golden-comment-prs",
+    "labelled_prs": 0,
+    "labels": 0,
+    "line_tolerance": 3,
+    "match": "either",
+    "organization": null,
+    "path": "golden_comment_prs.yaml",
+    "prs": 9,
+    "visibility": "private"
+  },
+  "generated_at": "2026-10-26T21:59:12+00:00",
+  "kind": "review-benchmark",
+  "name": "golden9-apikey-auto-sonnet55",
+  "prs": [
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.145,
+          "changed_lines": 138,
+          "complete": true,
+          "context_tokens": 5920,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 880,
+              "category": "correctness",
+              "consequence": "A crafted cursor with a negative offset against an endpoint using this paginator with the flag on causes an unhandled server error, not a clean `BadPaginationError`/400. The advertised negative-offset feature does not work on Django querysets, and on any queryset that tolerates negative slices it could return rows outside the intended window.",
+              "explanation": "With `enable_advanced_features=True` and `cursor.offset < 0`, `get_result` runs `queryset[start_offset:stop]` with `start_offset = cursor.offset`. This is Python slice syntax on a Django QuerySet. For example, with offset -5 and limit 100, `stop` is 96 and the slice is `queryset[-5:96]`. Django asserts \"Negative indexing is not supported\" for a negative start, so the call raises AssertionError and the endpoint returns a 500. The comment says the ORM handles negative slicing automatically, but it does not. The offset comes from the client-supplied cursor string. If the queryset were a list-like object that does accept negative indices, the slice would read rows from the end of the data, outside the pagination window the cursor describes. The `is_prev` branch keeps the same unclamped offset, so a negative offset with `is_prev` also reaches the slice unclamped. Nothing validates or clamps…",
+              "id": "finding-f5cf934d0379629e7c0f9aea",
+              "lines": [
+                845,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "OptimizedCursorPaginator negative-offset path slices the queryset with a negative start, which Django rejects"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 29571,
+          "investigated": 9,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 2,
+          "model_seconds": 49.093,
+          "output_tokens": 4670,
+          "pr": "sentry-01",
+          "provider_usd": 0.105842,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 10,
+          "risk_candidates": 9,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 10,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 79.462
+        }
+      },
+      "id": "sentry-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Enhanced Pagination Performance for High-Volume Audit Logs",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 2.007,
+          "changed_lines": 212,
+          "complete": true,
+          "context_tokens": 5882,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py",
+            "src/sentry/scripts/spans/add-buffer.lua",
+            "src/sentry/spans/buffer.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py",
+            "tests/sentry/spans/test_buffer.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 71,
+              "category": "api_compatibility",
+              "consequence": "Non-member or token-authenticated callers that used to get audit logs now get a server error, even when they do not use the new optimized pagination parameter.",
+              "explanation": "`enable_advanced = request.user.is_superuser or organization_context.member.has_global_access` runs on every request, including those without `optimized_pagination=true`. `RpcUserOrganizationContext.member` can be None, for example for API-key or org-token authenticated requests, where the user is anonymous and no member exists. In that case `is_superuser` is False, so `None.has_global_access` raises AttributeError and the endpoint returns a 500. Before this change the endpoint never touched `member`, so this is a regression for existing callers of the default path.",
+              "id": "finding-1857df97f8a9a8682283ae9d",
+              "lines": [
+                68,
+                91
+              ],
+              "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+              "severity": "p2",
+              "title": "Audit log GET dereferences organization_context.member unconditionally, can raise AttributeError"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 68217,
+          "investigated": 10,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 4,
+          "model_seconds": 39.793,
+          "other_changed_code": 31,
+          "output_tokens": 4850,
+          "pr": "sentry-02",
+          "provider_usd": 0.184934,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 10,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 75.86
+        }
+      },
+      "id": "sentry-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Optimize spans buffer insertion with eviction during insert",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.532,
+          "changed_lines": 189,
+          "complete": true,
+          "context_tokens": 10373,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/app-store/_utils/getCalendar.ts",
+            "packages/app-store/index.ts",
+            "packages/app-store/vital/lib/reschedule.ts",
+            "packages/app-store/wipemycalother/lib/reschedule.ts",
+            "packages/core/CalendarManager.ts",
+            "packages/core/EventManager.ts",
+            "packages/core/videoClient.ts",
+            "packages/features/bookings/lib/handleCancelBooking.ts",
+            "packages/features/bookings/lib/handleNewBooking.ts",
+            "packages/lib/payment/deletePayment.ts",
+            "packages/lib/payment/handlePayment.ts",
+            "packages/trpc/server/routers/viewer/bookings.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 460,
+              "category": "correctness",
+              "consequence": "A recurring cancellation can return success before the external calendar events are deleted. In serverless runtimes the work may be cut off, leaving stale events in the calendar. A failing deleteEvent becomes an unhandled promise rejection that can crash the Node process.",
+              "explanation": "For a recurring cancel with allRemainingBookings, the calendar deletions are done inside `.forEach(async (credential) => {...})`. forEach does not wait for async callbacks. The change adds `await getCalendar(credential)` inside it, so each callback now suspends before any `deleteEvent` call and before `apiDeletes.push(deletedEvent)`. The surrounding handler continues, and whatever later does `Promise.all(apiDeletes)` sees an empty or partial array. The deleteEvent calls therefore are not awaited, and their rejections are unhandled instead of being caught with the other integration errors.",
+              "id": "finding-3e8c1dd96eb9f10adf0eeed5",
+              "lines": [
+                243,
+                589
+              ],
+              "path": "packages/features/bookings/lib/handleCancelBooking.ts",
+              "severity": "p1",
+              "title": "Recurring-booking calendar deletions run in a non-awaited async forEach"
+            },
+            {
+              "anchor_line": 553,
+              "category": "correctness",
+              "consequence": "The mutation can complete before the old calendar events and meetings are removed, so the previous slot can stay blocked. A failure in deleteEvent or deleteMeeting is an unhandled rejection that can crash the process, or the work can be cut short in serverless runtimes.",
+              "explanation": "`bookingRefsFiltered.forEach(async (bookingRef) => {...})` now awaits getCalendar and then returns `calendar.deleteEvent(...)` or `deleteMeeting(...)`. forEach discards the returned promises, so nothing waits for the deletions or handles their errors. The mutation goes on to send the reschedule emails and webhooks and then returns.",
+              "id": "finding-e9cca963754962d6b798afe6",
+              "lines": [
+                553,
+                967
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+              "severity": "p1",
+              "title": "Reschedule-request calendar/video deletion is fire-and-forget in an async forEach"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 2,
+            "p2": 0,
+            "total": 2
+          },
+          "head_sha": "e043a5efd872362a3fc146ed0d9ce4393e316c1e",
+          "input_tokens": 67240,
+          "investigated": 15,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 4,
+          "model_seconds": 69.995,
+          "other_changed_code": 11,
+          "output_tokens": 8724,
+          "pr": "calcom-02",
+          "provider_usd": 0.22172,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 26,
+          "risk_candidates": 15,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 26,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 46.615
+        }
+      },
+      "id": "calcom-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Async import of the appStore packages",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.899,
+          "changed_lines": 142,
+          "complete": true,
+          "context_tokens": 7180,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/grafana-data/src/types/config.ts",
+            "packages/grafana-runtime/src/config.ts",
+            "pkg/api/dtos/frontend_settings.go",
+            "pkg/api/frontendsettings.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database_test.go",
+            "pkg/services/anonymous/anonimpl/api/api.go",
+            "pkg/services/anonymous/anonimpl/client.go",
+            "pkg/services/anonymous/anonimpl/impl.go",
+            "pkg/services/anonymous/anonimpl/impl_test.go",
+            "pkg/setting/setting.go"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3647ba7360b8d157e4a294a650a365b6aca070d8",
+          "input_tokens": 60428,
+          "investigated": 20,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 3,
+          "model_seconds": 33.18,
+          "other_changed_code": 9,
+          "output_tokens": 3592,
+          "pr": "grafana-01",
+          "provider_usd": 0.156776,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 29,
+          "risk_candidates": 20,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 29,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 43.098
+        }
+      },
+      "id": "grafana-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Anonymous: Add configurable device limit",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.493,
+          "changed_lines": 273,
+          "complete": true,
+          "context_tokens": 8278,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/services/authz/rbac.go",
+            "pkg/services/authz/rbac/cache.go",
+            "pkg/services/authz/rbac/service.go",
+            "pkg/services/authz/rbac/service_test.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 31,
+              "category": "correctness",
+              "consequence": "A user can be wrongly denied access to a resource because a different resource with an underscore-shifted name/parent was denied. The error is fail-closed, so it is a correctness problem rather than an authorization bypass.",
+              "explanation": "userPermDenialCacheKey builds namespace.perm_<uid>_<action>_<name>_<parent> with '_' as the separator, but Grafana dashboard and folder UIDs may contain underscores. A denial entry for (name \"a_b\", parent \"c\") and one for (name \"a\", parent \"b_c\") therefore produce the same key. A denial cached for one resource then matches a different resource for the same user and action. The key also begins with the same prefix as userPermCacheKey.",
+              "id": "finding-9b9253bca7a7adfd82e36179",
+              "lines": [
+                30,
+                33
+              ],
+              "path": "pkg/services/authz/rbac/cache.go",
+              "severity": "p2",
+              "title": "Denial cache key is ambiguous because name and parent are joined with '_'"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "d9dc93c4a6c88ef850dbe526cb3226ae99cafa20",
+          "input_tokens": 59509,
+          "investigated": 23,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 3,
+          "model_seconds": 31.275,
+          "output_tokens": 3682,
+          "pr": "grafana-02",
+          "provider_usd": 0.155838,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 23,
+          "risk_candidates": 23,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 23,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 65.508
+        }
+      },
+      "id": "grafana-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "AuthZService: improve authz caching",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.347,
+          "changed_lines": 431,
+          "complete": true,
+          "context_tokens": 13990,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "services/src/main/java/org/keycloak/authentication/authenticators/browser/AbstractUsernameFormAuthenticator.java",
+            "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+            "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+            "services/src/main/java/org/keycloak/authentication/authenticators/browser/WebAuthnAuthenticator.java",
+            "services/src/main/java/org/keycloak/authentication/authenticators/browser/WebAuthnConditionalUIAuthenticator.java",
+            "services/src/main/java/org/keycloak/authentication/authenticators/util/AuthenticatorUtils.java",
+            "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/webauthn/passwordless/PasskeysOrganizationAuthenticationTest.java",
+            "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/webauthn/passwordless/PasskeysUsernameFormTest.java",
+            "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/webauthn/passwordless/PasskeysUsernamePasswordFormTest.java"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 47,
+              "category": "correctness",
+              "consequence": "The services module fails to build, or `UsernameForm` evaluates passkey enablement differently from `UsernamePasswordForm`. In the latter case the re-authentication skip decision is wrong.",
+              "explanation": "`UsernameForm.authenticate` now calls `isConditionalPasskeysEnabled()` with no arguments. The change only adds `isConditionalPasskeysEnabled(UserModel user)` to `UsernamePasswordForm`, and the diff adds no no-argument overload to either class. Unless a no-arg overload already exists in an unshown part of the files, this does not compile. If one does exist, it is not consistent with the new one-argument helper.",
+              "id": "finding-02a2e732fd1a0816e5d481d8",
+              "lines": [
+                47,
+                47
+              ],
+              "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+              "severity": "p1",
+              "title": "UsernameForm calls isConditionalPasskeysEnabled() with no argument, but only a one-argument version is defined"
+            },
+            {
+              "anchor_line": 161,
+              "category": "correctness",
+              "consequence": "With passkeys enabled, the regular username/password login page no longer offers conditional passkey (autofill) login. Passkey login is effectively broken for the main flow.",
+              "explanation": "The old checks were `context.getUser() == null && webauthnAuth != null && webauthnAuth.isPasskeysEnabled()`, and the old `authenticate` code only ran inside the branch where the user was not yet set. The new helper `isConditionalPasskeysEnabled(UserModel user)` returns `webauthnAuth != null && webauthnAuth.isPasskeysEnabled() && user != null`. On a normal login `context.getUser()` is null, so the helper returns false. `authenticate` and `challenge(context, error, field)` then skip `webauthnAuth.fillContextForm(context)`. The conditional-UI passkey attributes (challenge, rpId, ENABLE_WEBAUTHN_CONDITIONAL_UI) are therefore never put on the username/password form. They are only set when a user is already known, which is the re-authentication case. In that case the first lookup in `challenge()` happens only after getUser/clearUser has run during validation.",
+              "id": "finding-5b79300b37bf58880f7a6673",
+              "lines": [
+                113,
+                163
+              ],
+              "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+              "severity": "p0",
+              "title": "isConditionalPasskeysEnabled requires user != null, so the passkey form data is never set up on a normal login"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 1,
+            "p1": 1,
+            "p2": 0,
+            "total": 2
+          },
+          "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+          "input_tokens": 109811,
+          "investigated": 0,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 5,
+          "model_seconds": 59.561,
+          "other_changed_code": 26,
+          "output_tokens": 7491,
+          "pr": "keycloak-01",
+          "provider_usd": 0.294532,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 26,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 26,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 39.121
+        }
+      },
+      "id": "keycloak-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Fixing Re-authentication with passkeys",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.189,
+          "changed_lines": 271,
+          "complete": true,
+          "context_tokens": 5656,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java",
+            "server-spi/src/main/java/org/keycloak/models/IdentityProviderStorageProvider.java",
+            "services/src/main/java/org/keycloak/organization/forms/login/freemarker/model/OrganizationAwareIdentityProviderBean.java",
+            "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 381,
+              "category": "correctness",
+              "consequence": "The IDPs created by this test can leak into later tests that share the realm. The cleanup call may also fail with a not-found error. This could cause order-dependent failures in other organization tests that count identity providers.",
+              "explanation": "The performance concern is not confirmed. The test runs a fixed 20-iteration setup loop with a few small checks, so there is no unbounded or multiplicative work. Reading the test turned up a different defect. In the creation loop, `getCleanup().addCleanup(testRealm().identityProviders().get(\"alias\")::remove)` binds the resource for the literal alias \"alias\", not `\"idp-alias-\" + i`. The same mistake is repeated for \"idp-alias-20\" after it is created. Cleanup therefore tries to delete a nonexistent IDP, which is likely a 404, and the 21 created IDPs are never removed by the registered cleanup.",
+              "id": "finding-0c9ec4115ed703a3020db601",
+              "lines": [
+                368,
+                535
+              ],
+              "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java",
+              "severity": "p2",
+              "title": "Test cleanup targets the literal alias \"alias\" instead of the created IDPs"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "3e597722a9164d145bc46aa1de5bd714fb6ba357",
+          "input_tokens": 44207,
+          "investigated": 8,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 3,
+          "model_seconds": 36.642,
+          "other_changed_code": 1,
+          "output_tokens": 3818,
+          "pr": "keycloak-02",
+          "provider_usd": 0.126594,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 9,
+          "risk_candidates": 8,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 9,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 45.64
+        }
+      },
+      "id": "keycloak-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add caching support for IdentityProviderStorageProvider.getForLogin operations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.223,
+          "changed_lines": 32,
+          "complete": true,
+          "context_tokens": 3004,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "app/assets/javascripts/discourse/lib/utilities.js",
+            "app/controllers/uploads_controller.rb",
+            "app/models/optimized_image.rb"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 149,
+              "category": "correctness",
+              "consequence": "Any caller still using `OptimizedImage.downsize(from, to, width, height, ...)` now raises at runtime, for example when generating thumbnails or downsizing images. I could not see the downsize callers in the supplied context, so how many are affected is unverified.",
+              "explanation": "The change defines `self.downsize` twice in OptimizedImage. Ruby has no overloading, so the later `downsize(from, to, dimensions, opts={})` at lines 149-151 replaces the earlier `downsize(from, to, max_width, max_height, opts={})` at lines 145-147. The earlier version is now dead code. Any existing caller that passes a width and a height fails. With five arguments (`from, to, w, h, opts`) it raises ArgumentError. With four arguments (`from, to, w, h`) the height lands in `opts`, and `opts[:allow_animation]` then raises NoMethodError on an Integer. Only the new call in UploadsController, which passes `\"80%\"`, works.",
+              "id": "finding-e26985ae1eb36e9c8ed68394",
+              "lines": [
+                142,
+                152
+              ],
+              "path": "app/models/optimized_image.rb",
+              "severity": "p2",
+              "title": "Second `downsize` definition silently overrides the width/height overload"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+          "input_tokens": 15761,
+          "investigated": 0,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 1,
+          "model_seconds": 17.426,
+          "other_changed_code": 7,
+          "output_tokens": 2022,
+          "pr": "discourse-01",
+          "provider_usd": 0.051742,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 7,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 7,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 30.345
+        }
+      },
+      "id": "discourse-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: automatically downsize large images",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.807,
+          "changed_lines": 225,
+          "complete": true,
+          "context_tokens": 14115,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "app/assets/javascripts/discourse/components/dropdown-button.js.es6",
+            "app/assets/javascripts/discourse/controllers/topic-unsubscribe.js.es6",
+            "app/assets/javascripts/discourse/routes/app-route-map.js.es6",
+            "app/assets/javascripts/discourse/routes/topic-from-params.js.es6",
+            "app/assets/javascripts/discourse/routes/topic-unsubscribe.js.es6",
+            "app/assets/javascripts/discourse/templates/topic/unsubscribe.hbs",
+            "app/assets/javascripts/discourse/views/topic-unsubscribe.js.es6",
+            "app/assets/stylesheets/common/base/topic.scss",
+            "app/controllers/topics_controller.rb",
+            "app/mailers/user_notifications.rb",
+            "app/models/topic.rb",
+            "app/models/topic_user.rb",
+            "app/views/email/notification.html.erb",
+            "config/routes.rb",
+            "lib/email/message_builder.rb",
+            "spec/components/email/message_builder_spec.rb"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 105,
+              "category": "correctness",
+              "consequence": "Following the unsubscribe link in such a case returns a 500 error and does not mute or unsubscribe the user, so they keep getting emails for that topic.",
+              "explanation": "In `TopicsController#unsubscribe`, `TopicUser.find_by(user_id: current_user.id, topic_id: params[:topic_id])` returns nil when the logged-in user has no topic_users row for that topic. Line 107 then calls `tu.notification_level` on nil and raises NoMethodError. Nothing between the lookup and the dereference handles nil. An example is a user who was emailed about a topic through watched-category or default notification settings and has never visited or tracked it. The same case arises if the link is opened by a different logged-in user. I could not see the code that creates `topic_users` rows, so how often this occurs is unverified.",
+              "id": "finding-b8e33e4e72be37b3a149f97c",
+              "lines": [
+                98,
+                115
+              ],
+              "path": "app/controllers/topics_controller.rb",
+              "severity": "p2",
+              "title": "unsubscribe dereferences a possibly nil TopicUser record"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+          "input_tokens": 78465,
+          "investigated": 5,
+          "kind": "review",
+          "model": "litellm/anthropic/claude-sonnet-5-5",
+          "model_calls": 6,
+          "model_seconds": 59.206,
+          "other_changed_code": 22,
+          "output_tokens": 7005,
+          "pr": "discourse-02",
+          "provider_usd": 0.22698,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 30,
+          "risk_candidates": 5,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 30,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 51.369
+        }
+      },
+      "id": "discourse-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: per-topic unsubscribe option in emails",
+      "url": ""
+    }
+  ],
+  "publication": {
+    "always": [
+      "name the model and its price list date; the figure is for that model only",
+      "state that it is the mean over this corpus, which is not the reader's code",
+      "do not publish another reviewer's price from this report: it holds only what you supplied"
+    ],
+    "cost_per_review": {
+      "figures": {
+        "auto": {
+          "mean_tokens": 64340.333333,
+          "mean_usd": 0.16944,
+          "median_usd": 0.156776,
+          "p90_usd": 0.24049,
+          "reviews": 9
+        }
+      },
+      "missing": [],
+      "ready": true
+    },
+    "head_to_head": {
+      "missing": [
+        "0 pull requests carry the other reviewer's comments; at least 8 are needed",
+        "no baseline comment has a verdict, so its precision is unknown"
+      ],
+      "ready": false
+    },
+    "quality": {
+      "missing": [
+        "auto: 0 labelled pull requests scored; at least 8 are needed",
+        "catch and noise are rates over a handful of pull requests; quote them with their intervals"
+      ],
+      "ready": false
+    }
+  },
+  "pushes": {
+    "auto": {
+      "carry_forward": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "complete_pairs": 0,
+      "findings_after_push": {
+        "carried": 0,
+        "fixed": 0,
+        "new": 0,
+        "stale": 0,
+        "unreported": 0
+      },
+      "full": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "pushes": 0,
+      "saved": {
+        "calls_fraction": null,
+        "usd_fraction": null,
+        "usd_mean": null
+      },
+      "unavailable": {}
+    }
+  },
+  "reference_team": {
+    "basis": "a projection from this report's mean cost per review and per push, not a quote and not a price",
+    "by_depth": {
+      "auto": {
+        "first_review_usd": 0.16944,
+        "monthly_usd_with_carry_forward": null,
+        "monthly_usd_without": null,
+        "push_usd_carry_forward": null,
+        "push_usd_full": null
+      }
+    },
+    "developers": 10,
+    "prs_per_month": 300,
+    "reviews_per_pr": 1.2
+  },
+  "run": {
+    "basis": "a live provider run",
+    "code": {
+      "dirty": true,
+      "git_head": "7d937fbd938cf9eae237ad0c0d63786f029cfd0e",
+      "prompt_version": 4,
+      "repo_context": {
+        "enabled": true,
+        "version": 1
+      },
+      "schema_version": 3
+    },
+    "command": "lemoncrow dev eval review benchmark --corpus evals/review/golden_comment_prs.yaml --depth auto --max-usd 6.0 --pr sentry-01 --pr sentry-02 --pr calcom-02 --pr grafana-01 --pr grafana-02 --pr keycloak-01 --pr keycloak-02 --pr discourse-01 --pr discourse-02 --no-pushes --out-dir <out-dir> --name golden9-apikey-auto-sonnet55",
+    "driver": "litellm",
+    "ledger": {
+      "calls": 31,
+      "max_calls": null,
+      "max_usd": 6.0,
+      "spent_usd": 1.524958,
+      "stopped": "",
+      "unpriced_calls": 0
+    },
+    "mode": "live",
+    "model": "anthropic/claude-sonnet-5-5",
+    "notes": [],
+    "options": {
+      "depths": [
+        "auto"
+      ],
+      "input_usd_per_mtok": null,
+      "line_window": 8,
+      "max_calls": null,
+      "max_usd": 6.0,
+      "mode": "live",
+      "output_usd_per_mtok": null,
+      "pushes": false,
+      "recording": false,
+      "similarity": 0.2,
+      "with_impact": true
+    },
+    "overshoot_note": "the spending ceiling is checked before each call, so a run can pass it by the calls in flight (at most the investigators of the deepest depth)",
+    "wall_time_note": "wall_seconds is the elapsed time of the AI stage; model_seconds sums each call's latency"
+  },
+  "schema": 1
+}
