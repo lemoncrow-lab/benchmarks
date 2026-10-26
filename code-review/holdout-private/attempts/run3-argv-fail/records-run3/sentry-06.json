@@ -1,0 +1,148 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "35b9f60bcbe457ebb1a56979050b3681f0013e6208800dfedce900c6065e3a5a",
+      "model": "sonnet",
+      "prompt_digest": "dae5c2357276cf999f6cb6b0695e9b4ef3e409725bbd86381fd5d6220f415b48",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a hang, the old flusher keeps running next to the new one. Both flush and produce the same shards' segments, so duplicate segments are sent to Kafka. Each hang also leaks a process. On shutdown, flusher processes that don't exit are not terminated.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "In production, processes are created via mp_context.Process, where mp_context is multiprocessing.get_context(\"spawn\"). That class is multiprocessing.context.SpawnProcess. It subclasses BaseProcess, not multiprocessing.context.Process, which is what multiprocessing.Process refers to. So `isinstance(process, multiprocessing.Process)` is always False for these objects. The old code called self.process.kill() unconditionally. In `_ensure_processes_alive` (lines 253-257), a flusher flagged as \"hang\" is therefore never killed. A replacement is created via `_create_process_for_shards` while the hung process keeps running, and it still holds its shards. `join()` (line 346) has the same guard, so `process.terminate()` is never called on shutdown either.",
+        "lines": {
+          "end_line": 255,
+          "start_line": 254
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 255,
+          "original": "                if isinstance(process, multiprocessing.Process):\n                    process.kill()",
+          "start_line": 254,
+          "text": "                if isinstance(process, multiprocessing.process.BaseProcess):\n                    process.kill()"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:0e6a3b84adb2381f7681c962"
+        ],
+        "title": "isinstance(process, multiprocessing.Process) is False for spawn-context processes, so hung flushers are never killed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 53353,
+        "cache_write_input_tokens": 6029,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 59386,
+        "output_tokens": 1805,
+        "provider_cost": 0.0498516,
+        "request_id": "",
+        "seconds": 17.81
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5574c6fd39724133c8722d3e7f55d3c2a75aaf7f734fd6d699112b6209986e79",
+      "model": "sonnet",
+      "prompt_digest": "45015cd688bad8604c6b978bf99d2688e1b4edf40c131da437244dad889c8fda",
+      "response": {
+        "category": "correctness",
+        "consequence": "No action needed.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "I read the flusher, factory and consumer option changes together. Each process gets its own shard list, buffer, health value and backpressure value, and the restart, backpressure, memory and join paths iterate over all of them correctly. The new --flusher-processes option is passed through the factory to SpanFlusher. I could not name a failing input or state.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:59db98c1578f77bc9bd4b707",
+          "target:sym:ba421091da4839a071f1ec04",
+          "target:sym:c933d3f76e383384363d3afc",
+          "target:sym:bb3789c0f22ac138492a3880",
+          "target:sym:962739592462215630c5ac46",
+          "target:sym:403defc3388ba31176a39075"
+        ],
+        "title": "No concrete defect found in multi-process flusher change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 41752,
+        "cache_write_input_tokens": 4498,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 46254,
+        "output_tokens": 1240,
+        "provider_cost": 0.0363384,
+        "request_id": "",
+        "seconds": 13.33
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a9baefedb3c65cbe7fd9174986733f10065ee50e407dbd1e8f1a2117b9dade54",
+      "model": "sonnet",
+      "prompt_digest": "f252df75a865e7a76b59f4feb018439cf4f40ae4941e1fc2681cdd88e975159e",
+      "response": {
+        "category": "verification",
+        "consequence": "The intended wait never happens, so the test can still fail intermittently when the flusher has not yet produced the message before join. The fix looks like it works but doesn't.",
+        "evidence_refs": [
+          "source:new:tests/sentry/spans/consumers/process/test_consumer.py@sha256:612979bb5b7079932b7eb2618ed57414f7418536f000c7f8a1709d885cf3a0f0",
+          "target:target:sym:199fbe9ca480a614e889ffb2"
+        ],
+        "explanation": "test_basic starts with monkeypatch.setattr(\"time.sleep\", lambda _: None). The change adds `import time` and `time.sleep(0.1)` to \"give flusher threads time to process after drift change\". That call resolves to the patched lambda, so it returns immediately and waits for nothing. The added comment describes behavior the code doesn't have. The test still goes straight from the second step.poll() to step.join(). Whether `(msg,) = messages` passes still depends on the race the sleep was meant to remove. By contrast, test_flusher.py imports `from time import sleep` at module level, which keeps the real function.",
+        "lines": {
+          "end_line": 62,
+          "start_line": 61
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:199fbe9ca480a614e889ffb2"
+        ],
+        "title": "time.sleep(0.1) added to test_basic is a no-op because time.sleep is monkeypatched"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 34972,
+        "cache_write_input_tokens": 2664,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 37640,
+        "output_tokens": 1453,
+        "provider_cost": 0.030112800000000002,
+        "request_id": "",
+        "seconds": 23.126
+      }
+    }
+  ],
+  "case_id": "sentry-06",
+  "case_input_digest": "d47fc617dd98f176e551020d464ae5289c16cf90c5f8830c8952ee26e5596712",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T10:12:30+00:00"
+  },
+  "version": 1
+}

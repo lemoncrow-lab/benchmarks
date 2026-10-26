@@ -1,0 +1,526 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1123152c193b82cbd2839eefc120f671be9b8fd390e75ff75fff00a5a4c36868",
+      "model": "sonnet",
+      "prompt_digest": "2594bdfeb1aa1dcabe00a8b9620e729345d0728c44664318ec49d714e5a75121",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-9735d5512e5b76096d060492",
+              "finding-ad420b306dc566674ce89399"
+            ],
+            "keep_id": "finding-ad420b306dc566674ce89399"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 11378,
+        "cache_write_input_tokens": 6756,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 18140,
+        "output_tokens": 405,
+        "provider_cost": 0.0330131,
+        "request_id": "",
+        "seconds": 9.979
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "15e2cb030ca5cef54dbfb93b949622c3900a1ca01e004f51bcf0165970886595",
+      "model": "sonnet",
+      "prompt_digest": "9b7bc1c6e07fca2cc004dc3927432d7d2c0e7a3b44412b7c6142efca8c9ad043",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only repoints imports to the _utils/oauth/ modules, adds env example entries and adds a constant. The imported modules (encodeOAuthState, createOAuthAppCredential, refreshOAuthTokens, parseRefreshTokenResponse) all exist under packages/app-store/_utils/oauth/. No persisted schema or stored data representation changes.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No persistence defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 53167,
+        "cache_write_input_tokens": 23234,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 76407,
+        "output_tokens": 883,
+        "provider_cost": 0.1090289,
+        "request_id": "",
+        "seconds": 14.776
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1bd25b5e47dd6ff1afb300755b243388b8d69257d3e009fd4cb869c2e51bd2de",
+      "model": "sonnet",
+      "prompt_digest": "f590282bcdda4fdbd39e644ef14557970b30f423d287e92dd703c40a4aa510d5",
+      "response": {
+        "category": "correctness",
+        "consequence": "In credential-sync mode, refreshing a token overwrites the stored refresh_token with the string \"refresh_token\". It also stores a NaN expiry_date. The next refresh then fails and the integration breaks until the user reconnects.",
+        "evidence_refs": [
+          "source:new:packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts@sha256:e19ce325c6f33020ee8ceb04d2ac11808f913be63a697a930d33401d5722ed4e",
+          "target:target:sym:e31f55ce21d2b653bc4401f1",
+          "target:target:sym:385675e10fac023307517dc2"
+        ],
+        "explanation": "z.string().toString() and z.string().optional().toString() both return \"[object Object]\", because Zod schemas don't override toString. The two computed keys are therefore the same, and the second (z.unknown().optional()) overwrites the first (z.number()). The schema is effectively {access_token: string, \"[object Object]\": unknown optional}. z.object strips unknown keys by default. In credential-sync mode, a payload like {access_token, refresh_token, expires_in} parses successfully, but the returned data holds only access_token. The expires_in and refresh_token fields are dropped, and the intended \"any number property is the expiry\" rule is never enforced. The code at line 26 then sees no refresh_token and writes the literal placeholder \"refresh_token\". Callers such as zoomvideo/lib/VideoApiAdapter.ts:119-124 copy newTokens.refresh_token into the stored key, and compute newTokens.expires_in * 1000, which is NaN because expires_in is undefined. They then persist both to the DB.",
+        "lines": {
+          "end_line": 11,
+          "start_line": 5
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 11,
+          "original": "const minimumTokenResponseSchema = z.object({\n  access_token: z.string(),\n  //   Assume that any property with a number is the expiry\n  [z.string().toString()]: z.number(),\n  //   Allow other properties in the token response\n  [z.string().optional().toString()]: z.unknown().optional(),\n});",
+          "start_line": 5,
+          "text": "const minimumTokenResponseSchema = z\n  .object({\n    access_token: z.string(),\n    //   Assume that any property with a number is the expiry\n    expires_in: z.number().optional(),\n  })\n  //   Allow other properties in the token response\n  .passthrough();"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e31f55ce21d2b653bc4401f1",
+          "target:sym:385675e10fac023307517dc2"
+        ],
+        "title": "minimumTokenResponseSchema collapses to one \"[object Object]\" key and strips real token fields"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 26352,
+        "cache_write_input_tokens": 9119,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35477,
+        "output_tokens": 1675,
+        "provider_cost": 0.0566098,
+        "request_id": "",
+        "seconds": 17.165
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "30bb8e6d10f091b2ec7c97a8614c3986da0d40ca5a84262ae02977e35d92ff0d",
+      "model": "sonnet",
+      "prompt_digest": "2d62f9255e912bf406a585cb229701d6f4d3c55575704c3ce9a75c92c019b7aa",
+      "response": {
+        "category": "security",
+        "consequence": "Timing-based recovery of the shared secret is theoretically possible and would let an attacker overwrite any user's app credentials. Malformed requests produce 500 responses and server error noise rather than clean 4xx responses.",
+        "evidence_refs": [
+          "source:new:apps/web/pages/api/webhook/app-credential.ts@sha256:8d11bb3ceab397a929815b03ae1724bb908a0c5292c4686290a82b94520b093b",
+          "target:target:sym:fb97a7ad246ec430d39fe4ba"
+        ],
+        "explanation": "The unset-secret bypass does not happen. APP_CREDENTIAL_SHARING_ENABLED (packages/lib/constants.ts:103) is truthy only when both CALCOM_WEBHOOK_SECRET and CALCOM_APP_CREDENTIAL_ENCRYPTION_KEY are set, and the handler returns 403 before the secret check otherwise. So `undefined === undefined` and the empty-string decrypt key cannot be reached. Two weaker defects remain. (1) The secret is compared with `!==` at lines 23-26, which is not constant-time, so a remote caller could in principle recover it through timing. If the header is sent twice, Node gives an array, which never equals the secret; that case is safe. (2) `appCredentialWebhookRequestBodySchema.parse` at line 29 is not caught. Neither are `JSON.parse` or `symmetricDecrypt` at lines 56-58. A malformed body, or keys that fail to decrypt, throws an unhandled error and the caller gets a 500 instead of a 400.",
+        "lines": {
+          "end_line": 26,
+          "start_line": 23
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:fb97a7ad246ec430d39fe4ba"
+        ],
+        "title": "Webhook secret compared with non-constant-time `!==`; invalid bodies are not handled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 26119,
+        "cache_write_input_tokens": 8410,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 34535,
+        "output_tokens": 1290,
+        "provider_cost": 0.049885,
+        "request_id": "",
+        "seconds": 16.715
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3133a203c618937183748b18e7cee169b2edcd05067242d6bb99b6f7015e2d0e",
+      "model": "sonnet",
+      "prompt_digest": "e23c3a70d698e6971ce192d9ce0ebfd2c335442acd51690fded6e8d193f6936a",
+      "response": {
+        "category": "security",
+        "consequence": "On a misconfigured deployment, an unauthenticated caller can create or overwrite any user's app credentials through this endpoint. That includes replacing OAuth tokens for any user.",
+        "evidence_refs": [
+          "source:new:apps/web/pages/api/webhook/app-credential.ts@sha256:8d11bb3ceab397a929815b03ae1724bb908a0c5292c4686290a82b94520b093b"
+        ],
+        "explanation": "The handler compares `req.headers[name] !== process.env.CALCOM_WEBHOOK_SECRET` with no check that the secret is configured. If APP_CREDENTIAL_SHARING_ENABLED is true but CALCOM_WEBHOOK_SECRET is unset, a request with no secret header has `undefined` on both sides. The `!==` is then false and the request is treated as authenticated. The comparison is also not constant-time. The handler goes on to write arbitrary `key` JSON into the credential of any userId, and the decryption key falls back to an empty string.",
+        "lines": {
+          "end_line": 27,
+          "start_line": 24
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "With credential sync enabled, every token refresh through parseRefreshTokenResponse throws \"Invalid refreshed tokens were returned\". Zoom and Office365 calendar then fail to refresh. Office365 silently drops the new tokens, because the `success &&` spread yields nothing.",
+            "evidence_refs": [
+              "source:new:packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts@sha256:e19ce325c6f33020ee8ceb04d2ac11808f913be63a697a930d33401d5722ed4e"
+            ],
+            "explanation": "The schema keys are `[z.string().toString()]` and `[z.string().optional().toString()]`. These evaluate to a fixed stringified-object key (likely \"[object Object]\"), not a wildcard. Both entries also collapse to one key, so the schema requires a numeric property with that literal name. Real token responses lack it, so safeParse fails whenever credential sharing and the sync endpoint are both enabled. The `.passthrough()` the comment implies is missing as well. The expiry is never actually checked.",
+            "lines": {
+              "end_line": 11,
+              "start_line": 5
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:e31f55ce21d2b653bc4401f1",
+              "target:sym:385675e10fac023307517dc2"
+            ],
+            "title": "minimumTokenResponseSchema uses bogus computed keys and can never validate real responses"
+          },
+          {
+            "category": "correctness",
+            "consequence": "The stored credential's real refresh token is replaced by the bogus string. Any later refresh that does not go through the sync endpoint fails with invalid_grant.",
+            "evidence_refs": [
+              "source:new:packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts@sha256:e19ce325c6f33020ee8ceb04d2ac11808f913be63a697a930d33401d5722ed4e"
+            ],
+            "explanation": "When the response has no refresh_token, the parser sets it to the literal string \"refresh_token\". Callers such as Office365 calendar merge `tokenResponse.data` into the stored credential.",
+            "lines": {
+              "end_line": 22,
+              "start_line": 20
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:385675e10fac023307517dc2"
+            ],
+            "title": "Placeholder refresh_token written over missing refresh token"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:fb97a7ad246ec430d39fe4ba"
+        ],
+        "title": "Webhook secret check passes when the secret env var is unset and the header is missing"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32094,
+        "cache_write_input_tokens": 27049,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 59149,
+        "output_tokens": 3495,
+        "provider_cost": 0.1488499,
+        "request_id": "",
+        "seconds": 40.401
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "74934843952dc8e2ed41f2bce1fa9a738937fcb42646340904d0637274757269",
+      "model": "sonnet",
+      "prompt_digest": "b092066260446644f7966d40e83c9568840a1664b4f7509f816da935a496275a",
+      "response": {
+        "category": "correctness",
+        "consequence": "No failing input or state was found.",
+        "evidence_refs": [
+          "source:new:turbo.json@sha256:427fa3acdc4bce4a5115126fc93ce88a6d8eff99dea9cdbfa7d90815b4fc5a06"
+        ],
+        "explanation": "The diff only adds four env var names (CALCOM_APP_CREDENTIAL_ENCRYPTION_KEY, CALCOM_CREDENTIAL_SYNC_ENDPOINT, CALCOM_WEBHOOK_HEADER_NAME, CALCOM_WEBHOOK_SECRET) to globalEnv. This only makes them part of the cache hash. The JSON stays valid and no entries are duplicated. The list is not strictly alphabetical, but that is style only.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:d1f5be88f86d529b943d2fba"
+        ],
+        "title": "Adding env vars to turbo globalEnv shows no defect"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 13078,
+        "cache_write_input_tokens": 8377,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 21461,
+        "output_tokens": 1003,
+        "provider_cost": 0.045533899999999995,
+        "request_id": "",
+        "seconds": 12.913
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "81d0c0398a80334b3cfe2fb0995fc0f7d192c6b94975481536efa05cc3d88387",
+      "model": "sonnet",
+      "prompt_digest": "730c8e7e2f721d03c1414997226651194cbd6c7a5f009fdcb0943b236143ab31",
+      "response": {
+        "category": "correctness",
+        "consequence": "With sharing enabled, token refresh fails for axios-based and SDK-based apps. In hubspot it can overwrite the stored credential with a corrupt value. Anyone who can reach the sync endpoint can request tokens for a given user id and app slug, because the request carries no authentication.",
+        "evidence_refs": [
+          "source:new:packages/app-store/_utils/oauth/refreshOAuthTokens.ts@sha256:7c2a7c95ef6436aae90408f5a14e0d1eab593caeecfc509306bf8ce4e4d8bd65",
+          "target:target:sym:f24ca1a090b872f8b5299bb3"
+        ],
+        "explanation": "When credential sharing is enabled, the helper returns the raw fetch Response. It sends no auth header or secret, and it never checks response.ok. The non-sync branch returns whatever the refresh callback returns, which is an axios response in zohocrm and bigin and a parsed token object from the SDK in hubspot. zohocrm reads `zohoCrmTokenInfo.data.error`, and a fetch Response has no `.data`, so that line throws a TypeError. hubspot assigns the result to `HubspotToken` and reads `.expiresIn` and `.accessToken`, which are undefined on a Response. It then writes that Response to the credential key. Error statuses (401/500) are never detected.",
+        "lines": {
+          "end_line": 14,
+          "start_line": 8
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:f24ca1a090b872f8b5299bb3"
+        ],
+        "title": "Sync branch returns raw fetch Response, unauthenticated and unchecked, breaking callers"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 25188,
+        "cache_write_input_tokens": 9356,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 34550,
+        "output_tokens": 1190,
+        "provider_cost": 0.05250300000000001,
+        "request_id": "",
+        "seconds": 16.714
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9389bfe23bfcbaa44e2f5cf8342864e04faa14fa2f4426b55badac2db376a2f6",
+      "model": "sonnet",
+      "prompt_digest": "ded9710018aa53f23abd1e32e7d97adca4abb5f3ce530462c8325750db8d2447",
+      "response": {
+        "category": "correctness",
+        "consequence": "Constructing the Salesforce calendar service fails on every call, so the Salesforce integration breaks. Even with the import added, the connection would still use the stale access token.",
+        "evidence_refs": [
+          "source:new:packages/app-store/salesforce/lib/CalendarService.ts@sha256:7f97c1273a2cb487a6ad846ed20bab646c5d458e2e81748aba33f31230e9af48"
+        ],
+        "explanation": "The change adds `await prisma.credential.update(...)` in SalesforceCalendarService.getClient, but the file has no `prisma` import (the only occurrence of `prisma` in the file is that call). This throws a ReferenceError (or fails type-checking) after every successful token refresh. In addition, the returned jsforce.Connection is built with the old `credentialKey.access_token`, not the newly refreshed `accessTokenParsed.data.access_token`.",
+        "lines": {
+          "end_line": 99,
+          "start_line": 96
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:b6c1ad4b70ab6f5f66ac7ac4"
+        ],
+        "title": "Salesforce getClient uses prisma without importing it; also ignores refreshed token"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 61916,
+        "cache_write_input_tokens": 26388,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 88310,
+        "output_tokens": 1155,
+        "provider_cost": 0.1258314,
+        "request_id": "",
+        "seconds": 13.523
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "bf2e99a2c29e56d3f2457b957702b35b3fdedb43b7d6d0cb49230d179c6a32bd",
+      "model": "sonnet",
+      "prompt_digest": "95980cf8916930b6499779737a0d7cbe3f31b99ff75f41e50b942bcb260b90dc",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No defect found.",
+        "evidence_refs": [],
+        "explanation": "The diff only repoints imports from `_utils/` to `_utils/oauth/`. The helpers `encodeOAuthState`, `decodeOAuthState`, `createOAuthAppCredential`, `refreshOAuthTokens` and `parseRefreshTokenResponse` all exist in `packages/app-store/_utils/oauth/`. A grep found no remaining imports from the old paths. In `zoho-bigin/api/add.ts` the redirect URI now uses the literal `zoho-bigin`, which equals `appConfig.slug` in `zoho-bigin/config.json`, so the value is unchanged. Nothing was found that changes stored credential data or its schema.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No persistence incompatibility; the change only moves OAuth helper imports"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 66781,
+        "cache_write_input_tokens": 30111,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 96898,
+        "output_tokens": 1095,
+        "provider_cost": 0.14069250000000003,
+        "request_id": "",
+        "seconds": 13.761
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f7f651ce5508444abe6fc84c5c2caecd5d9585121263e7b7beb6f341d2e6af28",
+      "model": "sonnet",
+      "prompt_digest": "0e33b0ad1fe83b63652a76252c3758ee2c48a287a165014233bdbae6f3238c11",
+      "response": {
+        "category": "security",
+        "consequence": "No regression comes from this change. The existing state-handling weaknesses remain, but they are outside this change.",
+        "evidence_refs": [
+          "source:new:packages/app-store/_utils/oauth/createOAuthAppCredential.ts@sha256:11bf6023d8f079a01f2e4ff88047e94da75ce3a142cbff736889228e003f8a82"
+        ],
+        "explanation": "The diff only renames the three files into _utils/oauth/ and adjusts relative imports. The new import paths resolve: ../../types, ../oauth/decodeOAuthState and ../throwIfNotHaveAdminAccessToTeam, which exists at _utils/throwIfNotHaveAdminAccessToTeam.ts. The unsigned state and unguarded JSON.parse, and the team-credential path that checks only accepted membership, were already in the code before the move. The change does not alter or worsen them.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:a3e4be944ffc2f39b7fc22c3",
+          "target:hun:d7fc620e1db8a6f8141cae25",
+          "target:hun:924fdf5e264230f73536a6f8"
+        ],
+        "title": "Change is a file move; no new OAuth state defect introduced"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15557,
+        "cache_write_input_tokens": 10130,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 25691,
+        "output_tokens": 1382,
+        "provider_cost": 0.0567328,
+        "request_id": "",
+        "seconds": 14.022
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "89576b9fb9e1f02ea938982ba4da5d2a72af0e462ca578c662f796b8d2f82842",
+      "model": "sonnet",
+      "prompt_digest": "709989578f1a42cbe8317d87cccbcf5da370972146336335273a01ed65276888",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "security",
+            "evidence_needed": "Check whether APP_CREDENTIAL_SHARING_ENABLED guarantees that CALCOM_WEBHOOK_SECRET is set. Check whether an absent header against an unset secret passes. Check what symmetricDecrypt does with an empty key. Check whether the zod parse is caught.",
+            "failure_mode": "Webhook secret check uses non-constant-time `!==`. If CALCOM_WEBHOOK_SECRET is unset and the header is absent, undefined === undefined passes the check, so any caller can overwrite credentials. The decrypt key falls back to an empty string. `appCredentialWebhookRequestBodySchema.parse` throws on bad input, giving a 500 rather than a 400. The route also writes arbitrary decrypted JSON into credential.key for any userId.",
+            "investigation_rationale": "This is a new unauthenticated-by-session endpoint that writes OAuth credentials. The auth gate depends only on env configuration.",
+            "priority_rationale": "A bypass would allow account-wide credential takeover or overwrite.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:fb97a7ad246ec430d39fe4ba"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Evaluate what the computed keys resolve to and whether safeParse on a typical {access_token, expires_in} payload succeeds. Trace whether callers persist data containing refresh_token='refresh_token'. Check whether unknown keys are stripped.",
+            "failure_mode": "minimumTokenResponseSchema uses computed keys `[z.string().toString()]`, which evaluate to a fixed string such as '[object Object]' or the zod description. The schema therefore requires a bogus numeric property and does not match any real token response, so parsing fails in credential-sync mode. In addition, parseRefreshTokenResponse throws on failure, so callers' `!parsedToken.success` branches are dead. It also mutates data by setting refresh_token to the literal 'refresh_token' when missing, and that placeholder may be persisted and later used as a real refresh token.",
+            "investigation_rationale": "The schema construction looks wrong, and the placeholder refresh_token is written into the DB by several callers.",
+            "priority_rationale": "Affects every OAuth app's refresh path, and may corrupt stored credentials.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:385675e10fac023307517dc2",
+              "target:sym:e31f55ce21d2b653bc4401f1"
+            ]
+          },
+          {
+            "category": "security",
+            "evidence_needed": "Check the shape each caller (zohocrm, zoho-bigin, hubspot, googlecalendar) consumes after refreshOAuthTokens in sync mode. Check whether any auth header or secret is sent. Check whether response.ok is handled.",
+            "failure_mode": "refreshOAuthTokens POSTs calcomUserId and appSlug to CALCOM_CREDENTIAL_SYNC_ENDPOINT with no authentication header and no response status check. It returns the raw Response, and callers then parse it as if it were the provider response. Callers also differ in what they expect: axios `.data` in zohocrm and bigin, a hubspot token object, and google `res.data`. A fetch Response passed to code expecting `.data` breaks token refresh and can store undefined tokens.",
+            "investigation_rationale": "The same helper wraps heterogeneous refresh calls (fetch, axios, SDK), but the sync branch always returns a fetch Response.",
+            "priority_rationale": "With sharing enabled, refresh would fail or corrupt credentials for the axios and SDK-based apps. The endpoint call is also unauthenticated.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:f24ca1a090b872f8b5299bb3"
+            ]
+          },
+          {
+            "category": "security",
+            "evidence_needed": "Read createOAuthAppCredential's full body to see how teamId is verified with throwIfNotHaveAdminAccessToTeam. Check that all callbacks use it. Check whether the state is validated or signed. Check how the returnTo value is sanitized.",
+            "failure_mode": "OAuth state is a client-supplied JSON string that is parsed with no validation. encodeOAuthState and decodeOAuthState throw a 500 on malformed JSON. The state is not bound to the session, with no nonce or signature. createOAuthAppCredential uses the decoded teamId to decide whether the credential belongs to a user or a team, so a forged state could attach credentials to a different team if the admin-access check is bypassable or skipped.",
+            "investigation_rationale": "The callback handlers trust decoded state for credential ownership and redirects.",
+            "priority_rationale": "This is an OAuth CSRF and authorization-boundary risk across many apps' callbacks.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:a3e4be944ffc2f39b7fc22c3",
+              "target:hun:d7fc620e1db8a6f8141cae25",
+              "target:hun:924fdf5e264230f73536a6f8"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 51389,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54047,
+        "output_tokens": 1741,
+        "provider_cost": 0.22835279999999997,
+        "request_id": "",
+        "seconds": 17.185
+      }
+    }
+  ],
+  "case_id": "calcom-08",
+  "case_input_digest": "aa8d6c3df94bc04e662163a5132299b3662cd4dbbaf16b0bde3abc852838f8d5",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

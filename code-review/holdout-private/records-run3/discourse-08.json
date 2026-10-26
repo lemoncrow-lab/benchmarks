@@ -1,0 +1,369 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "11f7bc3e6067b97268ec3558febd16c61b3a4490511e99ddcffdd86477d68b22",
+      "model": "sonnet",
+      "prompt_digest": "161c02f3b24a50a310ca42be5fe5e92c2c4bef36afd43dfb724e95045af3fef4",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The new specs match the controller's behaviour. The controller has create, update, add_members, remove_member and refresh_automatic_groups actions. Automatic groups are rejected with a 422, and renaming an automatic group is ignored. I did not run the specs.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:64988ba4f1a50c6a7980a5a6",
+          "target:sym:22caaac069a35d93588ef7e4",
+          "target:hun:461846107b136f5567a18b7b",
+          "target:sym:5b82a0e70780e5e546f5bbbe"
+        ],
+        "title": "No defect found in the reorganised groups controller spec"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 18858,
+        "cache_write_input_tokens": 12935,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 31797,
+        "output_tokens": 716,
+        "provider_cost": 0.0619507,
+        "request_id": "",
+        "seconds": 13.458
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "456120a7e08019df3162fe74aed7ae90bf28d1a591d6d63e5291add3517f0542",
+      "model": "sonnet",
+      "prompt_digest": "f853ed312f35a4824269828983e179a4296f8f4b66ebc9b2444f226294d4dfdd",
+      "response": {
+        "category": "correctness",
+        "consequence": "Anyone can make the endpoint return a 500 with a negative limit or offset. Anyone can also force the server to load and serialize an entire large group in one request, which defeats the pagination this change adds.",
+        "evidence_refs": [
+          "source:new:app/controllers/groups_controller.rb@sha256:cf546c2afad46a2ffd3831a8b32b2c883364007c693da1df00b7cacc0dc813b0"
+        ],
+        "explanation": "GroupsController#members, which any user who can see the group can call, converts params[:limit] and params[:offset] with to_i and passes them straight to limit() and offset(). Nothing clamps them. A negative limit, such as limit=-1, produces an invalid SQL LIMIT on PostgreSQL, so the request fails with a 500. A very large limit, such as limit=1000000, loads and serializes every member of the group in one request. The old code applied limit/offset only to automatic groups. This change makes every group go through this path, and the new meta block echoes the raw values back to the client.",
+        "lines": {
+          "end_line": 23,
+          "start_line": 22
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 23,
+          "original": "    limit = (params[:limit] || 50).to_i\n    offset = params[:offset].to_i",
+          "start_line": 22,
+          "text": "    limit = [[(params[:limit] || 50).to_i, 1].max, 200].min\n    offset = [params[:offset].to_i, 0].max"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:94b9ea722dc9d6a3c1fbc507"
+        ],
+        "title": "members endpoint accepts unvalidated limit/offset from a public request"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 51672,
+        "cache_write_input_tokens": 23077,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 74755,
+        "output_tokens": 1918,
+        "provider_cost": 0.1186595,
+        "request_id": "",
+        "seconds": 28.658
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4bb276efbd00d215d51eced923c1be6a0eae781bd432994dfea78529bf137715",
+      "model": "sonnet",
+      "prompt_digest": "ceba5854d5beaa7018e4e7c94cd9ef1f2c18b7912776a17542b29a7abc9c7a1b",
+      "response": {
+        "category": "performance",
+        "consequence": "No new regression comes from this change.",
+        "evidence_refs": [
+          "source:new:app/controllers/admin/groups_controller.rb@sha256:dc8c4de1440c26c63d8dbb402290c7fe29a73acb90716346499ca2666df5e3d7"
+        ],
+        "explanation": "The diff only changes `ilike` to `ILIKE` and adds blank lines. The query, the lack of pagination, and the unescaped `%` and `_` characters in the search term were already there and are unchanged. The change adds no new defect and makes none worse. I did not check BasicGroupSerializer, the client code, or the table indexes.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:e0399b8d3fb29704670ee157"
+        ],
+        "title": "No defect introduced by this change in Admin::GroupsController#index"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 13672,
+        "cache_write_input_tokens": 7038,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 20716,
+        "output_tokens": 947,
+        "provider_cost": 0.039639,
+        "request_id": "",
+        "seconds": 19.61
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "91878d8d2a1352d6eaa468db2e8184657316ccd774d44f9cf026e2d66ec093ff",
+      "model": "sonnet",
+      "prompt_digest": "90d2bc3bce84df10838295d9cd43cf5b2a34d04a48a335767189e3d5f45742f4",
+      "response": {
+        "category": "correctness",
+        "consequence": "For groups whose member count is an exact multiple of the page size, the admin UI offers a next page that is always empty. The last real page is never marked as last.",
+        "evidence_refs": [
+          "source:new:app/assets/javascripts/admin/controllers/admin-group.js.es6@sha256:b4a798b02310aec74f386639b9fc6b3f801ad18688577eb65dcf424e04c8e05c",
+          "target:target:hun:1bed9ad3a6355e065c0ede55"
+        ],
+        "explanation": "totalPages is computed as Math.floor(user_count / limit) + 1. When user_count is an exact multiple of limit (for example 50 members with limit 50), it returns 2 instead of 1. currentPage is 1 at offset 0, so showingLast (currentPage == totalPages) is false. The \"next\" action then sets offset to min(0+50, 50) = 50 and calls findMembers, which loads an empty page. The same off-by-one affects every exact-multiple count (100, 150, and so on).",
+        "lines": {
+          "end_line": 14,
+          "start_line": 11
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 14,
+          "original": "  totalPages: function() {\n    if (this.get(\"user_count\") == 0) { return 0; }\n    return Math.floor(this.get(\"user_count\") / this.get(\"limit\")) + 1;\n  }.property(\"limit\", \"user_count\"),",
+          "start_line": 11,
+          "text": "  totalPages: function() {\n    if (this.get(\"user_count\") == 0) { return 0; }\n    return Math.ceil(this.get(\"user_count\") / this.get(\"limit\"));\n  }.property(\"limit\", \"user_count\"),"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:1bed9ad3a6355e065c0ede55"
+        ],
+        "title": "totalPages over-counts by one when user_count is a multiple of limit"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 90985,
+        "cache_write_input_tokens": 28094,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 119087,
+        "output_tokens": 1985,
+        "provider_cost": 0.1437915,
+        "request_id": "",
+        "seconds": 27.003
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "eeca0e16e964ebc8b67743a5564491c19e659742b694f7f9731c82e08bfd4cff",
+      "model": "sonnet",
+      "prompt_digest": "0479d275fce145e39d942ba020517479cbad1a75d88f68c6bb9b59392952bb30",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "Group.findMembers (models/group.js:20-38) replaces `members` with a fresh array through setProperties, so it does not append. The model comes from modelFor('group') and is set before setupController runs. The old afterModel stored the findMembers promise result in `_members`, but that promise resolves to undefined, so the old code set the controller model to undefined. The new code is a fix. A stale response is only a theoretical race and does no concrete harm.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:025e9a7e1cfb66f118418b26"
+        ],
+        "title": "No defect found in group-members setupController change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 24008,
+        "cache_write_input_tokens": 7868,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 31882,
+        "output_tokens": 802,
+        "provider_cost": 0.0425335,
+        "request_id": "",
+        "seconds": 13.232
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f4d51ca1e33fc9e8f4626af3a590dec65a89ca8b4d0a2a47435d175d71ded8e0",
+      "model": "sonnet",
+      "prompt_digest": "e4f8f9be2817a29e752b050ec43470f21428196c770d044e28ed6f467787a40c",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The change moves findMembers into setupController. Group.findMembers sets `members` on the model itself, and the AdminGroup controller is an ObjectController, so the template's `members` still resolves through the model. The removed `controller.set('members', ...)` is therefore no longer needed. The name-based lookup in the model hook was already there and the change did not alter it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:c333e4f0f69ff2acc38a1d54"
+        ],
+        "title": "No defect confirmed in admin group route change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 36856,
+        "cache_write_input_tokens": 10003,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 46867,
+        "output_tokens": 1036,
+        "provider_cost": 0.0547082,
+        "request_id": "",
+        "seconds": 13.682
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fa2c0db64212eb78868e1053280012d072dfe83f4642368a223493350a469473",
+      "model": "sonnet",
+      "prompt_digest": "ad257d39fb4b1652875691cb844c87afb794047a2820da6a960c5154b7eb6cfd",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No failure from this route change.",
+        "evidence_refs": [
+          "source:new:config/routes.rb@sha256:9680246ccf35f1f5404eee4e445773ea8e52aa7c3daa86da99391bb27202a908"
+        ],
+        "explanation": "The nested routes produce /admin/groups/:group_id/members. Admin::GroupsController#add_members and #remove_member read params[:group_id], and the client (discourse/models/group.js) calls '/admin/groups/' + id + '/members.json' with the numeric id. No mismatch was found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:307f002e15784605f734ebff"
+        ],
+        "title": "Member routes match controller and client params"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 35733,
+        "cache_write_input_tokens": 8832,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44573,
+        "output_tokens": 1096,
+        "provider_cost": 0.0505181,
+        "request_id": "",
+        "seconds": 15.675
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "455f551a6f6151f2b09ce85eb35c181e4c30a239aa9c966cd12e7c17038e9175",
+      "model": "sonnet",
+      "prompt_digest": "26e07f15362e7ba7c0a63d3686dd671f9372f6a7c16fa3648164efc03d462de4",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "The controller param lookups in remove_member and add_members. The client code that issues PUT and DELETE to /admin/groups/.../members. The rake routes output and any request specs for these routes.",
+            "failure_mode": "The nested member routes under resources :groups produce /admin/groups/:group_id/members with group_id as the param. The client may call these routes with the group name or id, and the controller's remove_member and add_members may read params[:id] instead of params[:group_id]. That would give a 404, a wrong group, or a nil group. The show action also renders nothing, so a direct page load of an admin group URL may behave differently from in-app navigation.",
+            "investigation_rationale": "Check how Admin::GroupsController#add_members and #remove_member look up the group. Compare that with the URLs the JS group model builds for member add and remove. Also check the Ember route's :name param against the Rails :id or :group_id convention.",
+            "priority_rationale": "A route and param mismatch would break member management completely, and nothing else in the candidates would catch it.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:307f002e15784605f734ebff"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "The admin_groups_route model hook. The dynamic segment and serialize definition in the admin router map. The findMembers implementation. Any acceptance tests that cover direct visits to an admin group.",
+            "failure_mode": "The admin group route resolves the group by findProperty('name', params.name) on the adminGroups model, which is loaded by index. If that list is empty, not yet loaded, or filtered (for example by ignore_automatic, or by a search on the index), a valid group name redirects to adminGroups.index. Group names with special characters or case differences may also fail to match. model.findMembers() also runs on every setupController call, with no handling for a failed request.",
+            "investigation_rationale": "Check how the parent adminGroups route loads its model and whether it can be filtered or stale. Also check how findMembers handles errors and repeated calls.",
+            "priority_rationale": "Deep links and page reloads to a specific admin group depend on this lookup, so a failure sends users to the wrong page.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:c333e4f0f69ff2acc38a1d54"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "The Group.findMembers implementation in the JS model. The parent group route and controller. Any tests that navigate between group tabs.",
+            "failure_mode": "The group-members route reuses modelFor('group') and calls model.findMembers() on every setupController. Returning to the route could duplicate or reset the member list. It could also trigger a race with a stale response, or fail if the parent group route has not set showing or the model.",
+            "investigation_rationale": "Check that findMembers replaces the list rather than appending to it. Check that the parent group controller supports showing. Check that the model is always set before this route's setupController runs.",
+            "priority_rationale": "The impact is moderate. It affects the member list display and the extra request on each visit.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:025e9a7e1cfb66f118418b26"
+            ]
+          },
+          {
+            "category": "performance",
+            "evidence_needed": "The BasicGroupSerializer attributes and any per-group queries. The client usage of the index endpoint. The groups table indexes and typical group counts.",
+            "failure_mode": "Admin::GroupsController#index returns all groups with no pagination or limit. The search uses ILIKE '%term%', which cannot use a normal index, and the user's % and _ characters are not escaped, so they act as wildcards. On a site with many groups, the payload and query cost both grow. The admin client also loads this full list to resolve each group by name.",
+            "investigation_rationale": "Check whether BasicGroupSerializer triggers N+1 queries or large attribute loads. Check how many groups can exist, and whether the client depends on the unfiltered list.",
+            "priority_rationale": "This endpoint is the base of the admin groups UI, and the client resolves individual groups from its full result.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:e0399b8d3fb29704670ee157"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 9999,
+        "cache_write_input_tokens": 6426,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 16431,
+        "output_tokens": 3125,
+        "provider_cost": 0.058505100000000004,
+        "request_id": "",
+        "seconds": 27.376
+      }
+    }
+  ],
+  "case_id": "discourse-08",
+  "case_input_digest": "19fbb3daaec5cf0f6c84de99c0b94affca843a01a3194c93c3d4ada9be517ff2",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

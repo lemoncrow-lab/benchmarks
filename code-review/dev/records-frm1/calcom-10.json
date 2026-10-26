@@ -1,0 +1,92 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "6108f8e1d2b1a4b769da7e6616a8574b47edb31bd9a7875f04094b84647b2ed8",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "Existing attendees and blacklisted addresses get unwanted or incorrect notification emails. Team admins who are not owners cannot add guests to team bookings.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+          "target:target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "explanation": "The handler filters `guests` into `uniqueGuests`. That filter removes emails that are already attendees and emails on the blacklist. Only `uniqueGuests` is saved as new attendees. The email step then calls `sendAddGuestsEmails(evt, guests)` with the unfiltered input. A concrete input: the booking already has attendee a@x.com, and the request is `guests: [a@x.com, b@x.com]`. Only b@x.com is added, but a@x.com is also sent a \"guests added\" email. A blacklisted address in `guests` also gets an email even though it was deliberately skipped. The send is wrapped in a try/catch that only logs, so nothing flags the mismatch.\n\nA second defect is in the permission check. `isTeamAdmin(...) && isTeamOwner(...)` uses `&&` where `||` is intended. Only a user who passes both checks counts as a team admin or owner. If `isTeamAdmin` includes owners, as I expect, team admins who are not owners are denied. I did not open `isTeamAdmin` or `isTeamOwner` to confirm that. The check also falls back to team id 0 when the event type has no team.",
+        "lines": {
+          "end_line": 169,
+          "start_line": 166
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Add-guests emails are sent to the raw input list, not the filtered unique guests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 33022,
+        "cache_write_input_tokens": 28615,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61643,
+        "output_tokens": 3547,
+        "provider_cost": 0.15581710000000001,
+        "request_id": "",
+        "seconds": 31.413
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ae45047c8463aab5222926480aeaac3e2ff26592241d588fc986077f0a8c7c90",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified in the reviewed targets.",
+        "evidence_refs": [],
+        "explanation": "I traced sendAddGuestsEmails, its only caller (addGuests.handler.ts), the new email templates, and the BookingListItem wiring. They are consistent with each other. New guests get the scheduled email and existing attendees get the add-guests email. The organizer and team members are also notified. The dialog state and action entry are wired correctly.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed in the add-guests changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "e1fd4fd85407341058a95d94e78c2f80eb75de555cab0baf4e7bd0af30028c5b",
+      "usage": {
+        "cache_read_input_tokens": 52815,
+        "cache_write_input_tokens": 24462,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 77283,
+        "output_tokens": 1378,
+        "provider_cost": 0.1189411,
+        "request_id": "",
+        "seconds": 15.716
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:43:36+00:00"
+  },
+  "version": 1
+}

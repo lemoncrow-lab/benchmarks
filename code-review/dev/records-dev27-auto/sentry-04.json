@@ -1,0 +1,138 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "a8194d3a027d534eda1d86ee1225775996c3fd9b6f83abb94085902c6f63da4f",
+      "model": "sonnet",
+      "prompt_digest": "85cd4609742e2b8f10156eb21e4e6e7591ac419177d7466ddbf156da7d970d66",
+      "response": {
+        "category": "verification",
+        "consequence": "A regression in handling a missing GitHub installation would go undetected, because the test passes for an unrelated reason.",
+        "evidence_refs": [
+          "source:new:tests/sentry/integrations/github/test_integration.py@sha256:be02243004a09e53ec2c089fd17f0c0249578f9b118d56856c28c96a2df352ea",
+          "source:old:tests/sentry/integrations/github/test_integration.py@sha256:fd6e6494848a7a9c8672141d962c58db9fbdd86b01ea59064b90500faafb2bd7"
+        ],
+        "explanation": "The test never visits init_path, so no pipeline is started. It then sends the OAuth callback with an arbitrary state (\"ddd023d8...\"), which cannot match any pipeline signature. The response is the generic \"Invalid installation request.\" (integration.py:132), produced by the missing or invalid pipeline or the state mismatch. The 404 stub for /app/installations/{id}, which raises \"The GitHub installation could not be found.\" in build_integration (integration.py:356), is never reached. The old assertion for that message was replaced with the generic one, so the test would pass whether or not the 404 handling works.",
+        "lines": {
+          "end_line": 396,
+          "start_line": 388
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d9f187965c97d9b293abb054"
+        ],
+        "title": "test_installation_not_found no longer verifies the installation-not-found path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 50446,
+        "cache_write_input_tokens": 21553,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 72005,
+        "output_tokens": 1719,
+        "provider_cost": 0.1104068,
+        "request_id": "",
+        "seconds": 18.215
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3f651635efd7c72ffb999435fe576a08c98dcdefb30db11858fe391cdeedf29",
+      "model": "sonnet",
+      "prompt_digest": "cd3759e6dde6b943f839ca52c97918cf82b287e1fa204b5dc37e68c706056570",
+      "response": {
+        "category": "correctness",
+        "consequence": "No behavior change, so there is no failure to report.",
+        "evidence_refs": [
+          "source:new:src/sentry/web/frontend/pipeline_advancer.py@sha256:98b668aa3482e71a1aca2b2b167656209a91f09cd8e442d5607c36a90b26286a",
+          "source:old:src/sentry/web/frontend/pipeline_advancer.py@sha256:9ca40a6e59151cb97468b5a5bc21ff7a03298a545765d448fff7e7cf783a3d7f"
+        ],
+        "explanation": "The change removes the FORWARD_INSTALL_FOR list and compares provider_id == \"github\" directly. The old test `provider_id in [\"github\"]` gives the same result as the new one for every string input. The other conditions (setup_action == \"install\" and pipeline is None) and the redirect are unchanged. I did not search the snapshot for other uses of FORWARD_INSTALL_FOR. The excerpt shows no other change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:2d23990736fb6e9436956024",
+          "target:sym:371c7e561e93b98e544aef4a"
+        ],
+        "title": "No defect: the change keeps the same behavior"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 14882,
+        "cache_write_input_tokens": 8420,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 23308,
+        "output_tokens": 1246,
+        "provider_cost": 0.0484036,
+        "request_id": "",
+        "seconds": 16.572
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "feb03417ee261b98954fd6dbdb30c7c00a1001ea826ee9487f95e053508997c0",
+      "model": "sonnet",
+      "prompt_digest": "ea2e9b676d238b15e6cc5b2e693b8f40e611abf35e9c10770094b30c4456753f",
+      "response": {
+        "category": "security",
+        "consequence": "No must-fix security defect. Two minor robustness gaps remain. The token exchange call sits outside the try block. A KeyError is possible if `integration.metadata['sender']` is absent.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a"
+        ],
+        "explanation": "OAuthLoginView compares the returned `state` with `pipeline.signature` and exchanges the code for a token. It binds the GitHub login only after a successful `get_user_info` call. GitHubInstallation re-reads `installation_id` from the request. For an existing Integration it compares the bound login with the stored sender login, using that same `installation_id`. So a caller cannot pair their own OAuth login with another user's installation. I found no input that crosses the check.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:9a94beeb14423d18e5b12c8a",
+          "target:sym:e6bbbd1d7437fd1cdec69bb3"
+        ],
+        "title": "No exploitable authorization bypass found in the new GitHub OAuth step"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 28374,
+        "cache_write_input_tokens": 22590,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50970,
+        "output_tokens": 1929,
+        "provider_cost": 0.11461099999999999,
+        "request_id": "",
+        "seconds": 24.004
+      }
+    }
+  ],
+  "case_id": "sentry-04",
+  "case_input_digest": "16f9b4fa1fb198865367fcb62ce67e58dbed7b3e358b320f8b43a2d1f76983df",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

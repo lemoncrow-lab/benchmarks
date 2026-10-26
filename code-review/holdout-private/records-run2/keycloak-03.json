@@ -1,0 +1,145 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "0f7082793df20a39483928d4e63db4c7b77d47469f442113363de85d5ee6279a",
+      "model": "sonnet",
+      "prompt_digest": "bb71dd1e5f39f2981316efb31da3930dfe50c02d994269c6dd319ad33daabd17",
+      "response": {
+        "category": "correctness",
+        "consequence": "A deployment with both modules on the classpath gets a crypto provider chosen by classpath order. This can differ between environments or builds and can break crypto operations in a hard-to-diagnose way. For example, code that calls getBouncyCastleProvider() can receive null.",
+        "evidence_refs": [
+          "source:new:crypto/default/src/main/java/org/keycloak/crypto/def/DefaultCryptoProvider.java@sha256:3b2da442a772c65a177d6d2c4f4fc75bbf3adf33bc1741d1ff955f978b486673",
+          "source:new:crypto/elytron/src/main/java/org/keycloak/crypto/elytron/WildFlyElytronProvider.java@sha256:55ddf0898a799c676540b0d064ab4f8fd7e25850a98d65a731ab55dffe0ee537",
+          "source:new:common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java@sha256:88dfbd12eace63d912ac9d98eeee1e1d39e556df811566f2705056d46aa68b6d"
+        ],
+        "explanation": "The change replaces the 'multiple providers' error with selection by highest order(). DefaultCryptoProvider.order() and WildFlyElytronProvider.order() both return 200. With both on the classpath, the sort in detectProvider (CryptoIntegration.java, the new .sorted(...) line) has a tie. Collectors/sorted is stable, so the winner is whichever one ServiceLoader returns first, which depends on classpath order. The old code failed fast in this case. The new code silently picks one and logs the other only at debug level. The Elytron provider returns null from getBouncyCastleProvider and the default one uses BouncyCastle, so the two behave differently. Classpath ordering can therefore change which crypto implementation handles keys, signatures and certificates, with no error or warning.",
+        "lines": {
+          "end_line": 85,
+          "start_line": 83
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9ffe2872af3df0c11e11bbaa",
+          "target:sym:d295d05317acc267a3ff216f",
+          "target:sym:2a7e5b46c26b9e7d2af3c623"
+        ],
+        "title": "Default and Elytron crypto providers both return order 200, so selection is a tie"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 26403,
+        "cache_write_input_tokens": 20758,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 47167,
+        "output_tokens": 2424,
+        "provider_cost": 0.11183810000000001,
+        "request_id": "",
+        "seconds": 26.316
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "30ff707d0cb4c4abb0eb895601fcfb9169c93a194ce011752702cad09879031a",
+      "model": "sonnet",
+      "prompt_digest": "68e516cc9e9bf3467f2358782223c6efb8b6e3ff861886d7e24a5d6ba10542a3",
+      "response": {
+        "category": "verification",
+        "consequence": "A bug in the DER conversion for full-width P-384 or P-521 values would not be caught by these tests. Only the padding path is covered.",
+        "evidence_refs": [
+          "source:new:authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java@sha256:d34ed46e4e27a50d1b89dbb317a69477af0cd2c81f2e68303533e079d906c0a4"
+        ],
+        "explanation": "The new test file calls only existing APIs. AuthzClientCryptoProvider.getEcdsaCryptoProvider exists, and ECDSAAlgorithm has the signature length accessor. I found no API compatibility break. One weakness remains: the test creates its key pair with KeyPairGenerator.getInstance(\"EC\").genKeyPair() and never sets a curve size. The default is P-256 on common JDKs. testES384 and testES512 therefore sign with SHA384withECDSA and SHA512withECDSA using a P-256 key. R and S are then at most 32 bytes, which the encoder pads out to the 96 and 132 byte lengths. The real 384-bit and 521-bit curves are never exercised. I did not read the provider's encoder, so I did not check whether it handles full-width R and S values correctly.",
+        "lines": {
+          "end_line": 44,
+          "start_line": 42
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:959d0577ccc9d19b4c26b2d1",
+          "target:sym:b70cf093ea10f533a844926a"
+        ],
+        "title": "ES384/ES512 tests use a P-256 key"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29312,
+        "cache_write_input_tokens": 10769,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 40089,
+        "output_tokens": 1847,
+        "provider_cost": 0.06536159999999999,
+        "request_id": "",
+        "seconds": 22.966
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "90561b2a68b58c582694989cf70a477752a7b6c4f2dca46975c401cc6cece43e",
+      "model": "sonnet",
+      "prompt_digest": "c6061f814d14c302dbae1fca33017cfb3a1ed3dbe403f47638f4f1a97436be87",
+      "response": {
+        "category": "correctness",
+        "consequence": "Malformed or non-canonical ECDSA signatures can be accepted as a different signature value. This adds malleability and hides errors in the client's EC signature handling. It does not by itself bypass verification.",
+        "evidence_refs": [
+          "source:new:authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java@sha256:65147265155f5607a5b92c77b3e390ff7deae270b50ba2158517a8d7b50d8312"
+        ],
+        "explanation": "integerToBytes keeps only the low qLength bytes when the decoded integer is longer than qLength. It does not check that the dropped bytes are zero. A DER signature whose r or s is larger than the curve size is therefore turned into a different, valid-looking r||s value, and the input is not rejected. The decoder also doesn't reject trailing bytes after the sequence.",
+        "lines": {
+          "end_line": 156,
+          "start_line": 153
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:dae0428f61c6a3346edbe12d"
+        ],
+        "title": "Oversized DER integers are silently truncated when converting to concatenated R||S"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 24417,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 27946,
+        "output_tokens": 2102,
+        "provider_cost": 0.12146950000000001,
+        "request_id": "",
+        "seconds": 19.885
+      }
+    }
+  ],
+  "case_id": "keycloak-03",
+  "case_input_digest": "6823eb22ecda94fa56ca6c00045383cff04a18aeb3a378085bb4b450e81bdf72",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

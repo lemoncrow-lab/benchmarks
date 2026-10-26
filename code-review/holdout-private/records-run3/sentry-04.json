@@ -1,0 +1,355 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "75178802891c49f0c492f10798a4e2c05728b612c727e509960282eb1cfe6f88",
+      "model": "sonnet",
+      "prompt_digest": "1f73da753592415fe7fad7d4f05376e84ef586c12bc76177e1f517e3908100d0",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-d78fa98a2b855de47aa517b8",
+              "finding-2ad5b605091915f191c6983b"
+            ],
+            "keep_id": "finding-d78fa98a2b855de47aa517b8"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 2472,
+        "cache_write_input_tokens": 5314,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 7788,
+        "output_tokens": 288,
+        "provider_cost": 0.0250386,
+        "request_id": "",
+        "seconds": 7.174
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "0bd72e5ce8be3a23f70936c8988de8516ab4bb1be26987ce09c740fe5b9dcff4",
+      "model": "sonnet",
+      "prompt_digest": "2a1a39bc358ddf3846cd712f4047706036cf87f58f7ace65ff24b8a2e4e847cb",
+      "response": {
+        "category": "correctness",
+        "consequence": "If GitHub is slow or unreachable, or the user-info call returns 401, 403 or 5xx, the GitHub integration setup returns an unhandled 500 instead of the intended error page. The user cannot complete the installation and sees a crash.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a",
+          "target:target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "explanation": "In OAuthLoginView.dispatch, `safe_urlopen(...)` at line 423 is called outside the `try`. `safe_urlopen` in src/sentry/http.py calls `session.request(...)` with a 30s timeout and does not catch anything. A connection error, timeout or blocked-IP error from the requests library therefore escapes the view. The `try` only covers decoding the body. `get_user_info(payload['access_token'])` at line 434 calls `resp.raise_for_status()` in src/sentry/identity/github/provider.py. It raises `HTTPError` on any non-2xx response, for example a revoked or invalid token. It can also raise network exceptions. Nothing in the view catches these, although the view already has an `error(...)` path for failed auth.",
+        "lines": {
+          "end_line": 434,
+          "start_line": 423
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "title": "GitHub OAuth token exchange and user lookup are not wrapped in error handling"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 41792,
+        "cache_write_input_tokens": 11757,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53559,
+        "output_tokens": 2254,
+        "provider_cost": 0.0745879,
+        "request_id": "",
+        "seconds": 29.195
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4aa5e83c46befb3905f8617fd5e5c4c4adda1f5dc4a523a2efb97b0786c113ca",
+      "model": "sonnet",
+      "prompt_digest": "92e781c3bcad070137495c622791a7f3cf57801fffb25d374549dc17621d85bf",
+      "response": {
+        "category": "security",
+        "consequence": "An attacker can use login CSRF to bind their own GitHub identity to the victim's integration setup. That defeats the purpose of the OAuth step, which is to prove that the installing user controls the GitHub account.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a",
+          "target:target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "explanation": "OAuthLoginView uses `pipeline.signature` as the OAuth `state` and later checks `request.GET.get(\"state\") != pipeline.signature`. In src/sentry/pipeline/base.py:132-133 the signature is `md5(module.ClassName of each pipeline view)`. It is identical for every user, session and run, and it is not secret. It is not a per-flow random nonce. The comparison is also not constant-time, but that matters much less. An attacker can authorize the GitHub app with their own account and get a `code`. They then send the victim a link to the setup URL with `?state=<known constant>&code=<attacker code>`. If the victim has a GitHub pipeline in progress in their session, the check passes. The code is exchanged and the attacker's GitHub login is stored as `github_authenticated_user`. The `code` is also not tied to the flow that started it.",
+        "lines": {
+          "end_line": 417,
+          "start_line": 405
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "title": "OAuth state is a static, public value, so it gives no CSRF protection"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 40397,
+        "cache_write_input_tokens": 10010,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50415,
+        "output_tokens": 1458,
+        "provider_cost": 0.059502,
+        "request_id": "",
+        "seconds": 21.026
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "6546253aab13648393f849bb68b6b648c9f6ba934ded8e11875ffa38c996f4e0",
+      "model": "sonnet",
+      "prompt_digest": "a1bb43bb37c66153f30ca631192d6ac3497625699c292ca12d4aa184ae91f7e6",
+      "response": {
+        "category": "security",
+        "consequence": "An attacker can complete the OAuth flow as themselves and supply the installation_id of a victim's GitHub App installation that is not yet connected to Sentry. The attacker's Sentry organization would then be bound to the victim's installation, giving it access to the victim's repositories and data.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a",
+          "target:target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "explanation": "OAuthLoginView.dispatch binds installation_id from request.GET at lines 397-399. This happens before the state check and before GitHub authentication. GitHubInstallation.dispatch (lines 447-454) prefers installation_id from request.GET over the stored value and binds it again. The only ownership check is the comparison of github_authenticated_user with integration.metadata[\"sender\"][\"login\"] (lines 500-505). That check runs only when an Integration row already exists. If no Integration exists for the id, the code returns pipeline.next_step() at lines 481-482 without checking that the authenticated user owns or can access the installation. build_integration (line 353) then calls get_installation_info(state[\"installation_id\"]) with the app credentials. The authenticated login is therefore never tied to the installation_id for a first-time install.",
+        "lines": {
+          "end_line": 399,
+          "start_line": 397
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9a94beeb14423d18e5b12c8a"
+        ],
+        "title": "Attacker-supplied installation_id is never checked against the authenticated GitHub user for new installations"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15501,
+        "cache_write_input_tokens": 10380,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 25885,
+        "output_tokens": 1372,
+        "provider_cost": 0.0576238,
+        "request_id": "",
+        "seconds": 13.536
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a8194d3a027d534eda1d86ee1225775996c3fd9b6f83abb94085902c6f63da4f",
+      "model": "sonnet",
+      "prompt_digest": "85cd4609742e2b8f10156eb21e4e6e7591ac419177d7466ddbf156da7d970d66",
+      "response": {
+        "category": "verification",
+        "consequence": "The test can pass even if the 404 handling for a missing GitHub installation is broken or removed. The not-found behavior it is named for is no longer verified.",
+        "evidence_refs": [
+          "source:new:tests/sentry/integrations/github/test_integration.py@sha256:be02243004a09e53ec2c089fd17f0c0249578f9b118d56856c28c96a2df352ea",
+          "source:old:tests/sentry/integrations/github/test_integration.py@sha256:fd6e6494848a7a9c8672141d962c58db9fbdd86b01ea59064b90500faafb2bd7"
+        ],
+        "explanation": "The test never starts the pipeline: it has no init_path request. It then sends a code/state pair with state \"ddd023d87a913d5226e2a882c4c4cc05\". Every other updated test uses the pipeline state \"9cae5e88803f35ed7970fc131e6e65d3\". The assertion was changed from \"The GitHub installation could not be found.\" to the generic \"Invalid installation request.\". That message is most likely produced by the missing or mismatched pipeline state, before the stubbed 404 on /app/installations/<id> is ever reached. I did not trace the view code to confirm the source of the message.",
+        "lines": {
+          "end_line": 396,
+          "start_line": 388
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d9f187965c97d9b293abb054"
+        ],
+        "title": "test_installation_not_found no longer exercises the installation-not-found path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 45506,
+        "cache_write_input_tokens": 1686,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 47196,
+        "output_tokens": 1493,
+        "provider_cost": 0.028180800000000002,
+        "request_id": "",
+        "seconds": 18.392
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3f651635efd7c72ffb999435fe576a08c98dcdefb30db11858fe391cdeedf29",
+      "model": "sonnet",
+      "prompt_digest": "cd3759e6dde6b943f839ca52c97918cf82b287e1fa204b5dc37e68c706056570",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect found.",
+        "evidence_refs": [],
+        "explanation": "Replacing `provider_id in [\"github\"]` with `provider_id == \"github\"` is equivalent. FORWARD_INSTALL_FOR has no other references in the snapshot.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:2d23990736fb6e9436956024",
+          "target:sym:371c7e561e93b98e544aef4a"
+        ],
+        "title": "Behavior-preserving refactor"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 21740,
+        "cache_write_input_tokens": 2320,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 24064,
+        "output_tokens": 712,
+        "provider_cost": 0.0193454,
+        "request_id": "",
+        "seconds": 12.707
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "feb03417ee261b98954fd6dbdb30c7c00a1001ea826ee9487f95e053508997c0",
+      "model": "sonnet",
+      "prompt_digest": "ea2e9b676d238b15e6cc5b2e693b8f40e611abf35e9c10770094b30c4456753f",
+      "response": {
+        "category": "security",
+        "consequence": "A user can link another account's GitHub App installation, one not yet in Sentry, to their own Sentry organization. This is the hijack the OAuth step was added to stop. Integrations created before this change that lack `sender` metadata will return a 500 instead of the error page.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a",
+          "target:target:sym:e6bbbd1d7437fd1cdec69bb3"
+        ],
+        "explanation": "GitHubInstallation.dispatch takes installation_id from request.GET first, so a request in the install step can override the value bound earlier. If no Integration row exists for that id, the `except Integration.DoesNotExist` branch calls `pipeline.next_step()` straight away. The `github_authenticated_user` versus `metadata['sender']['login']` comparison sits only on the later path, where an Integration already exists. A user who has finished the OAuth step as themselves can therefore send `installation_id=<someone else's installation>` and skip the ownership check. The only remaining check is in build_integration, which just confirms the installation exists. Separately, `integration.metadata[\"sender\"][\"login\"]` (line 503) raises KeyError for legacy integrations that have no `sender` metadata.",
+        "lines": {
+          "end_line": 482,
+          "start_line": 481
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e6bbbd1d7437fd1cdec69bb3"
+        ],
+        "title": "GitHub user check is skipped when no Integration exists for the installation_id"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 48724,
+        "cache_write_input_tokens": 2731,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51461,
+        "output_tokens": 2573,
+        "provider_cost": 0.043650499999999995,
+        "request_id": "",
+        "seconds": 25.891
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e5c1956ea3d3922560c43f483549f9c48e0999aeff258bee521186cec7c6c3ed",
+      "model": "sonnet",
+      "prompt_digest": "dfb670226b9dc99080ed01ae5b419d7c0129b1087f3627eb8b3a016268a89095",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "security",
+            "evidence_needed": "The implementation of Pipeline.signature (derived from a secret or from predictable values), pipeline state storage and session binding, and whether the signature is exposed in URLs or logs. Also whether the installation_id or state is validated elsewhere.",
+            "failure_mode": "The OAuth state check compares request.GET['state'] to pipeline.signature using a plain != comparison. The signature is deterministic per pipeline and not bound to the user session, so an attacker could craft or replay a callback link (login CSRF) and make a victim's session bind the attacker's GitHub identity. The comparison is also not constant-time.",
+            "investigation_rationale": "Check how pipeline.signature is generated, whether it is secret and per-session, and whether the callback is tied to the session or user who started the flow. Check whether the state is single-use.",
+            "priority_rationale": "This is the CSRF defence for the OAuth flow. If it is weak, the wrong GitHub identity could be linked to an organization's integration.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:9a94beeb14423d18e5b12c8a"
+            ]
+          },
+          {
+            "category": "security",
+            "evidence_needed": "Code in GitHubInstallation and build_integration that checks that github_authenticated_user has access to or owns installation_id. Also whether bind_state happens only after validation.",
+            "failure_mode": "installation_id from request.GET is bound into pipeline state before the state check and before the user authenticates with GitHub. An attacker can supply an arbitrary installation_id, and the later GitHubInstallation step falls back to it. This could let a user attach an installation they do not own. The redirect_uri and state are also interpolated into the authorize URL without URL-encoding.",
+            "investigation_rationale": "Trace how the bound installation_id is used in GitHubInstallation.dispatch and build_integration. Check whether the installation is verified against github_authenticated_user, for example by listing the user's accessible installations.",
+            "priority_rationale": "An unvalidated, attacker-controlled installation_id used in a cross-tenant integration binding could lead to account or installation takeover.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:9a94beeb14423d18e5b12c8a"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Exceptions raised by safe_urlopen and get_user_info, and whether callers catch them. Whether tests cover the failure paths.",
+            "failure_mode": "The token exchange via safe_urlopen has no status check or error handling. It is outside the try block, so a network exception or timeout raises an unhandled 500. get_user_info(payload['access_token']) can also raise, and its failure handling is unverified. The 'login' check could hit a non-dict response.",
+            "investigation_rationale": "Read safe_urlopen, safe_urlread and get_user_info for their exception behavior, and check how errors in this view propagate.",
+            "priority_rationale": "Failures in an external call in the auth path could cause unhandled exceptions or an inconsistent pipeline state.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:9a94beeb14423d18e5b12c8a"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 6249,
+        "cache_write_input_tokens": 960,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 7211,
+        "output_tokens": 1095,
+        "provider_cost": 0.0158544,
+        "request_id": "",
+        "seconds": 11.299
+      }
+    }
+  ],
+  "case_id": "sentry-04",
+  "case_input_digest": "16f9b4fa1fb198865367fcb62ce67e58dbed7b3e358b320f8b43a2d1f76983df",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

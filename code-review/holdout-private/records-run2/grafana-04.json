@@ -1,0 +1,105 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "5f1e810c103e99a128b9074f0cf269d93bdcabca504538b8463c3b4e766ba585",
+      "model": "sonnet",
+      "prompt_digest": "ab993a8e7f1e7194f8f6fa397534eb3683b29cc0f189ef8ac618d1def6e350ef",
+      "response": {
+        "category": "correctness",
+        "consequence": "Whenever ad hoc filters are active, split queries are sent to Loki with duplicated filter matchers. This makes the query text noisy and does redundant parse and rewrite work per sub-request. Results are semantically the same, but the query text differs from the unsplit path.",
+        "evidence_refs": [
+          "source:new:public/app/plugins/datasource/loki/querySplitting.ts@sha256:8e8a54da287c127b853fbbc7a87ca24a73c890c40455cf037c464b8e8e127b19",
+          "target:target:sym:9f0f257bc1647fb73b1ce98a"
+        ],
+        "explanation": "runSplitQuery now calls datasource.applyTemplateVariables(query, scopedVars, filters) on every target (querySplitting.ts line 299). Each sub-request is then run through datasource.runQuery (querySplitting.ts:180). That calls super.query, and DataSourceWithBackend.query applies applyTemplateVariables to each target again with the same scopedVars and request.filters. addAdHocFilters/addLabelToQuery (modifyQuery.ts:147-214) does not dedupe, so with ad hoc filters set, each filter is added to the expression twice (e.g. {a=\"b\", k=\"v\", k=\"v\"}, or two identical label filters after a parser). The already-interpolated expression is also parsed and rewritten again for every sub-request. The same double application exists in the shard path (shardQuerySplitting.ts:48-55), but runSplitQuery is where this change newly introduces it. The work is linear in the number of targets and sub-requests, so I found no unbounded or multiplicative cost.",
+        "lines": {
+          "end_line": 299,
+          "start_line": 299
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9f0f257bc1647fb73b1ce98a"
+        ],
+        "title": "Template variables and ad hoc filters are applied twice on the split-query path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 125048,
+        "cache_write_input_tokens": 13861,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 138923,
+        "output_tokens": 3189,
+        "provider_cost": 0.1006953,
+        "request_id": "",
+        "seconds": 35.458
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a4e24883186c8002a97380c24f9187bf2838e236ef75a7fd13a38e3f6a5e9df6",
+      "model": "sonnet",
+      "prompt_digest": "bb26d29d99f4790b5329432c0550c9d8a4ffae34b80d70cbb970901f0a426de1",
+      "response": {
+        "category": "verification",
+        "consequence": "The assertion most likely fails, which would make the shard-splitting suite red. If the number were ever made to match, the test would encode a per-shard interpolation multiplier that the code does not have.",
+        "evidence_refs": [
+          "source:new:public/app/plugins/datasource/loki/shardQuerySplitting.test.ts@sha256:52773ee78dbbdfdb240ec594b3e3021b0112521eb163149d532cbbd1379d0bcc",
+          "target:target:hun:71a979019089387051cfad30"
+        ],
+        "explanation": "The test 'Interpolates queries before running' uses a single target ($SELECTOR). runShardSplitQuery calls datasource.applyTemplateVariables once per visible target, in shardQuerySplitting.ts:52. The only other call site in the loki plugin is querySplitting.ts:299, which this test does not reach, because datasource.runQuery and datasource.query are mocked. The old assertion was toHaveBeenCalledTimes(1), and the call count did not change. The new assertion of 5 looks like it was taken from the five shard values, not from the code's behavior. I did not run the test; this is from reading the code.",
+        "lines": {
+          "end_line": 112,
+          "start_line": 112
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 112,
+          "original": "      expect(datasource.applyTemplateVariables).toHaveBeenCalledTimes(5);",
+          "start_line": 112,
+          "text": "      expect(datasource.applyTemplateVariables).toHaveBeenCalledTimes(1);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:71a979019089387051cfad30"
+        ],
+        "title": "Test expects applyTemplateVariables to be called 5 times, but the code calls it once per target"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 71580,
+        "cache_write_input_tokens": 6331,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 77919,
+        "output_tokens": 1962,
+        "provider_cost": 0.05340740000000001,
+        "request_id": "",
+        "seconds": 31.089
+      }
+    }
+  ],
+  "case_id": "grafana-04",
+  "case_input_digest": "03327e83a39cd2f77aa932fce684b86bd75d874b90e91b3d7f94de4fba0489ee",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

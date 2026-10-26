@@ -1,0 +1,238 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "8bbf6da96fdf32c92af2011c238edcd253763b33fbc66098555df963ee92afd7",
+      "model": "sonnet",
+      "prompt_digest": "0a021900cb7c6f24cdcc046f8c14e0e00ddc31086559925bccc339cfe4bf650a",
+      "response": {
+        "decisions": []
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 7634,
+        "cache_write_input_tokens": 4668,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 12308,
+        "output_tokens": 65,
+        "provider_cost": 0.020644100000000002,
+        "request_id": "",
+        "seconds": 11.711
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "11730fbfe8c04474b53d0406ea43b27fd8035b62c423e944600a015113b52d02",
+      "model": "sonnet",
+      "prompt_digest": "0a80bed17f012f8611dd05802b77859718add434079b74b6636e3850ff19de52",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [
+          "source:new:pkg/apiserver/rest/dualwriter_mode3_test.go@sha256:2041a03da4d278baaba7445028128c5948d2886e4fbbacc77a3fc8fa2d9e1ed1"
+        ],
+        "explanation": "I compared the tests with DualWriterMode3. Storage is written first and read from, and Legacy is written asynchronously. The Legacy and Storage mocks share one mock.Mock, so each expectation matches both calls. The error cases fail at the Storage call, so the tests exercise what they say they do. The shared registry `p` and the fixtures (exampleObj, failingObj, updatedObjInfoObj) already exist in the other dualwriter tests.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:727d1acf31fa331fc5fcff7f"
+        ],
+        "title": "No defect found in the new Mode3 tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 67330,
+        "cache_write_input_tokens": 6330,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 73664,
+        "output_tokens": 1425,
+        "provider_cost": 0.0493502,
+        "request_id": "",
+        "seconds": 15.634
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4ffe9f019fdb8435ad9801a24fe97e2ef1bdeae71132c3aa887e51ca417be00b",
+      "model": "sonnet",
+      "prompt_digest": "af3f1a71367f3d584e09a12a09625dc72717a9b7564953db4f5b4e8f5775ebe3",
+      "response": {
+        "category": "correctness",
+        "consequence": "In mode 3, writes to legacy storage are dropped or randomly aborted, so legacy storage diverges from unified storage. The change replaced the earlier synchronous legacy write, which did not have this problem.",
+        "evidence_refs": [
+          "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4",
+          "target:target:sym:84c90975cb9a803f269e0e14"
+        ],
+        "explanation": "In Create (line 51), Update, Delete and DeleteCollection, the legacy write runs in a goroutine. Its context comes from context.WithTimeoutCause(ctx, ...), where ctx is the request context. The handler returns right after launching the goroutine, and the API server then cancels the request context. The 10s timeout therefore never applies in practice. The legacy call usually starts with an already-cancelled or soon-cancelled context, so it fails with context canceled, or is silently skipped by a context-aware store. The goroutine should use context.WithoutCancel(ctx) as its parent. The error is only recorded as a metric, so the failure is invisible to the caller.",
+        "lines": {
+          "end_line": 52,
+          "start_line": 51
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Storage and legacy error and latency metrics are mixed up, and the per-object-name label creates high-cardinality metric series.",
+            "evidence_refs": [
+              "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4"
+            ],
+            "explanation": "When Storage.Create fails (line 45) and when Storage.Update fails, the code calls recordLegacyDuration, although the failing call is to unified storage. In DeleteCollection, the legacy goroutine calls recordStorageDuration (around line 168) instead of recordLegacyDuration. In Delete, the success path passes `name` as the kind label (line 105) instead of options.Kind, which gives unbounded label cardinality.",
+            "lines": {
+              "end_line": 45,
+              "start_line": 45
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:84c90975cb9a803f269e0e14",
+              "target:sym:651fe4ca3dce531bce07ea27",
+              "target:sym:356a6bd728e82f9e25f678c2",
+              "target:sym:9325e2b6a90b7c96983ba6b0"
+            ],
+            "title": "Metrics recorded under the wrong storage/legacy label"
+          },
+          {
+            "category": "correctness",
+            "consequence": "Log lines emitted by the storage layer during a delete lack the name, kind and method fields.",
+            "evidence_refs": [
+              "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4"
+            ],
+            "explanation": "Delete builds `log` with name, kind and method, but then calls klog.NewContext(ctx, d.Log). The context loses those values.",
+            "lines": {
+              "end_line": 97,
+              "start_line": 97
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:9325e2b6a90b7c96983ba6b0"
+            ],
+            "title": "Delete puts the unscoped logger into the context"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:84c90975cb9a803f269e0e14",
+          "target:sym:651fe4ca3dce531bce07ea27",
+          "target:sym:9325e2b6a90b7c96983ba6b0",
+          "target:sym:356a6bd728e82f9e25f678c2"
+        ],
+        "title": "Async legacy writes derive their context from the request context and are cancelled when the request returns"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 50468,
+        "cache_write_input_tokens": 3086,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53560,
+        "output_tokens": 3629,
+        "provider_cost": 0.0558907,
+        "request_id": "",
+        "seconds": 38.361
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e1a8be56299fd3443791f377fa03cbb79a5d22c9f1c64df7a108615ef953535f",
+      "model": "sonnet",
+      "prompt_digest": "2d3094631b71eeb34f9b15c9b086f309bfd1fbeb0e7db387e03abb314044d855",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The removed local `p := prometheus.NewRegistry()` is replaced by the package-level `var p = prometheus.NewRegistry()` at line 27 of the same file, so `NewDualWriter(Mode1, ls, us, p)` still compiles and gets a registry.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:3b84e27b32f235ae240bcb4a"
+        ],
+        "title": "No defect: removed local registry shadows a package-level one"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 19456,
+        "cache_write_input_tokens": 1287,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 20747,
+        "output_tokens": 693,
+        "provider_cost": 0.014677599999999999,
+        "request_id": "",
+        "seconds": 12.954
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e7ea338161a9f6a1cf54b94803aa38bfcd4f5b96f9e1248f9c610bcf5d23d059",
+      "model": "sonnet",
+      "prompt_digest": "1362bed38e334666c63aa0edbbe55c0f460a5744b0c14df1cfaaaf6c3fd02c4a",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No defect identified.",
+        "evidence_refs": [],
+        "explanation": "The change only adds test cases for Mode3. grafanarest.Mode3 exists and has an implementation (pkg/apiserver/rest/dualwriter.go, dualwriter_mode3.go). The new cases mirror the existing mode 0, 1 and 2 cases. The etcd case is skipped like the others. I found no concrete contract mismatch.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:ba2e14412814dc9a660b2061"
+        ],
+        "title": "Mode 3 test additions are consistent with existing API"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 31418,
+        "cache_write_input_tokens": 2125,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 33547,
+        "output_tokens": 657,
+        "provider_cost": 0.019466499999999998,
+        "request_id": "",
+        "seconds": 8.845
+      }
+    }
+  ],
+  "case_id": "grafana-06",
+  "case_input_digest": "a4fd49bdaf40c0da8e2194ccf1b77b69c17b4c4c9fd2db7b35ccb59c88d240c3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,783 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "0f02ff0475077c0555745479e5204402164008ff99af99b9f656d854b4ac8347",
+      "model": "sonnet",
+      "prompt_digest": "6791dd1e09be5d853bb15a3cd2630af0f73509664dd96fc3a10ed4160de4d12d",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No defect found.",
+        "evidence_refs": [],
+        "explanation": "I read the collector endpoint and compared it with the new tests, and they agree. The endpoint returns 422 with {\"error\": \"Invalid report data\", \"details\": serializer.errors} on validation failure, which is what assert_invalid_report_data checks. The serializer's choice, URL, min_value, dictionary and age/timestamp mutual-exclusion messages match the strings the tests expect. INTERVENTION_REPORT has age and no timestamp, so it validates. The test_mixed_fields case, which sends both age and timestamp, produces errors on both fields as asserted. The tests still patch metrics.incr at the path the endpoint uses. I found no mismatch.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:6874cc61e8d0b0dbc996e277"
+        ],
+        "title": "Tests match the collector endpoint contract"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 56757,
+        "cache_write_input_tokens": 25617,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 82380,
+        "output_tokens": 1047,
+        "provider_cost": 0.1208805,
+        "request_id": "",
+        "seconds": 12.742
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1139611a89cd1a441f0f90ff4a2e154e98200c70d689fe1e14244d52b8cf23ae",
+      "model": "sonnet",
+      "prompt_digest": "bb09eb467bbf631cdcbb94630957e4018f8213b0691d9f739898713b2e5a2e8f",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The aggregates table change matches the Visualize type, which has a single yAxis field. The attribute-key hook now delegates to useGetTraceItemAttributeKeys, which keeps the same filtering and key-kind logic. Its only caller, traceItemAttributeContext.tsx, spreads possibly-undefined attributes, which is safe. The new table renderer files contain no wrong condition or missing guard.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 184028,
+        "cache_write_input_tokens": 37780,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 221820,
+        "output_tokens": 1805,
+        "provider_cost": 0.1904302,
+        "request_id": "",
+        "seconds": 23.365
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "243904e416ca3a3a58ef20b59e6c01af4245ea008575a1989dc65d55b6c890ee",
+      "model": "sonnet",
+      "prompt_digest": "6f87617d2c5f5ae7b9ab5cb6574218cfd03adf6376256bcdb3cab77e9392b7f2",
+      "response": {
+        "category": "correctness",
+        "consequence": "Each page's summary includes errors that did not occur in that page's time window. Errors are duplicated across pages and placed out of chronological order. The summaries are misleading, and the Seer request payloads are larger than they need to be.",
+        "evidence_refs": [
+          "source:new:src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py@sha256:c961a166fd9d5c70db67ebbf5427935e06e8f7dd2dda649d73fcade934dc5901",
+          "target:target:sym:71dfdfc02e649fb583f0d4ca"
+        ],
+        "explanation": "`get()` fetches the replay's error events once. It passes the whole list to every page through `functools.partial(analyze_recording_segments, error_events)`. `paginate` calls `on_results` once per page of segments, and each call goes through `gen_request_data`. That function ends with a loop (lines 165-168) that emits every error not yet emitted. The error list is not consumed across pages, so each page's request to Seer gets its own copy of the errors. Errors timestamped after the page's last event are emitted at the end of every page. Errors that fall between events are emitted on the first page that has a later event. Pages that do not contain an error's real position also get it. For example, a replay with 3 pages and 2 errors sends both errors to Seer on all 3 pages.",
+        "lines": {
+          "end_line": 168,
+          "start_line": 164
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "All errors are emitted before the first breadcrumb instead of at their chronological position, so the interleaving the code claims to provide does not happen. I did not check whether `as_log_message` normalizes timestamps.",
+            "evidence_refs": [
+              "source:new:src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py@sha256:c961a166fd9d5c70db67ebbf5427935e06e8f7dd2dda649d73fcade934dc5901"
+            ],
+            "explanation": "Nodestore event `timestamp` is a float in epoch seconds, about 1.7e9. Replay recording events carry millisecond timestamps, about 1.7e12. The check `error_events[error_idx][\"timestamp\"] < event.get(\"timestamp\", 0)` is therefore true for every error against the first event with a timestamp.",
+            "lines": {
+              "end_line": 155,
+              "start_line": 153
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:71dfdfc02e649fb583f0d4ca"
+            ],
+            "title": "Error timestamps (seconds) are compared with replay event timestamps (milliseconds)"
+          },
+          {
+            "category": "correctness",
+            "consequence": "Error events can be labelled with the wrong `id`. The `id` is not used in the log message, so this is a minor data-integrity issue.",
+            "evidence_refs": [
+              "source:new:src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py@sha256:c961a166fd9d5c70db67ebbf5427935e06e8f7dd2dda649d73fcade934dc5901"
+            ],
+            "explanation": "`nodestore.backend.get_multi` returns a dict keyed by node ID, and it may omit missing nodes. `events.values()` is zipped positionally with `error_ids`. If any node is missing, or the dict order differs from the input order, the IDs shift onto the wrong events. The `if data is not None` filter only helps if missing nodes are present as None entries.",
+            "lines": {
+              "end_line": 119,
+              "start_line": 110
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:63d10cb6241789c13da62c5f"
+            ],
+            "title": "zip(error_ids, events.values()) can pair error IDs with the wrong events"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:71dfdfc02e649fb583f0d4ca",
+          "target:sym:530d3e19b63ca0c057f0c711"
+        ],
+        "title": "Error log lines are repeated on every page of the paginated summary"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 34401,
+        "cache_write_input_tokens": 30509,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 64916,
+        "output_tokens": 4735,
+        "provider_cost": 0.1755541,
+        "request_id": "",
+        "seconds": 41.071
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2b8c5d1b7a940e59e2098b4f7123bcd0cf5c7e67a0b13da9898432e096316913",
+      "model": "sonnet",
+      "prompt_digest": "03a7af11443cc2c40c5e52a83ee85dd0b0e16dad702e6e7ce1dfbf73616a2a63",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The new helper methods get_merged_pr_single_issue_template and get_environment_info exist in commit_context.py. The Visualize class exposes yAxis. The null max_segment_id guard is correct. The other changes are config or type-only.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 36167,
+        "cache_write_input_tokens": 30448,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 66619,
+        "output_tokens": 732,
+        "provider_cost": 0.1356281,
+        "request_id": "",
+        "seconds": 12.969
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2c1eaaeaa1970ad05ab969f1152c6d4058572b0b1e345d7dde83192f0457ae20",
+      "model": "sonnet",
+      "prompt_digest": "e054b3a2c44c28fb3d33cdf4ac8208daf39da54ee05af6304820eb324a5e45ee",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The Flex substitutions in newTraceDetailsHeader.tsx, codeOwnerFileTable.tsx and times.tsx keep the same flex styling as the removed styled components. The Flex component (flex.tsx) accepts align, justify and gap props with those CSS values. The new helpers in commit_context.py (_truncate_title, get_environment_info, get_merged_pr_single_issue_template) behave correctly. I found no concrete failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 66417,
+        "cache_write_input_tokens": 29041,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 95464,
+        "output_tokens": 1058,
+        "provider_cost": 0.13614010000000001,
+        "request_id": "",
+        "seconds": 11.847
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3f51f985dd0ea5fae1e8019b0885b75d0532302bcddc7352f0e7a97589555a9c",
+      "model": "sonnet",
+      "prompt_digest": "55ceeb501109ae5a079e89ce9bcf3f7914de231def98e11599885e5efdfc1d8c",
+      "response": {
+        "category": "correctness",
+        "consequence": "In the default view with no search text, the attributes that should be hidden still appear in the span attributes list. They disappear only after the user starts searching, so the behaviour is inconsistent.",
+        "evidence_refs": [
+          "source:new:static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx@sha256:4ac4f5a25254f9512da639673b1a938407f5acc9552f87e783b4c8d469904966",
+          "target:target:sym:010750fe2f4ad9b083d01b36"
+        ],
+        "explanation": "The new HIDDEN_ATTRIBUTES check sits inside the `sorted.filter` call. When `searchQuery` is empty, the memo returns early with `return sorted` (lines 61-63) and never reaches that filter. So `is_segment`, `project_id` and `received` are shown by default and are only hidden once the user types a search query. That is the opposite of the intent of a hidden-attributes list.",
+        "lines": {
+          "end_line": 69,
+          "start_line": 61
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 69,
+          "original": "    const sorted = sortAttributes(attributes);\n    if (!searchQuery.trim()) {\n      return sorted;\n    }\n\n    return sorted.filter(\n      attribute =>\n        !HIDDEN_ATTRIBUTES.includes(attribute.name) &&\n        attribute.name.toLowerCase().trim().includes(searchQuery.toLowerCase().trim())\n    );",
+          "start_line": 60,
+          "text": "    const sorted = sortAttributes(attributes).filter(\n      attribute => !HIDDEN_ATTRIBUTES.includes(attribute.name)\n    );\n    if (!searchQuery.trim()) {\n      return sorted;\n    }\n\n    return sorted.filter(attribute =>\n      attribute.name.toLowerCase().trim().includes(searchQuery.toLowerCase().trim())\n    );"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:010750fe2f4ad9b083d01b36"
+        ],
+        "title": "HIDDEN_ATTRIBUTES filter is skipped when the search box is empty"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 68477,
+        "cache_write_input_tokens": 30103,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 98588,
+        "output_tokens": 2045,
+        "provider_cost": 0.150565,
+        "request_id": "",
+        "seconds": 20.067
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3f6ed05f0d3c4999020fc4c9cba2352361902aa4c1e64a33d12f7e0193e8bdd2",
+      "model": "sonnet",
+      "prompt_digest": "dacc52d9030650363d0ebb0b6750c526b26a96a2a19c21e6cc8d197b126665c0",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The changes agree with the surrounding code. `Visualize` has a `yAxis` field, so the switch from `yAxes` to `yAxis` in spansTab and toolbarSortBy is valid. The `replay.view-html` event is defined in replayAnalyticsEvents.tsx, so the renamed call matches it. `getAlertsUrl` accepts `referrer`, so passing it from chartActionDropdown is valid. The button transition-duration change is cosmetic.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 60917,
+        "cache_write_input_tokens": 17437,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 78362,
+        "output_tokens": 1023,
+        "provider_cost": 0.0875011,
+        "request_id": "",
+        "seconds": 15.867
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "45bcbe9c00b7f9f1c3fc488a3dd74f542a181f24ad232ca9b716013faaa61c6c",
+      "model": "sonnet",
+      "prompt_digest": "4d2f666b3e0a1dc9ad63c33d88bd2fbff0f6550877858752f4e81e5818f9f188",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No incompatible read or write path was found.",
+        "evidence_refs": [],
+        "explanation": "The change only adds and updates tests. It defines no schema or stored-format change and doesn't touch production code. The endpoint does define ErrorEvent, get_request_data(iterator, error_events) and the enable_error_context query parameter, so the tests match the endpoint's current interface.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:36c2b97df52e5fcba6337ee7"
+        ],
+        "title": "No persistence or migration defect in test-only change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 30183,
+        "cache_write_input_tokens": 23948,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54135,
+        "output_tokens": 677,
+        "provider_cost": 0.10788080000000001,
+        "request_id": "",
+        "seconds": 8.158
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "45f5a0bb477a2d87e98eb27c486b7c01827070c596db535a8c6e4e5851bc5086",
+      "model": "sonnet",
+      "prompt_digest": "7a01f4925a30044d457325121e781a4d53c90a99f2dcac1721c9a1fdfd95abb4",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The Visualize class takes a single yAxis string and exposes yAxis and toJSON(). The changed call sites match that API. The Flex swaps in the codecov and alert components are equivalent to the removed styled containers. The prompt change is only text.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 35596,
+        "cache_write_input_tokens": 29555,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 65155,
+        "output_tokens": 665,
+        "provider_cost": 0.13127270000000002,
+        "request_id": "",
+        "seconds": 8.578
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "62bd6d1cb96c999c85fc1b7af23976538c26d06665b386bc09d4f358a3ee4542",
+      "model": "sonnet",
+      "prompt_digest": "9be2a783ac5c9bb57375f452bad6e268a837e41edc112a22104d2f1efd689748",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "I found no concrete failing input in the changed hunks. The `Visualize` class has a single `yAxis` field, so the explore changes to `viewSamplesTarget` and `computeVisualizeSampleTotals` match it. The parameterization change removes `ParameterizationRegexExperiment`. Nothing else in the repo references that class, and `_handle_regex_match` is still defined and used in `parametrize_w_regex`. The other hunks are `Flex` refactors, a layout change and a constant default change, and none is a defect I can show.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 101349,
+        "cache_write_input_tokens": 30698,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 132055,
+        "output_tokens": 1343,
+        "provider_cost": 0.1491334,
+        "request_id": "",
+        "seconds": 21.62
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7e850f264bba2af79d8fabd6d8113244ac081fe7d75c45aa777bad59670d3447",
+      "model": "sonnet",
+      "prompt_digest": "3b479f0b402f57635f1ad2701615448fce2bbe6f5d80e44c7fc2a56787bbf179",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No concrete failing input found.",
+        "evidence_refs": [],
+        "explanation": "The new tests only change test code. Their expected 422 responses, error messages and field constraints (attempts min 1, timestamp min 0, the age/timestamp mutual exclusion, the type choices and the URL, dict and required-field errors) all match BrowserReportSerializer and the post handler in browser_reporting_collector.py. I could not run the tests. No mismatch with the endpoint's behaviour found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:28f104d6f09f5374ff6b0278"
+        ],
+        "title": "Test changes match endpoint serializer contract"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 64377,
+        "cache_write_input_tokens": 29122,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93505,
+        "output_tokens": 988,
+        "provider_cost": 0.1354536,
+        "request_id": "",
+        "seconds": 11.846
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a2e62c5f22b2ef9f539778186d0dcee124870cc25a00018e1e8374fb348cb100",
+      "model": "sonnet",
+      "prompt_digest": "2f5a7295c0561afe009ad7c057cc16a554cf05fe89595f8b6a64b55e3345abe8",
+      "response": {
+        "category": "performance",
+        "consequence": "No performance defect.",
+        "evidence_refs": [],
+        "explanation": "The change replaces per-visualize yAxes arrays with the single yAxis. Visualize defines a single yAxis, and the visualize list is already flattened per yAxis when read from the location. The work per visualize is now constant, and the attribute-key fetch and the ourlogs equations pass-through add no loops.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No unbounded or multiplicative work found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 68196,
+        "cache_write_input_tokens": 30459,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 98661,
+        "output_tokens": 808,
+        "provider_cost": 0.1395634,
+        "request_id": "",
+        "seconds": 15.341
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a4fe313eeffe77cd3430c936424e9aa2dc6e2915aaa52296d244352a26e7b76b",
+      "model": "sonnet",
+      "prompt_digest": "57dbe6916d1aa48a41dda87cee1326b59939e47f0e17a2da2d3cf01fed31609a",
+      "response": {
+        "category": "correctness",
+        "consequence": "No actionable defect.",
+        "evidence_refs": [],
+        "explanation": "Detector extends OwnerModel, so owner_user_id and owner_team_id exist. ActorField validates the actor against the organization in context. Migrations 0917 and 0920 became no-ops, and 0921 (the replacement migration) exists and is a dependency of 0922. The remaining changes are a UI refactor, a task deadline setting, an analytics event and a type annotation. None of them shows a failing input or state.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete defect found in the changed scope"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 67992,
+        "cache_write_input_tokens": 30137,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 98135,
+        "output_tokens": 1230,
+        "provider_cost": 0.1424556,
+        "request_id": "",
+        "seconds": 15.932
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a84717f34dcdadde38a482f51264d470dafdfe6d0b7fb56e13cf434faf474d30",
+      "model": "sonnet",
+      "prompt_digest": "0042efa6d3ea807e89a7a5a5ced9feef9113ef97ab2524f0e6ba06f914b9d18a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "I found no defect I could support. The Visualize class now holds a single yAxis. I grepped the callers of Visualize and its fromJSON in static/app and checked each one. The remaining `.yAxes` uses are on BaseVisualize or saved-query types, which still have `yAxes`. The only caller of the changed `fromJSON`, in `updateLocationWithAggregateFields`, already treats the result as an array. The new replay timeline analytics events are declared in replayAnalyticsEvents.tsx. The Flex replacements keep the same layout props.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 279328,
+        "cache_write_input_tokens": 41806,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 321150,
+        "output_tokens": 2344,
+        "provider_cost": 0.22148490000000004,
+        "request_id": "",
+        "seconds": 28.997
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b12af2e79f644d456dac6d0f328345ddd295ec1d2803cfe7abb2b69b98c185d0",
+      "model": "sonnet",
+      "prompt_digest": "fa9bf107fe6b532372122626c8d9ee75c1d5d9d2fb01030312a40c261663c0a1",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only adds tests. The code they exercise already supports them. BaseDetectorTypeValidator defines owner = ActorField(required=False, allow_null=True). The create and update paths set and clear owner_user_id and owner_team_id. ActorField validates the actor against the organization, so the invalid-owner and other-organization cases return 400. The serializer returns owner as actor.identifier. I found no mismatch between the tests' expectations and the implementation.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No API compatibility defect in the new owner tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 113359,
+        "cache_write_input_tokens": 26609,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 139978,
+        "output_tokens": 1250,
+        "provider_cost": 0.1324145,
+        "request_id": "",
+        "seconds": 14.878
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b358e9280cb9e547b0792ea5f25fa6e7afbf3df1945af498f2fc7406ded8184b",
+      "model": "sonnet",
+      "prompt_digest": "2c200ece6a14da1430cdea79fd792af424e93a037d80f0b0309302c243f0d7fa",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The aggregateFields changes match the Visualize class: its constructor takes a string yAxis, fromJSON returns Visualize[], and isVisualize now checks yAxis. The other changes swap styled divs for Flex with equivalent layout.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 68178,
+        "cache_write_input_tokens": 30185,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 98369,
+        "output_tokens": 892,
+        "provider_cost": 0.13927250000000002,
+        "request_id": "",
+        "seconds": 12.334
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cb4ade44d171b8f3108229cda583c2423372286f6682052f043b5c1889e855d8",
+      "model": "sonnet",
+      "prompt_digest": "e7dd63c11b75b956fc79d2eee937ad12a0f1a9c27a64ab3235ae59246c46cb92",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No failing input found.",
+        "evidence_refs": [],
+        "explanation": "The collector now validates each report with a DRF serializer and returns DRF Responses. The status codes are unchanged: 404 when the endpoint is disabled, 422 for a non-list body, and 200 on success. The new 422 invalid-report case replaces what would have been an unhandled TypeError from `BrowserReport(**report)`. The age/timestamp validators run only when their own field is present, so reports from either spec version are accepted. In delayed_workflow.py, `dcg_to_slow_conditions` is now fetched once in `process_delayed_workflows` and passed to both consumers, which removes one duplicate query. The only other behavior change there is a log field now using `workflow_event_data`. The `src/sentry/preprod/__init__.py` change is a single import line. I did not open any files beyond the supplied excerpts, so I could not check whether `event_data.dcg_ids` always matches the keys of `event_data.dcg_to_groups`, which the old code used.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:3dc34974aa57326a3fdece95"
+        ],
+        "title": "No concrete compatibility or performance defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 34256,
+        "cache_write_input_tokens": 28358,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62620,
+        "output_tokens": 1817,
+        "provider_cost": 0.1377379,
+        "request_id": "",
+        "seconds": 19.854
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e46511445daa7e2e4f10da4d5c91f11c65563a2948aff8caaee8c5d734531af0",
+      "model": "sonnet",
+      "prompt_digest": "1625830508f6b96d15ca88b40af73230c85408cf6e8e8bd50bee390f3eeb3456",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change swaps a local styled div for the shared Flex component. Flex accepts the same gap and justify values, and the old container's flex-direction: row is the CSS default, so the layout is unchanged. The other edits update tests and add a logs test, and none of them touch a security boundary or an API contract.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 61338,
+        "cache_write_input_tokens": 26384,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 87728,
+        "output_tokens": 747,
+        "provider_cost": 0.12164950000000001,
+        "request_id": "",
+        "seconds": 13.943
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f6d4ef933bfb6365aae7c1094ae02c608efb0cf34aa3dfaa6ce49791050b4232",
+      "model": "sonnet",
+      "prompt_digest": "c7fb9aecb668edd38da38a846d63be4db8de871b71ffb749c7a18e0d0bb19717",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The toolbarVisualize change matches the Visualize class, which now takes a single yAxis string and has a yAxis field. The removed option \"grouping.experiments.parameterization.traceparent\" has no remaining references in the snapshot. The removal of the 'Type' row in groupingVariant.tsx looks deliberate and does not break any caller.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 65560,
+        "cache_write_input_tokens": 29755,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 95321,
+        "output_tokens": 1092,
+        "provider_cost": 0.1391729,
+        "request_id": "",
+        "seconds": 15.414
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fe80b2c40304a67ae9c87d1c850e95a691841aef0866182d0adebe3403caa8ec",
+      "model": "sonnet",
+      "prompt_digest": "86d17e22f596e717743aabfa8729e2d5f08ba2c7d42fa1d6a21b41f7b3e15cf2",
+      "response": {
+        "category": "performance",
+        "consequence": "No performance defect identified.",
+        "evidence_refs": [],
+        "explanation": "The changed paths (findAllFieldRefs, defaultPageParams, getEventView, the search query builder hook) only do linear passes over the visualize list. The writable path correctly uses BaseVisualize with isBaseVisualize and yAxes, and the readable path uses Visualize with yAxis. Both guards and types exist and are imported. No input-dependent work multiplier was found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No unbounded or multiplicative work found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 71299,
+        "cache_write_input_tokens": 32185,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 103490,
+        "output_tokens": 995,
+        "provider_cost": 0.14871280000000003,
+        "request_id": "",
+        "seconds": 14.567
+      }
+    }
+  ],
+  "case_id": "sentry-05",
+  "case_input_digest": "9f76f793dee5a3aea00c6fa2dadd36339de8b372a0bcdd5fbd1682c80ca243f3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

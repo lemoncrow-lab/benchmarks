@@ -1,0 +1,792 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1034338bb54b651ff92914136f17cf95a99a165798246cf303e0e1aa78964d90",
+      "model": "sonnet",
+      "prompt_digest": "001b7cead6774439003f8b22e43c6cbbef5c901dbdaa5b3aa3d98f930cb3007c",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only renames import paths to eventTypeRepository and teamService, and adds a labelClassName prop. Both new modules exist and export EventTypeRepository and TeamService. Other files already import from the new path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "Import path renames are consistent; no defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 24682,
+        "cache_write_input_tokens": 19653,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44339,
+        "output_tokens": 639,
+        "provider_cost": 0.08922150000000001,
+        "request_id": "",
+        "seconds": 12.25
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "231645c43aa1306a013bf6758c8174571fb6c04e65751d6681d1cf2d5d022a9d",
+      "model": "sonnet",
+      "prompt_digest": "1423adb5117847a4ba405bf5a1ba968d7e9d6b40ebcc7dbd1dbfbda9fcf2f1c7",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a successful update or any refetch that returns new data, the event type editor is torn down and rebuilt. Form state, the current tab and focus are lost, the editor flashes blank, and the `ref` handle and `onFormStateChange` are briefly detached. Embedding apps that call `validateForm` or `handleFormSubmit` through the ref can hit a null ref during the reset.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/event-types/wrappers/EventTypePlatformWrapper.tsx@sha256:c76546d6c69449d1a97d641165d135b3a68377a2a35115f2e8de3eeae251af94",
+          "target:target:hun:9ef27c674cd0533248ec4eab"
+        ],
+        "explanation": "The change adds `eventTypeQueryData` to the dependency array of the effect whose cleanup calls `invalidateQueries` and `resetQueries`. The comment on that cleanup says it should run only on unmount or when the event type id changes. Now the cleanup also runs each time the query data reference changes, for example after a save invalidates and refetches the query. At that point the cleanup resets the query, so `data` becomes undefined. `if (!eventTypeQueryData) return null;` then unmounts the whole `EventType` form, and it remounts when the refetch finishes.",
+        "lines": {
+          "end_line": 383,
+          "start_line": 383
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 383,
+          "original": "  }, [queryClient, id, eventTypeQueryData]);",
+          "start_line": 383,
+          "text": "  }, [queryClient, id]);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:9ef27c674cd0533248ec4eab"
+        ],
+        "title": "Effect cleanup now resets the event-type query whenever its data changes, not only on unmount or id change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 33932,
+        "cache_write_input_tokens": 28208,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62144,
+        "output_tokens": 1680,
+        "provider_cost": 0.1357032,
+        "request_id": "",
+        "seconds": 18.34
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3a7228fcd38d6edb8384f33518089f9f64dd062ed4999d814d8d9c78a81205e7",
+      "model": "sonnet",
+      "prompt_digest": "298baae942bc26e7337ce4a15d78807a82058f8c0c4bca9271b7e7651df0a3d3",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "After a booking is reassigned, routing-form insights show the wrong host name, email and avatar for that booking. The data is silently inconsistent, and the only fix is a backfill.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql@sha256:66d7583100662402c1fa9cd55bd622b95ffcc0f6aff4e27bb07c8712449f8aed",
+          "target:target:sym:13b86cc632acecf7b9d5a30f"
+        ],
+        "explanation": "The booking update trigger fires on a change to \"userId\" (line 258). Its SET list (lines 195-211) writes \"bookingUserId\" = NEW.\"userId\" but never updates \"bookingUserName\", \"bookingUserEmail\" or \"bookingUserAvatarUrl\". refresh_routing_form_response_denormalized fills those three columns from users (lines 66-68). The user trigger only fires on changes to the users table, so it does not repair them. When a booking is reassigned to another user, the denormalized row therefore has the new bookingUserId but still carries the old user's name, email and avatar. The row stays wrong until that user's profile happens to change or someone runs a backfill. The reported insert-order concern is likely not a defect. The response UPDATE trigger (lines 122-125) re-runs the full refresh when routedToBookingUid is set after the booking exists, and that refresh does populate these columns. I did not check application code for the order of the response and booking writes.",
+        "lines": {
+          "end_line": 196,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:13b86cc632acecf7b9d5a30f"
+        ],
+        "title": "Booking trigger updates bookingUserId but leaves bookingUserName, bookingUserEmail and bookingUserAvatarUrl stale"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 34438,
+        "cache_write_input_tokens": 18894,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53338,
+        "output_tokens": 1631,
+        "provider_cost": 0.09622409999999999,
+        "request_id": "",
+        "seconds": 15.751
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5d767b35f23ac3b2a02ee55dec2465574912240125f79fd0d7339f41e4f9a815",
+      "model": "sonnet",
+      "prompt_digest": "cf68b70aedeeaf29ae39d57f099503b19b7a48fff12f964d48644ac47b28cefb",
+      "response": {
+        "category": "correctness",
+        "consequence": "Any CommonJS consumer, or tool that resolves \"main\", will fail with module-not-found when it requires @calcom/atoms.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/package.json@sha256:24fb760732a4f499a75d1ec1fcedbd5710930c0952638462e92c71d4cbb238d1",
+          "target:target:hun:c30cf307be7abd20b88b6e81",
+          "target:target:hun:3251face26b41880fd0e26a7"
+        ],
+        "explanation": "The change adds exports[\".\"].require and \"main\" pointing to ./dist/cal-atoms.umd.cjs. vite.config.ts still builds with formats: [\"es\"], so only cal-atoms.js is produced and the UMD/CJS file never exists. The values match what scripts/dev-on.js writes temporarily for dev mode, which suggests the dev-mode edit was committed by accident. Nothing in the committed config generates the file.",
+        "lines": {
+          "end_line": 89,
+          "start_line": 89
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:3251face26b41880fd0e26a7",
+          "target:hun:c30cf307be7abd20b88b6e81"
+        ],
+        "title": "package.json points main/require at a UMD bundle that the build does not emit"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 18007,
+        "cache_write_input_tokens": 11491,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 29502,
+        "output_tokens": 980,
+        "provider_cost": 0.05864549999999999,
+        "request_id": "",
+        "seconds": 10.182
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "64939067f2c2d79ebfd6772780f547d82a009ba459bade193719ea0f970d0435",
+      "model": "sonnet",
+      "prompt_digest": "95c75d1669fde5849bbbbf27806d1d734dfe8d8bcbcfb3f9e8626360ac3fa35e",
+      "response": {
+        "category": "security",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change adds a unit test for a pure permission-level helper and fixes a test import path. The test expectations match usePermissions.ts and the eventType registry (create/read/update/delete). The renamed import points to the existing eventTypeRepository.ts. No authorization path is changed.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:3f12045aa5233d9019a978b1",
+          "target:hun:bdac392ddd7e774ff2dc1b9d"
+        ],
+        "title": "No security defect in test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 66058,
+        "cache_write_input_tokens": 15086,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 81154,
+        "output_tokens": 1313,
+        "provider_cost": 0.0810374,
+        "request_id": "",
+        "seconds": 20.541
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "667d33628f6bcc33e5730b9a34e03704f56d5fe42fb3aa3a15f4ad9a02b5cdf8",
+      "model": "sonnet",
+      "prompt_digest": "4d39ae701afefb5ff5aae71b3ceb7cfc1d35d1ae63d5f727bc6cbd96ac7985bc",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I traced the new calendars deleteCache route, the Booker scrollIntoViewSmooth call, the saveButtonRef prop and the e2e dropdown changes, and found no failing input or state. The deleteCache handler exists and only deletes cache for credentials owned by ctx.user. scrollIntoViewSmooth accepts (element, isEmbed), and Booker now guards against a null ref before calling it. saveButtonRef is passed through EventTypeLayout to the save button. The e2e changes consistently open the booking-actions-dropdown before clicking the reschedule or cancel option. The other changes are a review-rules addition, an import reorder and a corrected import path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 64565,
+        "cache_write_input_tokens": 28751,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93322,
+        "output_tokens": 1155,
+        "provider_cost": 0.1356502,
+        "request_id": "",
+        "seconds": 13.917
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "679ba495b408730bf63a684ad718c86eac4902ea450806b2990690fea1496e6d",
+      "model": "sonnet",
+      "prompt_digest": "8ce8ca490d4544c6e3d212e3a2eeaca385df1e2244d1a1dadc202af70a31044a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I checked the changed paths and found no defect. The `unstable_cache` permission lookup gets its arguments added to the cache key, so each user, team and resource has its own entry. The renamed imports in `eventTypeRepository`, `eventTypeService` and `lib/utils` point at files that exist. A migration `20250715160635_add_calendar_cache_updated_at` already adds the `CalendarCache.updatedAt` column, so the schema change matches it. `updateManyByCredentialId` exists and `SelectedCalendar.updatedAt` is `@updatedAt`. The mock repository now has `getCacheStatusByCredentialIds`, which the interface requires. I did not open `eventTypeService` or `PermissionCheckService`, so I did not verify those files directly.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 176249,
+        "cache_write_input_tokens": 33475,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 209736,
+        "output_tokens": 1672,
+        "provider_cost": 0.17116969999999995,
+        "request_id": "",
+        "seconds": 21.797
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "77e91d36ca9eca1eb8372fc45e67e0c3dca3c3dc26ac495bc67898d41e9a71cd",
+      "model": "sonnet",
+      "prompt_digest": "3927358c2e7a26b1f62074c37b99a15013811ce4fe677c82c86e295c5e7df0be",
+      "response": {
+        "category": "correctness",
+        "consequence": "On Linux, rerunning the script leaves a stale webhook URL in .env while reporting success. Wrappers or CI that check the exit code cannot see tunnel startup failures.",
+        "evidence_refs": [
+          "source:new:scripts/test-gcal-webhooks.sh@sha256:823ac9ff13faa57d58d896d7d32860d58dd2d7a82b994dceaff8eb562be98a25"
+        ],
+        "explanation": "The script updates an existing GOOGLE_WEBHOOK_URL with `sed -i '' -E ...`. That form only works with BSD/macOS sed. GNU sed on Linux treats `''` as an input file name, so the command fails and the .env file is not updated. The script then still prints the \"✅ Updated GOOGLE_WEBHOOK_URL\" message. Separately, `cleanup` always runs `exit 0`. The failure paths (rate limit hit, no tunnel URL extracted) call `cleanup`, so the script reports success when it failed.",
+        "lines": {
+          "end_line": 67,
+          "start_line": 67
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:beac7dfd17c2f87369327b5f"
+        ],
+        "title": "Webhook test script's `sed -i ''` is macOS-only and failures exit with status 0"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 33376,
+        "cache_write_input_tokens": 26892,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60272,
+        "output_tokens": 1186,
+        "provider_cost": 0.1253858,
+        "request_id": "",
+        "seconds": 17.153
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "78e78bc1a7e509f5f8b2a8b3fac511f9984ef43e5bcec2e3b70851a2f9a27e15",
+      "model": "sonnet",
+      "prompt_digest": "d8d9874421667bd199b629b1829e071a3828f018f52046bfaabf83ddefac8bb1",
+      "response": {
+        "category": "correctness",
+        "consequence": "The platform atoms package fails type-check and declaration build. The ref type of the forwarded ref degrades or breaks, so consumers cannot get a typed ref.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/availability/wrappers/AvailabilitySettingsPlatformWrapper.tsx@sha256:5b7b1f101f45de6b378e7948aa9118f41a6daa8e0f7ba0f742c64d556b5a7b92"
+        ],
+        "explanation": "AvailabilitySettingsPlatformWrapper.tsx line 15 imports `AvailabilitySettingsFormRef` from \"../AvailabilitySettings\". That file only imports the type from \"./types\" (line 49) and never re-exports it. The type is defined in availability/types.ts. The import is a TS2305 error (\"has no exported member\"), and the type then can't be resolved in the `forwardRef<AvailabilitySettingsFormRef, ...>` generic.",
+        "lines": {
+          "end_line": 15,
+          "start_line": 15
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 15,
+          "original": "import type { CustomClassNames, AvailabilitySettingsFormRef } from \"../AvailabilitySettings\";",
+          "start_line": 15,
+          "text": "import type { CustomClassNames } from \"../AvailabilitySettings\";\nimport type { AvailabilitySettingsFormRef } from \"../types\";"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:977649e79a9f82dd54880384"
+        ],
+        "title": "AvailabilitySettingsFormRef imported from a module that does not export it"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 95735,
+        "cache_write_input_tokens": 28202,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 123945,
+        "output_tokens": 1512,
+        "provider_cost": 0.14011189999999998,
+        "request_id": "",
+        "seconds": 19.763
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8387bdf55f8f6242f770b446d57ae4518246a349bbe63a1ff51e939677fd2d94",
+      "model": "sonnet",
+      "prompt_digest": "63ea173899d1078489da87cbf4809a3346a90316d8f8e2e2d9ea821aea28542b",
+      "response": {
+        "category": "correctness",
+        "consequence": "Users cannot check for recordings on a booking whose recording has not yet been marked as recorded. That booking is the only one the old check button served. The feature is silently lost in normal use.",
+        "evidence_refs": [
+          "source:new:apps/web/components/booking/BookingListItem.tsx@sha256:2088f1f6463d026fb6ed23eb5dfb61639f6ff9503e8bd14cedb54bd9b236500b"
+        ],
+        "explanation": "The old code showed a \"check_for_recordings\" button for a past, confirmed booking with a Cal Video location and no recording yet (showCheckRecordingButton). The refactor drops that case. getVideoOptionsActions in bookingActions.ts:87 disables view_recordings unless booking.isRecorded is true. BookingListItem.tsx:394 adds `view_recordings && !booking.isRecorded` as a further disable. The label is also always \"view_recordings\" now, and the \"check_for_recordings\" label is no longer used. A past, accepted Cal Video booking with isRecorded=false now gets a disabled item, so the user cannot trigger the dialog that fetches recordings.",
+        "lines": {
+          "end_line": 394,
+          "start_line": 392
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:fb9f4c705c7eb91a38ff5ff5"
+        ],
+        "title": "\"Check for recordings\" is no longer reachable for past, unrecorded Cal Video bookings"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 32630,
+        "cache_write_input_tokens": 29588,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62222,
+        "output_tokens": 1946,
+        "provider_cost": 0.1436201,
+        "request_id": "",
+        "seconds": 21.09
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "87376340d372480b795d7e70f235dee4788eea6dcaf2b7eb9b2911450173c6ad",
+      "model": "sonnet",
+      "prompt_digest": "f1f752bd4be09a04bb5fb96dd2150f8c95014aa6232b46ad2198c1b1b408f0e1",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a booking is reassigned, for example in a round-robin reassignment, the denormalized row has the new bookingUserId but the previous host's name, email and avatar. Routing-form reporting that reads these columns shows the wrong host until the form response is next updated.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql@sha256:66d7583100662402c1fa9cd55bd622b95ffcc0f6aff4e27bb07c8712449f8aed"
+        ],
+        "explanation": "trigger_refresh_routing_form_response_denormalized_booking fires on UPDATE OF userId and sets \"bookingUserId\" = NEW.\"userId\". It never updates \"bookingUserName\", \"bookingUserEmail\" or \"bookingUserAvatarUrl\", which the full refresh populates from users. The user-update trigger only fires when the users row itself changes, so nothing repairs these columns. The booking insert trigger reuses this function and matches on rfrd.\"bookingId\" = NEW.id, so it also does not fill them. I did not check the Prisma schema or application code that creates responses and bookings.",
+        "lines": {
+          "end_line": 212,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:13b86cc632acecf7b9d5a30f"
+        ],
+        "title": "Booking update trigger leaves booking user name, email and avatar stale when the booking's userId changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 38172,
+        "cache_write_input_tokens": 32699,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 70877,
+        "output_tokens": 2325,
+        "provider_cost": 0.160966,
+        "request_id": "",
+        "seconds": 25.235
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "98a4d1b9ce552f84a7583fac012c1adf7afbcbe1beab9c2e858c3e43760a791f",
+      "model": "sonnet",
+      "prompt_digest": "58ac6e9d5cef71fd820fb46d5fdbe9b253b64b9799f00b7202cbcab65b25384a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The playground rename to \"ns:hideEventTypeDetails\" matches the existing link in index.html. The forwardRef and imperative handle changes look consistent. getScrollableAncestor is sound.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 31346,
+        "cache_write_input_tokens": 24787,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56137,
+        "output_tokens": 705,
+        "provider_cost": 0.11175199999999999,
+        "request_id": "",
+        "seconds": 10.643
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a7bca486642731f79f7b1c40d9d7ff47f6439b002d2395f0699fa80e98796a32",
+      "model": "sonnet",
+      "prompt_digest": "f1c8a534b08ee519da2d5a091bb87ffc480957c241e7b0866413d38c229e934e",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The EventTypeRepository import paths all point to the existing eventTypeRepository.ts, and no import of the old `repository/eventType` path is left. The embed-core `getErrorString` move to lib/utils.ts is matched by updated imports in ModalBox.ts and inline.ts. The only other `./utils` import is a separate file in embed-iframe/lib. The RoleRepository change from AND to OR is correct, because AND would never match more than one distinct permission. The saveButtonRef prop and the two added selectedCalendars fields are additive.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 64643,
+        "cache_write_input_tokens": 28413,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93062,
+        "output_tokens": 1151,
+        "provider_cost": 0.1342247,
+        "request_id": "",
+        "seconds": 16.627
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b04d09b55cecf4ca85f060d8a1860b3c886cade1f7c75007520e96f0c54b33f7",
+      "model": "sonnet",
+      "prompt_digest": "2d253439c39865d2696fe1780085941766aa0317d883141450518bf3a3ddd907",
+      "response": {
+        "category": "correctness",
+        "consequence": "Any caller that uses isActionDisabled to decide whether the recordings action is enabled would offer \"view recordings\" on bookings with no recording.",
+        "evidence_refs": [
+          "source:new:apps/web/components/booking/bookingActions.ts@sha256:004dfd70008716cf91e7ca663342a81128e76314571220e8a0012c900d60f7fe",
+          "target:target:sym:7d48c5eb4b5a393cd1c961cb"
+        ],
+        "explanation": "In isActionDisabled, \"view_recordings\" omits the booking.isRecorded condition that getVideoOptionsActions requires. It also uses booking.status === ACCEPTED where getVideoOptionsActions uses isConfirmed. For a past, accepted Cal Video booking with isRecorded=false, getVideoOptionsActions disables view_recordings but isActionDisabled(\"view_recordings\") returns false. The same status-versus-isConfirmed mismatch applies to \"meeting_session_details\". Within this file only \"cancel\" calls isActionDisabled, and the other callers I found are tests, so the mismatch is not reached in production today.",
+        "lines": {
+          "end_line": 217,
+          "start_line": 214
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7d48c5eb4b5a393cd1c961cb"
+        ],
+        "title": "isActionDisabled disagrees with getVideoOptionsActions for recordings/session details"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 62734,
+        "cache_write_input_tokens": 27772,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 90512,
+        "output_tokens": 1249,
+        "provider_cost": 0.13237110000000002,
+        "request_id": "",
+        "seconds": 15.192
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c99eaab9eac40ac70085954088a62d9640cc0b34d891f71f789f8d532a1c8d42",
+      "model": "sonnet",
+      "prompt_digest": "fb1c6e9e5e23bc8740f61b0dc541a6557dddafe6c27a9802cb4176c0f1d78be9",
+      "response": {
+        "category": "security",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I found no unauthorized or unvalidated path, and no incompatible persisted state. The credential delete dropdown only calls an existing server mutation, and server-side authorization is unchanged by this PR. The permission toggle changes only filter internal \"_\" keys and handle \"*.*\" consistently. In the checkbox, onCheckedChange and onClick both compute the same target state, so the double handler is idempotent. The migration adds updatedAt with DEFAULT NOW(), so existing CalendarCache rows are valid. The import rename in inviteMemberByToken.handler.ts is not a security issue.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No security or migration defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 34294,
+        "cache_write_input_tokens": 28769,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 63067,
+        "output_tokens": 1253,
+        "provider_cost": 0.1337494,
+        "request_id": "",
+        "seconds": 13.925
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "d36ec168e7d5c370e70403ab00a6c356ace100b872ebafdabb99a47d9a14c9c5",
+      "model": "sonnet",
+      "prompt_digest": "09cd115b8f675a01e1ad03bf46ebce953abe158f4bc7cdc4cc0fc53664d2f22b",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The import path eventTypeRepository exists and exports EventTypeRepository. EventSettingsFromRef is exported from @calcom/atoms. The other changes are cosmetic or additive: toast margin removal, widened Pick types, and a new updateManyByCredentialId method.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 31229,
+        "cache_write_input_tokens": 24732,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 55965,
+        "output_tokens": 695,
+        "provider_cost": 0.11140459999999999,
+        "request_id": "",
+        "seconds": 8.753
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "d49c81ff7ab38c0e3271aebad7dc305fb365721bb1ea38ae04f5b47d5a072f3a",
+      "model": "sonnet",
+      "prompt_digest": "ee3c8e07a6035697b551ae15861d3fd65e4467649c82d1f46ab5a9bf04cbd039",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I checked the changed code and found no defect I could support with a failing input. The embed import moves resolve to existing files: getScrollableAncestor is in lib/domUtils and getScrollByDistanceHandler is in lib/eventHandlers. The new calendar cache lookup getCacheStatusByCredentialIds exists with a matching signature. AvailabilitySettingsFormRef is exported from atoms and used by the forwardRef components. The ESLint rule change is consistent.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 64280,
+        "cache_write_input_tokens": 28969,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93255,
+        "output_tokens": 1052,
+        "provider_cost": 0.1354562,
+        "request_id": "",
+        "seconds": 13.27
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "dfe74467060a70bfff81cdd3b3c2a717c2fb5ea8575379477bc8a120a6fadc4d",
+      "model": "sonnet",
+      "prompt_digest": "658145360833eea69fb767f45fd7a9a1a100f9fbdd1b66851925283a90b2ac26",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The import paths resolve: ../lib/utils exports generateDataAttributes and isSameBookingLink, and ./teamService exports TeamService. The new embed tests match embed.ts, which sets \"allow\" to \"payment\" and applies only iframeAttrs.id.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:f38d0a80c307bcdeae6a21e7"
+        ],
+        "title": "No defect found in test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 36523,
+        "cache_write_input_tokens": 14104,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50633,
+        "output_tokens": 897,
+        "provider_cost": 0.0702688,
+        "request_id": "",
+        "seconds": 13.537
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fb10c0384a4fe523540398b5e024c0b1f50397526fb11b82a1fd577cd1ec0612",
+      "model": "sonnet",
+      "prompt_digest": "abe18b03d778165d0860d9804011a9a62deea0e2816b6162fdf1b2a296a96e0b",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "domUtils.test.ts calls afterAll without importing it from vitest. The \"@calcom/embeds\" vitest workspace sets globals: true (vitest.workspace.ts:208), so afterAll resolves at runtime. The other changed test code shows no failing case.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 114783,
+        "cache_write_input_tokens": 25315,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 140108,
+        "output_tokens": 1061,
+        "provider_cost": 0.1257132,
+        "request_id": "",
+        "seconds": 16.882
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cd1a6af8e593cf58361ca89105a4c57738097e2846baa7a48088c0636b61cca6",
+      "model": "sonnet",
+      "prompt_digest": "0e6b7c9aee0d0f1ba9f4164a339d2a7d0bc0c37233a7eaba97472f5555faf4e8",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Confirm that the booking trigger only matches on rfrd.\"bookingId\" = NEW.id. Confirm that no path re-runs the refresh function when a booking is created after the response row. Confirm that userId changes never populate the user name, email, and avatar columns. If bookings are always created before the response is linked, or the response UPDATE trigger always fires after linking, the hypothesis is refuted.",
+            "failure_mode": "The booking insert/update trigger refreshes denormalized rows with WHERE rfrd.\"bookingId\" = NEW.id. If a form response is inserted before its booking exists, or if routedToBookingUid is set later, the denormalized row has a NULL bookingId. The booking trigger then matches nothing, so the row keeps NULL booking, status, and UTM fields indefinitely. The same trigger also does not update bookingUserName, bookingUserEmail, or bookingUserAvatarUrl when userId changes, so those columns can go stale or stay NULL.",
+            "investigation_rationale": "Check the order in which the app creates the FormResponse and the Booking. Check whether routedToBookingUid is set on the response after the booking is created, and whether the response UPDATE trigger fires then. Compare the booking trigger's SET list with the columns that refresh_routing_form_response_denormalized populates.",
+            "priority_rationale": "This is a data-consistency bug in the analytics table. It silently produces wrong routing-form insights and cannot be repaired without a backfill.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:13b86cc632acecf7b9d5a30f",
+              "target:sym:33cfe9972a6c73bfbd867af0"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 64692,
+        "cache_write_input_tokens": 60280,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 124978,
+        "output_tokens": 1489,
+        "provider_cost": 0.2684074,
+        "request_id": "",
+        "seconds": 20.797
+      }
+    }
+  ],
+  "case_id": "calcom-01",
+  "case_input_digest": "29a4e121769145e672ae4d74cf1f439c9d21672af0af8ab5d0aff96c227b4f2c",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

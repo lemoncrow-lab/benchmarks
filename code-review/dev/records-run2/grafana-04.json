@@ -1,0 +1,99 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "49b855d54e580ffc2b365571597b86142524cd6a2e3dbb198a889171137fe28c",
+      "model": "sonnet",
+      "prompt_digest": "bb26d29d99f4790b5329432c0550c9d8a4ffae34b80d70cbb970901f0a426de1",
+      "response": {
+        "category": "performance",
+        "consequence": "No defect found in the changed lines.",
+        "evidence_refs": [],
+        "explanation": "The diff only touches test files. It swaps the mock from interpolateVariablesInQueries to applyTemplateVariables and adds 'Interpolates queries before execution' tests. The new assertion of 5 applyTemplateVariables calls matches the 5 shard requests, so the work is bounded per request. I found no concrete input-dependent work multiplier in the changed lines. I did not read the production source.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:204268e0725ae713a12883aa",
+          "target:hun:2ebaea73c162d2ea0384f195",
+          "target:hun:71a979019089387051cfad30",
+          "target:hun:b8926d57358fd90384d34e09",
+          "target:hun:21406c8e45f48f7896d91163"
+        ],
+        "title": "No unbounded work in test-only change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 20110,
+        "cache_write_input_tokens": 13545,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 33661,
+        "output_tokens": 1037,
+        "provider_cost": 0.0678561,
+        "request_id": "",
+        "seconds": 11.461
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "984f22378626401c18fbdf99d445c11e4c95c9d8f5aaded1519ee1fdd9e9d174",
+      "model": "sonnet",
+      "prompt_digest": "ab993a8e7f1e7194f8f6fa397534eb3683b29cc0f189ef8ac618d1def6e350ef",
+      "response": {
+        "category": "correctness",
+        "consequence": "With ad hoc filters set, split queries are sent to Loki with duplicated label matchers or label filters, for example `{a=\"b\", k=\"v\", k=\"v\"}`. This adds redundant work for Loki, and negated or regex filters give the wrong semantics. Interpolated values that contain `$` can be re-interpolated.",
+        "evidence_refs": [
+          "source:new:public/app/plugins/datasource/loki/querySplitting.ts@sha256:8e8a54da287c127b853fbbc7a87ca24a73c890c40455cf037c464b8e8e127b19",
+          "source:new:public/app/plugins/datasource/loki/shardQuerySplitting.ts@sha256:c728a430017ad29589f41dca9f44a5b5b601498c1f2ea9eb6e7e3263b0d0e9f0"
+        ],
+        "explanation": "runSplitQuery (querySplitting.ts:296-299) and runShardSplitQuery (shardQuerySplitting.ts:49-52) now call datasource.applyTemplateVariables(query, scopedVars, request.filters) up front. The split code then runs each sub-request through datasource.runQuery (querySplitting.ts:180). That goes through super.query, which calls applyTemplateVariables again with the request's filters. addAdHocFilters/addLabelToQuery does not de-duplicate, so each ad hoc filter is added to the expression a second time. The expression text and the step and legendFormat fields are also run through templateSrv.replace a second time. The old shard code did not pass filters, and the old runSplitQuery did not interpolate at all, so ad hoc filters were applied only once.",
+        "lines": {
+          "end_line": 299,
+          "start_line": 296
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9f0f257bc1647fb73b1ce98a",
+          "target:sym:111201af3213ada6ba1c334e"
+        ],
+        "title": "Queries are interpolated and ad hoc filters added twice in split paths"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 117800,
+        "cache_write_input_tokens": 17273,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 135089,
+        "output_tokens": 2697,
+        "provider_cost": 0.10869420000000002,
+        "request_id": "",
+        "seconds": 29.011
+      }
+    }
+  ],
+  "case_id": "grafana-04",
+  "case_input_digest": "03327e83a39cd2f77aa932fce684b86bd75d874b90e91b3d7f94de4fba0489ee",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

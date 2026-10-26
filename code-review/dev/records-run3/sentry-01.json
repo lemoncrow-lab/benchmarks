@@ -1,0 +1,58 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "24bd5962feb575d96f5be05ccfac42bad0d7aec7031de9af40f36cdb4d5e3a5c",
+      "model": "sonnet",
+      "prompt_digest": "842e3980f4698eb7990c3fce161e28bfaeace98dee7903fc80a033e80301a110",
+      "response": {
+        "category": "correctness",
+        "consequence": "A crafted cursor on the audit-log endpoint causes an unhandled exception and a 500 response. The new paginator and the `optimized_pagination` flag add a public query-parameter contract that cannot work for its advertised negative-offset case.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "source:new:src/sentry/api/endpoints/organization_auditlogs.py@sha256:247f884c4df443920621b9699731520e13c01b181fe80358549cd798a75734d9"
+        ],
+        "explanation": "When `enable_advanced_features` is true and `cursor.offset < 0`, OptimizedCursorPaginator.get_result runs `queryset[cursor.offset:stop]`. The comment says \"The underlying Django ORM properly handles negative slicing\", but Django QuerySets do not support negative indexing and raise an error (\"Negative indexing is not supported\"). The cursor offset comes from the client-supplied `cursor` query parameter. The audit-log endpoint turns this path on whenever `optimized_pagination=true` is set and the caller is a superuser or has global access. A request with a cursor such as `0:-5:0` therefore reaches the negative slice. The code is also unsafe in the other direction. Where a negative slice does not raise, it would read from the end of the dataset and bypass the paginator's bounds. The claim that the \"negative offset\" feature gives efficient reverse pagination is false, because the feature cannot work as written. The change to BasePaginator.get_result also silently clamps negative non-prev offsets to 0, where they previously raised an error. That alters behavior for all paginators that inherit from BasePaginator.",
+        "lines": {
+          "end_line": 882,
+          "start_line": 877
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:77f04ab50bcd074002cfd4ed",
+          "target:sym:9aeb4d417aeec39e0d066098"
+        ],
+        "title": "Negative-offset path slices a Django queryset with a negative index, which Django rejects"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 18545,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22074,
+        "output_tokens": 2052,
+        "provider_cost": 0.09689289999999999,
+        "request_id": "",
+        "seconds": 19.036
+      }
+    }
+  ],
+  "case_id": "sentry-01",
+  "case_input_digest": "1be05f7e7de639b15900d16368c58df01a43ba949ac0e9795ac33900a6be7d54",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,94 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "64422a4c70bdb4d4707d802da76a6688599423a718a270d133756bd1aacc4bce",
+      "model": "sonnet",
+      "prompt_digest": "fb4b71b0cf27aaba8f7b01249f22e08cdfbfd4a667b0d224805293437229a1b1",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only adds a t.Skip guard for the postgres DB type in an integration test. It is a deliberate, commented skip and introduces no incorrect behavior.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:73d5005980ba38704671ad8a"
+        ],
+        "title": "No defect in added postgres skip"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "e48366bf30cbf8be2c24ef1f69f8582e381e7129219d5cbd50c9e18fd5233241",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 6942,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10471,
+        "output_tokens": 423,
+        "provider_cost": 0.0330269,
+        "request_id": "",
+        "seconds": 5.202
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a2b58fb7901ed4e06cc7bf0a9b54276406ece385965e729f601991191715028d",
+      "model": "sonnet",
+      "prompt_digest": "8b89a0b7e9cbcd2b0ebca093bca748d9126ff917daa3d6a2e103f486fcddf23b",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "A write event that arrives during startup can trigger a Go 'concurrent map iteration and map write' fatal error, which crashes the process. It can also give a racy doc count. The window is small, but the server now runs `Init` at construction time.",
+        "evidence_refs": [
+          "source:new:pkg/storage/unified/resource/search.go@sha256:13a29251614ed223b36bf814ce299ca205c6cc61677095febd9333895c4f7969",
+          "source:new:pkg/storage/unified/search/bleve.go@sha256:ad6d159f6ac0aa1f3d26b7d0d6f230a97a42fe171b6bb96375f7a8e719a5d35d"
+        ],
+        "explanation": "The change adds `s.search.TotalDocs()` to the log line in `searchSupport.init` (search.go:216). `TotalDocs` ranges over `b.cache` in bleve.go without taking `cacheMu`. By that point `init` has already started the goroutine that calls `handleEvent` for each write event. If that goroutine builds an index for a new namespace/resource, `BuildIndex` writes `b.cache[key]` under `cacheMu` (bleve.go ~137). The map is then written and iterated concurrently. The change also removed the lock that `BuildIndex` held for its whole duration. The only remaining protection is a short lock around the map write, which does not cover `TotalDocs`.",
+        "lines": {
+          "end_line": 216,
+          "start_line": 216
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "title": "Unlocked TotalDocs map iteration races with the event goroutine's cache writes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "1f80dcbe50b36d9fab138fd26a1a03ab6d2df63feec1c9d30aa92edcb57df9d5",
+      "usage": {
+        "cache_read_input_tokens": 35033,
+        "cache_write_input_tokens": 29419,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 64458,
+        "output_tokens": 2244,
+        "provider_cost": 0.146409,
+        "request_id": "",
+        "seconds": 23.879
+      }
+    }
+  ],
+  "case_id": "grafana-10",
+  "case_input_digest": "897220768459cddae55e956f88c037f694036cacc8973421f9c1547e60d30ec4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:44:24+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,3389 @@
+{
+  "aggregate": {
+    "auto": {
+      "catch": {
+        "by_rule": {
+          "location": 0,
+          "symbol": 0
+        },
+        "caught": 0,
+        "ci95": null,
+        "expected": 0,
+        "labelled_prs": 0,
+        "missed": [],
+        "missed_by_cause": {
+          "asked_not_reported": 0,
+          "no_risk_candidate": 0,
+          "not_asked": 0
+        },
+        "rate": null
+      },
+      "complete": 30,
+      "context_tokens": {
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "n": 30,
+        "p90": 0.0,
+        "total": 0.0
+      },
+      "cost_per_catch_usd": null,
+      "errored": 0,
+      "findings": {
+        "p0": 0,
+        "p1": 7,
+        "p2": 51,
+        "per_review": {
+          "p0": 0.0,
+          "p1": 0.233,
+          "p2": 1.7,
+          "total": 1.933
+        },
+        "total": 58
+      },
+      "incomplete": 0,
+      "input_tokens": {
+        "max": 1988830.0,
+        "mean": 324109.466667,
+        "median": 180059.5,
+        "n": 30,
+        "p90": 612321.6,
+        "total": 9723284.0
+      },
+      "model_calls": {
+        "max": 20.0,
+        "mean": 5.233333,
+        "median": 4.0,
+        "n": 30,
+        "p90": 10.1,
+        "total": 157.0
+      },
+      "model_seconds": {
+        "max": 367.917,
+        "mean": 94.438267,
+        "median": 53.722,
+        "n": 30,
+        "p90": 211.5426,
+        "total": 2833.148
+      },
+      "noise": {
+        "ci95": null,
+        "duplicates": 0,
+        "findings": 0,
+        "rate": null,
+        "rate_excluding_duplicates": null,
+        "rate_p0_p1": null,
+        "unmatched": 0,
+        "unmatched_p0_p1": 0
+      },
+      "output_tokens": {
+        "max": 26263.0,
+        "mean": 6909.866667,
+        "median": 4288.0,
+        "n": 30,
+        "p90": 16312.4,
+        "total": 207296.0
+      },
+      "provider_usd": {
+        "max": 2.791581,
+        "mean": 0.52892,
+        "median": 0.308296,
+        "n": 30,
+        "p90": 1.074659,
+        "total": 15.867614
+      },
+      "prs": 30,
+      "ran": 30,
+      "skipped": 0,
+      "tokens_unreported_reviews": 0,
+      "usd_unreported_reviews": 0,
+      "wall_seconds": {
+        "max": 121.415041,
+        "mean": 57.305252,
+        "median": 53.147495,
+        "n": 30,
+        "p90": 84.37438,
+        "total": 1719.15757
+      },
+      "zero_call_reviews": 0
+    }
+  },
+  "baseline": {
+    "against_labels": {
+      "caught": 0,
+      "ci95": null,
+      "comments": 0,
+      "expected": 0,
+      "labelled_prs_with_comments": 0,
+      "noise_rate": null,
+      "rate": null,
+      "unmatched": 0
+    },
+    "by_depth": {
+      "auto": {
+        "agreed": 0,
+        "near_misses": 0,
+        "ours_only": 0,
+        "share_of_theirs_we_also_raised": null,
+        "theirs_only": 0
+      }
+    },
+    "inline_comments": 0,
+    "judged": {
+      "invalid": 0,
+      "valid": 0
+    },
+    "prs_with_comments": 0,
+    "summary_comments": 0
+  },
+  "corpus": {
+    "digest": "ad4bc96aa265db47ef11744c4d07d4f94e2cf76eb1ab0fd3cc67c1e57464b1f7",
+    "id": "golden-comment-prs",
+    "labelled_prs": 0,
+    "labels": 0,
+    "line_tolerance": 3,
+    "match": "either",
+    "organization": null,
+    "path": "golden_comment_prs.yaml",
+    "prs": 30,
+    "visibility": "private"
+  },
+  "generated_at": "2026-10-26T06:46:50+00:00",
+  "kind": "review-benchmark",
+  "name": "run3-dev-auto",
+  "prs": [
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.322,
+          "changed_lines": 138,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "A crafted cursor on the audit-log endpoint causes an unhandled exception and a 500 response. The new paginator and the `optimized_pagination` flag add a public query-parameter contract that cannot work for its advertised negative-offset case.",
+              "explanation": "When `enable_advanced_features` is true and `cursor.offset < 0`, OptimizedCursorPaginator.get_result runs `queryset[cursor.offset:stop]`. The comment says \"The underlying Django ORM properly handles negative slicing\", but Django QuerySets do not support negative indexing and raise an error (\"Negative indexing is not supported\"). The cursor offset comes from the client-supplied `cursor` query parameter. The audit-log endpoint turns this path on whenever `optimized_pagination=true` is set and the caller is a superuser or has global access. A request with a cursor such as `0:-5:0` therefore reaches the negative slice. The code is also unsafe in the other direction. Where a negative slice does not raise, it would read from the end of the dataset and bypass the paginator's bounds. The claim that the \"negative offset\" feature gives efficient reverse pagination is false, because the feature ca…",
+              "id": "finding-9f758739dfa278bbdf58f2e3",
+              "lines": [
+                68,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative-offset path slices a Django queryset with a negative index, which Django rejects"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 22074,
+          "investigated": 9,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 1,
+          "model_seconds": 19.037,
+          "output_tokens": 2052,
+          "pr": "sentry-01",
+          "provider_usd": 0.096893,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 10,
+          "risk_candidates": 9,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 10,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 64.025
+        }
+      },
+      "id": "sentry-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Enhanced Pagination Performance for High-Volume Audit Logs",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.403,
+          "changed_lines": 212,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py",
+            "src/sentry/scripts/spans/add-buffer.lua",
+            "src/sentry/spans/buffer.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py",
+            "tests/sentry/spans/test_buffer.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "Any admin or superuser who sends optimized_pagination=true with a negative cursor offset gets a 500 error from the audit log endpoint. The advertised negative-offset feature cannot work.",
+              "explanation": "When enable_advanced_features is true and cursor.offset < 0, OptimizedCursorPaginator.get_result sets start_offset to the raw negative offset and calls queryset[start_offset:stop]. Django QuerySets do not support negative indexing or slicing. They raise AssertionError('Negative indexing is not supported.'). The comment 'The underlying Django ORM properly handles negative slicing automatically' is wrong. The offset comes from the client-supplied cursor string. For example, a request with optimized_pagination=true and a cursor whose offset is -1 or -5 makes the audit log endpoint fail with an unhandled exception. The path is also not a 'safe' way to reach data beyond normal bounds, because it never returns data. In the same function, the stop value computed as start_offset + limit + extra is meaningless for negative starts. The BasePaginator.get_result edit also changes behavior: for non-…",
+              "id": "finding-55a694a72028c380ff279958",
+              "lines": [
+                845,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative-offset path slices a Django queryset with a negative index, which raises instead of paginating"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 154864,
+          "investigated": 10,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 53.784,
+          "other_changed_code": 31,
+          "output_tokens": 4590,
+          "pr": "sentry-02",
+          "provider_usd": 0.35011,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 10,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 64.632
+        }
+      },
+      "id": "sentry-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Optimize spans buffer insertion with eviction during insert",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.846,
+          "changed_lines": 485,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pyproject.toml",
+            "src/sentry/api/endpoints/organization_events_stats.py",
+            "src/sentry/api/helpers/error_upsampling.py",
+            "src/sentry/search/events/datasets/discover.py",
+            "src/sentry/testutils/factories.py",
+            "tests/sentry/api/helpers/test_error_upsampling.py",
+            "tests/snuba/api/endpoints/test_organization_events_stats.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 218,
+              "category": "correctness",
+              "consequence": "For allowlisted projects, event.type:error stats queries on the errors/discover datasets may fail with an unknown-column or unknown-function error if `sample_weight` does not exist in Snuba. Counts in these responses would also change meaning from event counts to weighted sums. After an allowlist change, requests keep the old behavior for up to 60 seconds.",
+              "explanation": "When `is_errors_query_for_error_upsampled_projects` returns true, `_get_event_stats` swaps `count()` for `upsampled_count() as count` in the top-events, RPC and standard timeseries paths. `upsampled_count` is defined only in search/events/datasets/discover.py:1042-1052, where it compiles to `toInt64(sum(Column(\"sample_weight\")))`. Grep finds no other use of `sample_weight` in src/sentry: no dataset column definition, no ingestion code and no migration. The helper comments say the schema guarantees the column, but nothing in the repo supports that. The eligibility result is also cached for 60 seconds, keyed on org and project ids. `invalidate_upsampling_cache` is defined but never called, so allowlist changes take up to 60s to apply. The `use_rpc` branch receives the rewritten string `upsampled_count() as count`, which the RPC resolver may not support.",
+              "id": "finding-c68bde7ee75731445a1388c6",
+              "lines": [
+                218,
+                299
+              ],
+              "path": "src/sentry/api/endpoints/organization_events_stats.py",
+              "severity": "p2",
+              "title": "Upsampling rewrites count() to sum(sample_weight), a column nothing else in the repo references"
+            },
+            {
+              "anchor_line": 67,
+              "category": "correctness",
+              "consequence": "After the allowlist changes, queries keep the old upsampling decision for up to 60 seconds. Any key collision would apply or skip upsampling for the wrong projects.",
+              "explanation": "invalidate_upsampling_cache has no callers in src. is_errors_query_for_error_upsampled_projects caches the allowlist result for 60 seconds. Its docstring says the cache is invalidated when the allowlist changes, but nothing does that. The cache key also uses Python hash() of the project-id tuple, so two different project sets can collide.",
+              "id": "finding-fe5af79f20ec840fe996f2dd",
+              "lines": [
+                67,
+                74
+              ],
+              "path": "src/sentry/api/helpers/error_upsampling.py",
+              "severity": "p2",
+              "title": "Upsampling eligibility cache is never invalidated"
+            },
+            {
+              "anchor_line": 137,
+              "category": "correctness",
+              "consequence": "For allowlisted projects, discover stats queries that exclude errors return wrong counts, for example 0 instead of the real count.",
+              "explanation": "_is_error_focused_query checks only `\"event.type:error\" in query`. A query such as `!event.type:error`, `-event.type:error` or `event.type:error_foo` contains that substring, so it is treated as error-focused. On the discover dataset, count() is then rewritten to upsampled_count(), which is sum(sample_weight), for queries that select non-error events (transactions or default events). Those events may have no sample_weight, so the sum is wrong or zero.",
+              "id": "finding-96580ff7819281728c62955e",
+              "lines": [
+                130,
+                140
+              ],
+              "path": "src/sentry/api/helpers/error_upsampling.py",
+              "severity": "p2",
+              "title": "Substring match treats negated event.type:error queries as error-focused"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+          "input_tokens": 333255,
+          "investigated": 25,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 110.758,
+          "other_changed_code": 6,
+          "output_tokens": 6942,
+          "pr": "sentry-03",
+          "provider_usd": 0.48425,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 32,
+          "risk_candidates": 25,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 32,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 83.272
+        }
+      },
+      "id": "sentry-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(upsampling) - Support upsampled error count with performance optimizations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.278,
+          "changed_lines": 297,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/github/integration.py",
+            "src/sentry/web/frontend/pipeline_advancer.py",
+            "tests/sentry/integrations/github/test_integration.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 501,
+              "category": "correctness",
+              "consequence": "Users reinstalling GitHub for an existing Integration without sender metadata get an unhandled 500 instead of the error page or a legitimate flow. The check fails closed, so this is not a bypass.",
+              "explanation": "The new ownership check reads integration.metadata[\"sender\"][\"login\"] unconditionally. Integration metadata only gets \"sender\" when state.get(\"sender\") is truthy (line 376-377), so integrations created without it, such as ones from before this field existed, have no such key. Reinstalling for an existing Integration row that has an inactive or missing OrganizationIntegration then raises KeyError.",
+              "id": "finding-929b338870def317131e3e0b",
+              "lines": [
+                448,
+                506
+              ],
+              "path": "src/sentry/integrations/github/integration.py",
+              "severity": "p2",
+              "title": "Sender check indexes metadata[\"sender\"] that may be absent"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "843d7c71926b03f0c5847a0740ac3f7fb3c5fbad",
+          "input_tokens": 120808,
+          "investigated": 2,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 41.944,
+          "other_changed_code": 23,
+          "output_tokens": 3452,
+          "pr": "sentry-04",
+          "provider_usd": 0.249438,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 25,
+          "risk_candidates": 2,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 25,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 50.729
+        }
+      },
+      "id": "sentry-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "GitHub OAuth Security Enhancement",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 2.921,
+          "changed_lines": 3212,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/constants.py",
+            "src/sentry/feedback/usecases/feedback_summaries.py",
+            "src/sentry/grouping/parameterization.py",
+            "src/sentry/hybridcloud/tasks/deliver_webhooks.py",
+            "src/sentry/integrations/github/integration.py",
+            "src/sentry/integrations/gitlab/integration.py",
+            "src/sentry/integrations/source_code_management/commit_context.py",
+            "src/sentry/issues/endpoints/browser_reporting_collector.py",
+            "src/sentry/issues/grouptype.py",
+            "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py",
+            "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py",
+            "src/sentry/options/defaults.py",
+            "src/sentry/preprod/__init__.py",
+            "src/sentry/preprod/analytics.py",
+            "src/sentry/preprod/api/endpoints/organization_preprod_artifact_assemble.py",
+            "src/sentry/projectoptions/defaults.py",
+            "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+            "src/sentry/replays/usecases/delete.py",
+            "src/sentry/snuba/ourlogs.py",
+            "src/sentry/tasks/auth/check_auth.py",
+            "src/sentry/workflow_engine/endpoints/validators/base/detector.py",
+            "src/sentry/workflow_engine/processors/delayed_workflow.py",
+            "src/sentry/workflow_engine/processors/workflow.py",
+            "static/app/components/codeSnippet.tsx",
+            "static/app/components/codecov/branchSelector/branchSelector.tsx",
+            "static/app/components/codecov/datePicker/dateSelector.tsx",
+            "static/app/components/codecov/integratedOrgSelector/integratedOrgSelector.tsx",
+            "static/app/components/codecov/repoPicker/repoSelector.tsx",
+            "static/app/components/core/button/styles.chonk.tsx",
+            "static/app/components/events/eventAttachments.tsx",
+            "static/app/components/events/groupingInfo/groupingVariant.tsx",
+            "static/app/components/events/interfaces/spans/newTraceDetailsHeader.tsx",
+            "static/app/components/feedback/feedbackSummary.tsx",
+            "static/app/components/feedback/list/useFeedbackSummary.tsx",
+            "static/app/components/group/times.tsx",
+            "static/app/components/replays/breadcrumbs/breadcrumbItem.tsx",
+            "static/app/components/replays/timeAndScrubberGrid.tsx",
+            "static/app/components/scrollCarousel.tsx",
+            "static/app/utils/analytics/replayAnalyticsEvents.tsx",
+            "static/app/views/alerts/list/rules/alertRuleStatus.tsx",
+            "static/app/views/alerts/list/rules/row.tsx",
+            "static/app/views/codecov/tests/onboardingSteps/addUploadToken.tsx",
+            "static/app/views/dashboards/widgetCard/chart.tsx",
+            "static/app/views/dashboards/widgets/common/types.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/defaultTableCellRenderers.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/fixtures/sampleHTTPRequestTableData.ts",
+            "static/app/views/dashboards/widgets/tableWidget/tableWidgetVisualization.stories.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/tableWidgetVisualization.tsx",
+            "static/app/views/explore/charts/index.tsx",
+            "static/app/views/explore/components/traceItemSearchQueryBuilder.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/aggregateFields.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/index.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/sortBys.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/visualizes.tsx",
+            "static/app/views/explore/hooks/useAddToDashboard.tsx",
+            "static/app/views/explore/hooks/useAnalytics.tsx",
+            "static/app/views/explore/hooks/useExploreAggregatesTable.tsx",
+            "static/app/views/explore/hooks/useExploreTimeseries.tsx",
+            "static/app/views/explore/hooks/useGetTraceItemAttributeKeys.tsx",
+            "static/app/views/explore/hooks/useGetTraceItemAttributeValues.tsx",
+            "static/app/views/explore/hooks/useTopEvents.tsx",
+            "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+            "static/app/views/explore/spans/spansTab.tsx",
+            "static/app/views/explore/tables/aggregateColumnEditorModal.tsx",
+            "static/app/views/explore/toolbar/toolbarSaveAs.tsx",
+            "static/app/views/explore/toolbar/toolbarSortBy.tsx",
+            "static/app/views/explore/toolbar/toolbarVisualize.tsx",
+            "static/app/views/explore/types.tsx",
+            "static/app/views/explore/utils.tsx",
+            "static/app/views/feedback/feedbackListPage.tsx",
+            "static/app/views/insights/common/components/chartActionDropdown.tsx",
+            "static/app/views/insights/pages/transactionNameSearchBar.tsx",
+            "static/app/views/organizationStats/teamInsights/teamMisery.tsx",
+            "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+            "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx",
+            "static/app/views/performance/newTraceDetails/traceWaterfall.tsx",
+            "static/app/views/profiling/profileSummary/index.tsx",
+            "static/app/views/replays/detail/ai/index.tsx",
+            "static/app/views/settings/dynamicSampling/organizationSampleRateInput.tsx",
+            "static/app/views/settings/organizationAuditLog/auditLogList.tsx",
+            "static/app/views/settings/organizationIntegrations/detailedView/integrationLayout.tsx",
+            "static/app/views/settings/project/projectOwnership/codeOwnerFileTable.tsx",
+            "static/gsAdmin/views/instanceLevelOAuth/instanceLevelOAuthDetails.tsx",
+            "tests/sentry/api/endpoints/test_browser_reporting_collector.py",
+            "tests/sentry/api/endpoints/test_project_details.py",
+            "tests/sentry/api/serializers/test_project.py",
+            "tests/sentry/replays/test_project_replay_summarize_breadcrumbs.py",
+            "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+            "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+            "tests/snuba/api/endpoints/test_organization_events_stats.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 118,
+              "category": "correctness",
+              "consequence": "Replay summaries sent to Seer can include wrong or mismatched error titles, messages and timestamps. Errors can be attributed to the wrong time in the breadcrumb timeline. This happens whenever some error nodes are missing or cached.",
+              "explanation": "nodestore.backend.get_multi deduplicates ids and returns a dict keyed by node_id. The Django backend only returns rows that exist, and cached items are merged in last, so the values are not in error_ids order. They can also be fewer than error_ids. zip(error_ids, events.values()) pairs each error ID with whichever payload happens to sit at that position. If one error node is missing or the cache and DB results are mixed, every later error gets another event's title, message and timestamp. The `id` field is also not the real event ID.",
+              "id": "finding-3973a2a31e735f04593114e1",
+              "lines": [
+                104,
+                170
+              ],
+              "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+              "severity": "p2",
+              "title": "Error IDs mispaired with nodestore results via zip(error_ids, events.values())"
+            },
+            {
+              "anchor_line": 65,
+              "category": "correctness",
+              "consequence": "In the default view (no search), the attributes that were meant to be hidden are shown. They then vanish once a search is typed, which is inconsistent behavior.",
+              "explanation": "HIDDEN_ATTRIBUTES (is_segment, project_id, received) is applied only inside the filter step. The early return `if (!searchQuery.trim()) return sorted;` runs first, so with an empty search box the hidden attributes are still returned and rendered. They disappear only once the user types something. Filtering is also the only place the list is applied (sortedAndFilteredAttributes is used at lines 135 and 139).",
+              "id": "finding-22259058e10ed135845a606d",
+              "lines": [
+                65,
+                68
+              ],
+              "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+              "severity": "p2",
+              "title": "Hidden attributes are only filtered out when a search query is present"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+          "input_tokens": 1988830,
+          "investigated": 102,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 20,
+          "model_seconds": 339.02,
+          "other_changed_code": 240,
+          "output_tokens": 24334,
+          "pr": "sentry-05",
+          "provider_usd": 2.791581,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 387,
+          "risk_candidates": 131,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 387,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 121.415
+        }
+      },
+      "id": "sentry-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Replays Self-Serve Bulk Delete System",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.226,
+          "changed_lines": 249,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/consumers/__init__.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "src/sentry/spans/consumers/process/flusher.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 253,
+              "category": "correctness",
+              "consequence": "After a hang, a duplicate flusher runs on the same shards. This can produce duplicate segments in Kafka and leak processes. The leak grows with each restart until MAX_PROCESS_RESTARTS is exceeded.",
+              "explanation": "The old code called `self.process.kill()` unconditionally. The new code only kills when `isinstance(process, multiprocessing.Process)`. The processes are created from `multiprocessing.get_context(\"spawn\").Process`, which is `SpawnProcess`. That class derives from `BaseProcess`, not from `multiprocessing.Process` (`multiprocessing.context.Process`). The isinstance check is therefore always False for real processes, and `kill()` is never reached. When a flusher is declared hung (`cause == \"hang\"`) and is still alive, `_create_process_for_shards` starts a replacement while the old process keeps running. The old process keeps flushing the same shards, so two flushers now work on the same shard buffer. The same isinstance check in `join()` (line 346) means `terminate()` is never called either.",
+              "id": "finding-71f0bbd5194d29a35cc8555d",
+              "lines": [
+                31,
+                126
+              ],
+              "path": "src/sentry/spans/consumers/process/flusher.py",
+              "severity": "p2",
+              "title": "Hung flusher process is never killed because isinstance check excludes SpawnProcess"
+            },
+            {
+              "anchor_line": 336,
+              "category": "correctness",
+              "consequence": "On shutdown or rebalance with a timeout and more than one flusher process, the later processes may be left alive. They are daemon processes, so they die when the parent exits. Until then they can keep flushing, or keep Redis and Kafka producers open, while the strategy is treated as joined.",
+              "explanation": "In the new per-process loop in SpanFlusher.join, when the remaining time reaches zero the code does `break`. That exits the loop before `process.terminate()` runs for the current process and for every process after it. The old single-process code always called terminate() after the wait loop. With several flusher processes, a slow first process can use up the timeout. The later processes are then never terminated and keep running, with `stopped` already set, after join returns.",
+              "id": "finding-c463dd33d62462240b3aa2d6",
+              "lines": [
+                329,
+                347
+              ],
+              "path": "src/sentry/spans/consumers/process/flusher.py",
+              "severity": "p2",
+              "title": "join() skips terminating remaining flusher processes once the deadline expires"
+            },
+            {
+              "anchor_line": 62,
+              "category": "verification",
+              "consequence": "The test can still fail intermittently if the flusher has not flushed by the time the messages are checked. The added wait gives a false sense of stability.",
+              "explanation": "test_basic patches \"time.sleep\" to `lambda _: None` at its start. The added `import time` followed by `time.sleep(0.1)` looks up the patched attribute on the time module, so it returns immediately. The comment says it gives the flusher time to process after the drift change, but it waits for nothing. test_flusher.py avoids this because it uses `from time import sleep`, which was bound before the patch and so is the real function. The intended synchronization in test_basic does not happen. The assertion `(msg,) = messages` still depends on step.join() and on flusher timing.",
+              "id": "finding-2a7efedc8abc27d3545ca96c",
+              "lines": [
+                60,
+                63
+              ],
+              "path": "tests/sentry/spans/consumers/process/test_consumer.py",
+              "severity": "p2",
+              "title": "time.sleep(0.1) added to test_basic is a no-op because time.sleep is monkeypatched"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "9bf83b05423beff6dcc542f93e903c562e97469b",
+          "input_tokens": 178476,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 52.239,
+          "other_changed_code": 23,
+          "output_tokens": 4220,
+          "pr": "sentry-06",
+          "provider_usd": 0.326524,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 24,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 24,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 64.641
+        }
+      },
+      "id": "sentry-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Span Buffer Multiprocess Enhancement with Health Monitoring",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.236,
+          "changed_lines": 227,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/mixins/issues.py",
+            "src/sentry/integrations/services/assignment_source.py",
+            "src/sentry/integrations/tasks/sync_assignee_outbound.py",
+            "src/sentry/integrations/utils/sync.py",
+            "src/sentry/models/groupassignee.py",
+            "tests/sentry/integrations/services/test_assignment_source.py",
+            "tests/sentry/models/test_groupassignee.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 18,
+              "category": "correctness",
+              "consequence": "Any consumer of `queued` sees a wrong time that can be hours or days old. The same value is serialized into every task payload through `to_dict`.",
+              "explanation": "`queued: datetime = timezone.now()` is a dataclass default, so it is evaluated once when the module is imported. Every AssignmentSource built with `from_integration` gets the same stale timestamp, namely the process start time. It does not record when the assignment was queued. It needs `field(default_factory=timezone.now)`.",
+              "id": "finding-7f35f126f878a001527dbb63",
+              "lines": [
+                15,
+                30
+              ],
+              "path": "src/sentry/integrations/services/assignment_source.py",
+              "severity": "p2",
+              "title": "AssignmentSource.queued default is evaluated once at import time"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "f9919d789416dd32549d7bb9e238d5df55d5265a",
+          "input_tokens": 173205,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 41.233,
+          "other_changed_code": 34,
+          "output_tokens": 2584,
+          "pr": "sentry-07",
+          "provider_usd": 0.255276,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 34,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 34,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 56.163
+        }
+      },
+      "id": "sentry-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(ecosystem): Implement cross-system issue synchronization",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.196,
+          "changed_lines": 553,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/monitors/logic/incident_occurrence.py",
+            "src/sentry/monitors/logic/incidents.py",
+            "src/sentry/monitors/logic/mark_failed.py",
+            "src/sentry/monitors/types.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 168,
+              "category": "correctness",
+              "consequence": "The monitor context on the incident occurrence event shows the raw schedule_type value, not the display string the code means to show. The local copy and the `get_schedule_type_display()` call do nothing.",
+              "explanation": "get_monitor_environment_context copies the monitor config into a local `config` and replaces `schedule_type` with its display string. The returned dict then uses `monitor_environment.monitor.config` for the \"config\" key, so the modified copy is dead code. For any monitor whose config has a `schedule_type`, the event context carries the raw stored value instead of the human-readable one.",
+              "id": "finding-a36a6ac757464bb3150dc812",
+              "lines": [
+                159,
+                171
+              ],
+              "path": "src/sentry/monitors/logic/incident_occurrence.py",
+              "severity": "p2",
+              "title": "Monitor context sends raw config; the computed schedule_type display copy is never used"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "c3b32a7babfcf62b91553388bcd9e9fbfd30a690",
+          "input_tokens": 108307,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 43.074,
+          "other_changed_code": 12,
+          "output_tokens": 2659,
+          "pr": "sentry-08",
+          "provider_usd": 0.181498,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 12,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 12,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 61.18
+        }
+      },
+      "id": "sentry-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "ref(crons): Reorganize incident creation / issue occurrence logic",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.335,
+          "changed_lines": 1282,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/consumers/__init__.py",
+            "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+            "src/sentry/remote_subscriptions/consumers/result_consumer.py",
+            "tests/sentry/remote_subscriptions/consumers/test_queue_consumer.py",
+            "tests/sentry/uptime/consumers/test_results_consumer.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 84,
+              "category": "correctness",
+              "consequence": "On every restart or rebalance, the last processed message per partition is processed again, which duplicates side effects. A gap in offsets can block commits for that partition indefinitely, so the whole backlog is reprocessed after a restart.",
+              "explanation": "get_committable_offsets returns the highest processed offset (highest_committable = offset). The commit loop passes that value unchanged to commit_function. Arroyo commit functions take the next offset to consume, which is message offset + 1. Committing N therefore leaves message N uncommitted, and it is redelivered after a restart or rebalance. Separately, the scan only advances over offsets that are in all_offsets. Any offset gap in a partition (compacted topic, transaction marker, or a message that was never submitted) makes the scan break at the gap. After the break, highest_committable stays at last_committed, so nothing past the gap is ever committed. I did not check commit_function's callers or Arroyo's contract in the snapshot. The +1 claim rests on my knowledge of Arroyo.",
+              "id": "finding-50fc9455b4d47dbc2181f3fa",
+              "lines": [
+                67,
+                98
+              ],
+              "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+              "severity": "p2",
+              "title": "Committable offset is the last processed offset, not the next offset to consume, and a gap stalls commits"
+            },
+            {
+              "anchor_line": 185,
+              "category": "performance",
+              "consequence": "Under sustained load or a slow downstream, memory grows without bound and the consumer can be OOM-killed. After a restart, everything uncommitted is reprocessed.",
+              "explanation": "FixedQueuePool creates each worker queue as queue.Queue() with no maxsize (line 185). FixedQueuePool.submit calls put() which never blocks, and SimpleQueueProcessingStrategy.submit never raises MessageRejected. The class docstring promises \"Natural backpressure when queues fill up\", but queues can never fill. If result_processor is slower than the Kafka ingest rate, or one worker stalls, the consumer keeps polling and enqueueing. Offsets stay outstanding and uncommitted while the WorkItems, each holding the decoded result and the original message, accumulate in memory.",
+              "id": "finding-80f6a4ea47b190554bda1d7a",
+              "lines": [
+                171,
+                196
+              ],
+              "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+              "severity": "p2",
+              "title": "Unbounded queues: no backpressure despite documented guarantee"
+            },
+            {
+              "anchor_line": 254,
+              "category": "concurrency_state",
+              "consequence": "After the first rebalance or partition revoke in thread-queue-parallel mode, every message the consumer receives is silently dropped. Its offset is marked complete and committed without the result processor running, so check-in results are permanently lost.",
+              "explanation": "The factory creates one FixedQueuePool in __init__. create_thread_queue_parallel_worker passes that same pool to every SimpleQueueProcessingStrategy it builds, once per partition assignment. SimpleQueueProcessingStrategy.close(), terminate() and join() all call queue_pool.shutdown(). That sets worker.shutdown, shuts down every queue and joins the workers. Arroyo closes the strategy on every rebalance or revoke and then calls create_with_partitions again. The new strategy gets the same pool, which is already dead: its workers have exited and its queues are shut down. In SimpleQueueProcessingStrategy.submit, queue_pool.submit calls add_offset and then work_queue.put, which raises queue.ShutDown. The broad except in submit catches it, logs it, and calls add_offset and complete_offset for that offset, so the offset counts as processed. The commit loop then commits offsets for messages that…",
+              "id": "finding-599ce494393d52f4796c2568",
+              "lines": [
+                244,
+                259
+              ],
+              "path": "src/sentry/remote_subscriptions/consumers/result_consumer.py",
+              "severity": "p1",
+              "title": "Shared FixedQueuePool is shut down by the per-assignment strategy's close(), so later strategies lose messages"
+            },
+            {
+              "anchor_line": 1820,
+              "category": "verification",
+              "consequence": "A regression that removes cross-subscription parallelism would not be caught, even though the test name claims to cover it.",
+              "explanation": "test_thread_queue_parallel_concurrent_subscriptions says it verifies that different subscriptions are processed concurrently. The processor is mocked with no blocking, barrier or overlap tracking. The only assertion is mock_processor_call.call_count == 2. Serial processing of both results would also pass. The test therefore cannot fail if the queue pool serialized all subscriptions onto one worker.",
+              "id": "finding-47c1216b05135dd7a8998ea5",
+              "lines": [
+                1780,
+                1822
+              ],
+              "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+              "severity": "p2",
+              "title": "Concurrency test never checks that subscriptions run concurrently"
+            },
+            {
+              "anchor_line": 1921,
+              "category": "verification",
+              "consequence": "The test cannot catch a regression where errors block commits. Its assertion encodes the wrong behavior and depends on timing.",
+              "explanation": "The test says errors must not block offset commits. In OrderedQueueWorker.run (queue_consumer.py:144-149), a failed item still calls complete_offset in `finally`. So after offset 100 fails and 101 succeeds, get_committable_offsets returns 101 and the commit loop would commit 102. The test asserts the opposite: `len(committed_offsets) == 0 or test_partition not in committed_offsets`. The commit loop first wakes about 1s after startup (`shutdown_event.wait(1.0)`). The test's polling loop exits about 0.3s after both messages finish, so the assertion runs before any commit happens and passes vacuously. If the commit thread ran earlier, the assertion would fail. Either way the test does not verify that an error leaves later offsets committable.",
+              "id": "finding-16a4880a78f53d45eca34c83",
+              "lines": [
+                1874,
+                1924
+              ],
+              "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+              "severity": "p2",
+              "title": "Error-handling test asserts no commit, contradicting its docstring and the implementation; it passes only by checking before the commit tick"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 1,
+            "p2": 4,
+            "total": 5
+          },
+          "head_sha": "33f4fddf64465f75308957c4431e56fd0443eca3",
+          "input_tokens": 762663,
+          "investigated": 84,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 10,
+          "model_seconds": 209.407,
+          "other_changed_code": 13,
+          "output_tokens": 16299,
+          "pr": "sentry-09",
+          "provider_usd": 1.175538,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 99,
+          "risk_candidates": 84,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 99,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 94.299
+        }
+      },
+      "id": "sentry-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(uptime): Add ability to use queues to manage parallelism",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.3,
+          "changed_lines": 400,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/incidents/grouptype.py",
+            "src/sentry/workflow_engine/models/detector.py",
+            "src/sentry/workflow_engine/processors/detector.py",
+            "tests/sentry/workflow_engine/processors/test_detector.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 11,
+              "category": "correctness",
+              "consequence": "process_detectors raises TypeError for any detector of type metric_alert_fire. The exception aborts processing of the whole detector list, so other detectors are not evaluated.",
+              "explanation": "MetricAlertDetectorHandler was changed to subclass StatefulDetectorHandler with an empty body (`pass`). StatefulDetectorHandler declares abstract members: counter_names, get_dedupe_value, get_group_key_values and the new build_occurrence_and_event_data. None are implemented. MetricAlertFire registers this class as its detector_handler. When Detector.detector_handler constructs it for a detector of type \"metric_alert_fire\", Python raises TypeError (\"Can't instantiate abstract class\"). Before the change the class implemented evaluate and returned [], so it could be instantiated.",
+              "id": "finding-1eda92855ba49cb6a2689c92",
+              "lines": [
+                7,
+                12
+              ],
+              "path": "src/sentry/incidents/grouptype.py",
+              "severity": "p2",
+              "title": "MetricAlertDetectorHandler is now abstract and cannot be instantiated"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "de60b7fb01a1df4ecca82cc842a8b5fb16d92794",
+          "input_tokens": 302069,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 53.66,
+          "other_changed_code": 56,
+          "output_tokens": 4356,
+          "pr": "sentry-10",
+          "provider_usd": 0.485125,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 56,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 56,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 57.77
+        }
+      },
+      "id": "sentry-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(workflow_engine): Add in hook for producing occurrences from the stateful detector",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 2.808,
+          "changed_lines": 4248,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            ".cursor/rules/review.mdc",
+            "apps/web/app/(use-page-wrapper)/(main-nav)/teams/server-page.tsx",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/SettingsLayoutAppDirClient.tsx",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/layout.tsx",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/organizations/roles/_components/AdvancedPermissionGroup.tsx",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/organizations/roles/_components/__tests__/usePermissions.test.ts",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/organizations/roles/_components/usePermissions.ts",
+            "apps/web/app/(use-page-wrapper)/settings/(settings-layout)/organizations/roles/actions.ts",
+            "apps/web/components/booking/BookingListItem.tsx",
+            "apps/web/components/booking/bookingActions.test.ts",
+            "apps/web/components/booking/bookingActions.ts",
+            "apps/web/lib/video/[uid]/getServerSideProps.ts",
+            "apps/web/package.json",
+            "apps/web/playwright/booking-pages.e2e.ts",
+            "apps/web/playwright/bookings-list.e2e.ts",
+            "apps/web/playwright/dynamic-booking-pages.e2e.ts",
+            "apps/web/playwright/reschedule.e2e.ts",
+            "docs/platform/atoms/availability-settings.mdx",
+            "docs/platform/atoms/event-type.mdx",
+            "packages/app-store/googlecalendar/lib/CalendarService.ts",
+            "packages/app-store/routing-forms/lib/crmRouting/routerGetCrmContactOwnerEmail.ts",
+            "packages/app-store/salesforce/lib/routingFormBookingFormHandler.ts",
+            "packages/embeds/embed-core/index.html",
+            "packages/embeds/embed-core/playground/lib/playground.ts",
+            "packages/embeds/embed-core/src/Inline/inline.ts",
+            "packages/embeds/embed-core/src/ModalBox/ModalBox.ts",
+            "packages/embeds/embed-core/src/__tests__/utils.test.ts",
+            "packages/embeds/embed-core/src/embed-iframe/lib/embedStore.ts",
+            "packages/embeds/embed-core/src/embed.test.ts",
+            "packages/embeds/embed-core/src/embed.ts",
+            "packages/embeds/embed-core/src/lib/domUtils.test.ts",
+            "packages/embeds/embed-core/src/lib/domUtils.ts",
+            "packages/embeds/embed-core/src/lib/eventHandlers/scrollByDistanceEventHandler.ts",
+            "packages/embeds/embed-core/src/lib/utils.ts",
+            "packages/embeds/embed-core/src/sdk-action-manager.ts",
+            "packages/eslint-plugin/src/rules/no-scroll-into-view-embed.ts",
+            "packages/features/apps/components/CredentialActionsDropdown.tsx",
+            "packages/features/bookings/Booker/Booker.tsx",
+            "packages/features/calendar-cache/calendar-cache.repository.interface.ts",
+            "packages/features/calendar-cache/calendar-cache.repository.mock.ts",
+            "packages/features/calendar-cache/calendar-cache.repository.ts",
+            "packages/features/credentials/deleteCredential.test.ts",
+            "packages/features/ee/teams/components/DisableTeamImpersonation.tsx",
+            "packages/features/ee/teams/components/MakeTeamPrivateSwitch.tsx",
+            "packages/features/eventtypes/components/EventType.tsx",
+            "packages/features/eventtypes/components/EventTypeLayout.tsx",
+            "packages/features/eventtypes/lib/types.ts",
+            "packages/features/pbac/infrastructure/repositories/RoleRepository.ts",
+            "packages/features/pbac/services/__tests__/role.service.test.ts",
+            "packages/lib/browser/browser.utils.ts",
+            "packages/lib/di/modules/eventType.ts",
+            "packages/lib/event-types/getEventTypeById.ts",
+            "packages/lib/event-types/getEventTypesByViewer.ts",
+            "packages/lib/getConnectedDestinationCalendars.ts",
+            "packages/lib/getUserAvailability.ts",
+            "packages/lib/server/repository/selectedCalendar.ts",
+            "packages/lib/server/repository/user.ts",
+            "packages/lib/server/service/teamService.alternative.test.ts",
+            "packages/lib/server/service/teamService.test.ts",
+            "packages/platform/atoms/availability/AvailabilitySettings.tsx",
+            "packages/platform/atoms/availability/types.ts",
+            "packages/platform/atoms/availability/wrappers/AvailabilitySettingsPlatformWrapper.tsx",
+            "packages/platform/atoms/event-types/hooks/useEventTypeForm.ts",
+            "packages/platform/atoms/event-types/wrappers/EventTypePlatformWrapper.tsx",
+            "packages/platform/atoms/event-types/wrappers/types.ts",
+            "packages/platform/atoms/index.ts",
+            "packages/platform/atoms/package.json",
+            "packages/platform/atoms/selected-calendars/wrappers/SelectedCalendarsSettingsWebWrapper.tsx",
+            "packages/platform/examples/base/src/pages/availability.tsx",
+            "packages/platform/examples/base/src/pages/event-types.tsx",
+            "packages/platform/libraries/repositories.ts",
+            "packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql",
+            "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql",
+            "packages/prisma/schema.prisma",
+            "packages/trpc/server/routers/viewer/calendars/_router.tsx",
+            "packages/trpc/server/routers/viewer/calendars/connectedCalendars.handler.ts",
+            "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts",
+            "packages/trpc/server/routers/viewer/eventTypes/create.handler.ts",
+            "packages/trpc/server/routers/viewer/eventTypes/duplicate.handler.ts",
+            "packages/trpc/server/routers/viewer/eventTypes/getEventTypesFromGroup.handler.ts",
+            "packages/trpc/server/routers/viewer/eventTypes/getTeamAndEventTypeOptions.handler.ts",
+            "packages/trpc/server/routers/viewer/eventTypes/util.ts",
+            "packages/trpc/server/routers/viewer/routing-forms/findTeamMembersMatchingAttributeLogicOfRoute.handler.ts",
+            "packages/trpc/server/routers/viewer/slots/isAvailable.handler.ts",
+            "packages/trpc/server/routers/viewer/slots/util.ts",
+            "packages/trpc/server/routers/viewer/teams/delete.handler.ts",
+            "packages/trpc/server/routers/viewer/teams/inviteMemberByToken.handler.ts",
+            "packages/trpc/server/routers/viewer/teams/publish.handler.ts",
+            "packages/trpc/server/routers/viewer/teams/removeMember.handler.ts",
+            "packages/ui/components/toast/showToast.tsx",
+            "scripts/test-gcal-webhooks.sh"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 385,
+              "category": "correctness",
+              "consequence": "Users can no longer trigger the recording check for past Cal Video bookings that are not yet marked as recorded. The menu item shows greyed out, which is a functional regression of an existing feature.",
+              "explanation": "Before the change, a past, confirmed Cal Video booking with no recording (`showCheckRecordingButton`) got an enabled \"check_for_recordings\" button that opened ViewRecordingsDialog. The refactor drops `showCheckRecordingButton`. `getVideoOptionsActions` always labels the action `view_recordings`. BookingListItem also adds `(action.id === \"view_recordings\" && !booking.isRecorded)` to `disabled`. So for any booking where `isRecorded` is false, the action is permanently disabled and the dialog cannot be opened. That is exactly the case the old \"check for recordings\" button handled, for example a recording that has not been synced yet. `getVideoOptionsActions` and `isActionDisabled` also now show session details and recordings under different conditions than before. For example, the old code gated recordings on `isConfirmed`, while `isActionDisabled` checks `status === ACCEPTED`. A second, s…",
+              "id": "finding-339bf213c3fd266bf929e6a7",
+              "lines": [
+                352,
+                397
+              ],
+              "path": "apps/web/components/booking/BookingListItem.tsx",
+              "severity": "p2",
+              "title": "\"Check for recordings\" flow removed: view_recordings is disabled for unrecorded Cal Video bookings"
+            },
+            {
+              "anchor_line": 49,
+              "category": "api_compatibility",
+              "consequence": "The TypeScript build or type-check of the platform atoms package fails on the wrapper's import. If the error is suppressed, the wrapper's ref type resolves to any/unknown, so the new ref API loses type safety.",
+              "explanation": "AvailabilitySettings.tsx imports the type AvailabilitySettingsFormRef from \"./types\" at line 49 and uses it only internally. It does not export it. AvailabilitySettingsPlatformWrapper.tsx line 15 does `import type { CustomClassNames, AvailabilitySettingsFormRef } from \"../AvailabilitySettings\"`. A grep of AvailabilitySettings.tsx found no export of that name, so the import cannot resolve. The type is defined in availability/types.ts and exported from atoms/index.ts, but not from AvailabilitySettings.tsx. I did not check whether the wrapper change is part of this PR, or whether a re-export exists elsewhere.",
+              "id": "finding-e1d42144ae4b6afd6408bd3a",
+              "lines": [
+                4,
+                12
+              ],
+              "path": "packages/platform/atoms/availability/AvailabilitySettings.tsx",
+              "severity": "p2",
+              "title": "AvailabilitySettingsFormRef is imported but never re-exported from AvailabilitySettings.tsx"
+            },
+            {
+              "anchor_line": 384,
+              "category": "correctness",
+              "consequence": "After a save or any background refetch that changes the data, the form unmounts and remounts. The user sees a flicker and loses unsaved edits and the current tab state. The extra reset and refetch also add redundant network requests.",
+              "explanation": "The effect's cleanup invalidates and resets the event-type query. It was meant to run only on unmount or when `id` changed. The change adds `eventTypeQueryData` to the dependency array, so the cleanup now runs whenever the fetched data changes. Examples are a refetch after saving, a window-focus refetch, or the first load after an earlier reset. Each time, the old render's cleanup sees truthy data and calls resetQueries. That clears the data to undefined, so `if (!eventTypeQueryData) return null` unmounts the whole EventType form until the refetch returns.",
+              "id": "finding-3f3cd6a84b53961e9ab89779",
+              "lines": [
+                384,
+                384
+              ],
+              "path": "packages/platform/atoms/event-types/wrappers/EventTypePlatformWrapper.tsx",
+              "severity": "p2",
+              "title": "Adding eventTypeQueryData to effect deps resets the query on every data change"
+            },
+            {
+              "anchor_line": 47,
+              "category": "correctness",
+              "consequence": "CommonJS consumers, such as require() or tools that resolve \"main\", fail with a module-not-found error for the missing file. Before the change they got a clear resolution error for the missing export.",
+              "explanation": "The change adds exports[\".\"].require and \"main\" pointing to ./dist/cal-atoms.umd.cjs. The vite config (packages/platform/atoms/vite.config.ts:34) builds only formats: [\"es\"], so no cal-atoms.umd.cjs is generated. The change doesn't alter the vite config.",
+              "id": "finding-79ec4bb6113fd0bc086cdafa",
+              "lines": [
+                46,
+                89
+              ],
+              "path": "packages/platform/atoms/package.json",
+              "severity": "p2",
+              "title": "package.json points require/main at a UMD/CJS bundle the build does not emit"
+            },
+            {
+              "anchor_line": 212,
+              "category": "correctness",
+              "consequence": "For a response whose routed booking is created after the response is saved, the denormalized row never gets its booking status, times, user, event type or UTM data. Analytics and filters on that table show those responses as having no booking, and the row is wrong until the response is next updated. A changed booking user also leaves the old name, email and avatar in the row.",
+              "explanation": "The booking trigger function updates RoutingFormResponseDenormalized only `WHERE rfrd.\"bookingId\" = NEW.id`. A denormalized row gets `bookingId` only when the refresh function finds the booking through `b.uid = r.\"routedToBookingUid\"`. If the form response is saved before the booking row exists, the refresh inserts the row with `bookingId` NULL. When the booking is later inserted, `booking_insert_trigger_for_routing_form` runs this function, but the WHERE clause matches no rows. The function also never sets `bookingUid` or `bookingId`. It never sets `bookingUserName`, `bookingUserEmail` or `bookingUserAvatarUrl`, so those columns stay stale after a booking `userId` change. Tracking and assignment-reason rows are also not copied in, because their triggers use the same `bookingId` match.",
+              "id": "finding-0c010d458b974507680a12e5",
+              "lines": [
+                189,
+                189
+              ],
+              "path": "packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql",
+              "severity": "p2",
+              "title": "Booking insert/update trigger cannot link denormalized rows that were created before the booking existed"
+            },
+            {
+              "anchor_line": 24,
+              "category": "correctness",
+              "consequence": "Clients get a misleading 500 and the server logs it as an internal error for an expected user-input condition. Team admins cannot clear the cache for team-owned credentials.",
+              "explanation": "The route is registered with authedProcedure and validates credentialId as z.number(), and the handler scopes the lookup to userId === ctx.user.id. So there is no authorization bypass, and a client cannot delete another user's cache. The handler throws a plain `Error` when the credential is not found or not owned. tRPC maps non-TRPCError exceptions to INTERNAL_SERVER_ERROR, so a missing or foreign credentialId returns a 500, not NOT_FOUND or FORBIDDEN. The handler also only matches credentials whose userId is the caller, so team or delegation credentials (null userId) cannot have their cache cleared. I did not confirm whether the UI shows the cache action for those credentials.",
+              "id": "finding-f4246d114eee87dc209d3e5a",
+              "lines": [
+                13,
+                33
+              ],
+              "path": "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts",
+              "severity": "p2",
+              "title": "Plain Error for missing/unauthorized credential yields 500 instead of NOT_FOUND/FORBIDDEN"
+            },
+            {
+              "anchor_line": 68,
+              "category": "correctness",
+              "consequence": "On Linux, a developer with an existing GOOGLE_WEBHOOK_URL line keeps a stale tunnel URL, while the script claims it was updated. Webhook testing then silently targets a dead tunnel.",
+              "explanation": "scripts/test-gcal-webhooks.sh:68 runs `sed -i '' -E ...` when GOOGLE_WEBHOOK_URL already exists in the env file. This is macOS/BSD syntax. GNU sed treats the empty string as the script and then fails to parse the real expression, so the URL is never updated. The script still prints \"✅ Updated GOOGLE_WEBHOOK_URL\" afterward, because nothing checks sed's exit status. The failure and error paths also call cleanup, which does `exit 0`, so they report success.",
+              "id": "finding-bd61af10c89784223e354d59",
+              "lines": [
+                1,
+                79
+              ],
+              "path": "scripts/test-gcal-webhooks.sh",
+              "severity": "p2",
+              "title": "BSD-only `sed -i ''` breaks the env update on Linux"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 7,
+            "total": 7
+          },
+          "head_sha": "7269aca1c02cb34a6f6526d81fc7662d8bf214ba",
+          "input_tokens": 1553302,
+          "investigated": 64,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 20,
+          "model_seconds": 367.917,
+          "other_changed_code": 172,
+          "output_tokens": 26263,
+          "pr": "calcom-01",
+          "provider_usd": 2.529146,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 242,
+          "risk_candidates": 64,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 242,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 101.74
+        }
+      },
+      "id": "calcom-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Optimize cache key overflow management with performance improvements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.664,
+          "changed_lines": 189,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/app-store/_utils/getCalendar.ts",
+            "packages/app-store/index.ts",
+            "packages/app-store/vital/lib/reschedule.ts",
+            "packages/app-store/wipemycalother/lib/reschedule.ts",
+            "packages/core/CalendarManager.ts",
+            "packages/core/EventManager.ts",
+            "packages/core/videoClient.ts",
+            "packages/features/bookings/lib/handleCancelBooking.ts",
+            "packages/features/bookings/lib/handleNewBooking.ts",
+            "packages/lib/payment/deletePayment.ts",
+            "packages/lib/payment/handlePayment.ts",
+            "packages/trpc/server/routers/viewer/bookings.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 125,
+              "category": "correctness",
+              "consequence": "If a calendar or video deletion fails (expired credentials, API error), the error becomes an unhandled rejection. That can crash the Node process or log nothing useful, and the intended try/catch logging is dead. Handlers can return before the old events are removed, leaving stale busy slots.",
+              "explanation": "The change made the forEach callback async because getCalendar now returns a Promise. Array.forEach does not await the callback's promise. In vital/lib/reschedule.ts (125-128) and wipemycalother/lib/reschedule.ts (125-128), the surrounding try/catch no longer catches errors from getCalendar, deleteEvent or deleteMeeting. Those errors become unhandled promise rejections. The same pattern is in bookings.tsx (the bookingRefsFiltered.forEach near line 553), where there is no catch at all. Previously the getCalendar call was synchronous. The deletions are also not awaited, so the reschedule flow continues (sending emails, webhooks, returning) before the calendar events are deleted.",
+              "id": "finding-b78cf0a8e7f300dd4982b7f3",
+              "lines": [
+                125,
+                967
+              ],
+              "path": "packages/app-store/vital/lib/reschedule.ts",
+              "severity": "p2",
+              "title": "forEach(async) makes calendar/video deletions unawaited and bypasses try/catch"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "e043a5efd872362a3fc146ed0d9ce4393e316c1e",
+          "input_tokens": 181643,
+          "investigated": 15,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 61.076,
+          "other_changed_code": 11,
+          "output_tokens": 3519,
+          "pr": "calcom-02",
+          "provider_usd": 0.290069,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 26,
+          "risk_candidates": 15,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 26,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 30.623
+        }
+      },
+      "id": "calcom-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Async import of the appStore packages",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.631,
+          "changed_lines": 316,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/components/auth/BackupCode.tsx",
+            "apps/web/components/auth/TwoFactor.tsx",
+            "apps/web/components/settings/DisableTwoFactorModal.tsx",
+            "apps/web/components/settings/EnableTwoFactorModal.tsx",
+            "apps/web/components/settings/TwoFactorAuthAPI.ts",
+            "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+            "apps/web/pages/api/auth/two-factor/totp/setup.ts",
+            "apps/web/pages/auth/login.tsx",
+            "apps/web/playwright/login.2fa.e2e.ts",
+            "packages/features/auth/lib/ErrorCode.ts",
+            "packages/features/auth/lib/next-auth-options.ts",
+            "packages/lib/test/builder.ts",
+            "packages/prisma/migrations/20230804153419_add_backup_codes/migration.sql",
+            "packages/prisma/schema.prisma",
+            "packages/ui/components/form/inputs/Input.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 60,
+              "category": "correctness",
+              "consequence": "A malformed request body produces an unhandled exception and a 500 response instead of a clean validation error. Impact is limited because the caller must already be authenticated.",
+              "explanation": "The new backup-code branch is taken whenever `req.body.backupCode` is truthy. It then calls `req.body.backupCode.replaceAll(\"-\", \"\")` without checking the type. A JSON body such as `{\"backupCode\": 123}` or `{\"backupCode\": {}}` is truthy but has no `replaceAll` method, so the handler throws a TypeError. The throw is unhandled, so the request fails with a 500 instead of the intended 400 `IncorrectBackupCode`. The earlier concerns do not hold. The session check, the 401 handling and the password check for CAL users already exist before this change. The new code adds no rate limiting, but the existing TOTP path had none either.",
+              "id": "finding-7b1e7f0469868df745090165",
+              "lines": [
+                46,
+                107
+              ],
+              "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+              "severity": "p2",
+              "title": "Non-string backupCode makes the handler throw a 500 error"
+            },
+            {
+              "anchor_line": 65,
+              "category": "security",
+              "consequence": "An attacker who has only the email and a backup code (or a current TOTP code) can log in without the password. Sending a dummy totpCode alongside the backup code is enough.",
+              "explanation": "Line 121 only verifies the password when `!credentials.totpCode`. Nothing later checks it. A request with an email, an arbitrary non-empty totpCode, no password and a valid backupCode skips the password check. It then enters the new backup-code branch (line 131), which doesn't look at totpCode, and succeeds. A request with a valid totpCode and no password is also accepted by the existing TOTP branch. The password factor is therefore not enforced for CAL users. The change adds a second way to authenticate without the password, using a backup code. The totpCode-only skip itself predates the change.",
+              "id": "finding-31a79bf763f98b2e6d560d92",
+              "lines": [
+                65,
+                157
+              ],
+              "path": "packages/features/auth/lib/next-auth-options.ts",
+              "severity": "p2",
+              "title": "Password check skipped whenever totpCode is supplied; new backup-code path inherits the bypass"
+            },
+            {
+              "anchor_line": 148,
+              "category": "concurrency_state",
+              "consequence": "An attacker who has a password and one backup code can use that code more than once by racing requests. A consumed backup code can also become valid again. This breaks the single-use guarantee of 2FA backup codes.",
+              "explanation": "The user row, including the encrypted backupCodes, is read once at the top of authorize. The code decrypts it, finds the index, sets that entry to null, re-encrypts, and calls prisma.user.update with `where: { id }` only. There is no transaction, no row lock, and no compare-and-set on the previous backupCodes value. Two concurrent logins with the same valid backup code both read the same unconsumed list, both find the code, and both pass. Each then writes back its own copy, so the last write wins. A concurrent login using a different backup code can also overwrite the first login's nulling, which revives the code that was just consumed. I checked the indexOf concern: the stored entries are nulled and the input is a non-empty string, so it cannot match a nulled entry.",
+              "id": "finding-4cfc47f1b9a57802302db35b",
+              "lines": [
+                65,
+                157
+              ],
+              "path": "packages/features/auth/lib/next-auth-options.ts",
+              "severity": "p2",
+              "title": "Backup code consumption is a non-atomic read-modify-write, so a code can be reused concurrently"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "a308075bc39b77ed7059b0cae9d443d669a7bf98",
+          "input_tokens": 388711,
+          "investigated": 21,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 10,
+          "model_seconds": 184.278,
+          "other_changed_code": 19,
+          "output_tokens": 13256,
+          "pr": "calcom-03",
+          "provider_usd": 0.703918,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 21,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 69.537
+        }
+      },
+      "id": "calcom-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: 2fa backup codes",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.114,
+          "changed_lines": 584,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/pages/api/cron/bookingReminder.ts",
+            "apps/web/playwright/webhook.e2e.ts",
+            "packages/app-store/googlecalendar/lib/CalendarService.ts",
+            "packages/app-store/larkcalendar/lib/CalendarService.ts",
+            "packages/app-store/office365calendar/lib/CalendarService.ts",
+            "packages/core/CalendarManager.ts",
+            "packages/core/EventManager.ts",
+            "packages/core/builders/CalendarEvent/builder.ts",
+            "packages/core/builders/CalendarEvent/class.ts",
+            "packages/emails/src/templates/BrokenIntegrationEmail.tsx",
+            "packages/features/bookings/lib/handleCancelBooking.ts",
+            "packages/features/bookings/lib/handleNewBooking.ts",
+            "packages/features/ee/payments/api/paypal-webhook.ts",
+            "packages/features/ee/payments/api/webhook.ts",
+            "packages/lib/CalendarService.ts",
+            "packages/trpc/server/routers/loggedInViewer/deleteCredential.handler.ts",
+            "packages/trpc/server/routers/viewer/bookings/confirm.handler.ts",
+            "packages/trpc/server/routers/viewer/bookings/editLocation.handler.ts",
+            "packages/trpc/server/routers/viewer/bookings/requestReschedule.handler.ts",
+            "packages/trpc/server/routers/viewer/organizations/create.handler.ts",
+            "packages/types/Calendar.d.ts",
+            "packages/types/EventManager.d.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 315,
+              "category": "correctness",
+              "consequence": "Without an explicit `externalCalendarId`, `deleteEvent` removes the event from the user's primary calendar instead of the configured destination calendar. The event stays on the destination calendar, or the delete fails. `updateEvent` sends an undefined calendarId and the update request fails. Reschedules and cancellations then break for users whose destination calendar is not their primary one.",
+              "explanation": "The old code fell back to `event.destinationCalendar?.externalId` when `externalCalendarId` was falsy. The change turned `destinationCalendar` into an array and rewrote the fallback as `event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId`. That branch only runs when `externalCalendarId` is falsy (undefined, null or empty). It then looks for a calendar whose `externalId` equals that falsy value, which finds nothing. The fallback is always undefined, so the destination calendar is never used. In `deleteEvent` the calendar id becomes undefined and the call falls through to \"primary\". In `updateEvent` `calendarId` is passed as undefined to `calendar.events.update`.",
+              "id": "finding-f2780cace5d8a80ba0328c77",
+              "lines": [
+                228,
+                317
+              ],
+              "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+              "severity": "p2",
+              "title": "Google Calendar update/delete lose the destinationCalendar fallback when externalCalendarId is falsy"
+            },
+            {
+              "anchor_line": 119,
+              "category": "correctness",
+              "consequence": "Creating a Google Meet event for a host with no destination calendar crashes in EventManager.create instead of falling back to Cal Video. The booking flow fails. Before this change, it fell back to Cal Video.",
+              "explanation": "The old code used `evt.destinationCalendar?.integration`, which was safe when no destination calendar existed. The new code destructures `const [mainHostDestinationCalendar] = evt.destinationCalendar ?? [];`. When `destinationCalendar` is undefined or `[]`, `mainHostDestinationCalendar` is undefined. The next line reads `mainHostDestinationCalendar.integration` with no optional chaining. This is reachable. The callers in this change (confirm.handler, editLocation.handler and bookingReminder) now explicitly pass `[]` when neither the booking nor the user has a destination calendar. An event whose location is Google Meet then throws `TypeError: Cannot read properties of undefined` instead of falling back to Cal Video.",
+              "id": "finding-810e78aeba718ee5d7f3637d",
+              "lines": [
+                117,
+                119
+              ],
+              "path": "packages/core/EventManager.ts",
+              "severity": "p1",
+              "title": "Possible TypeError in Meet fallback when destinationCalendar is empty or undefined"
+            },
+            {
+              "anchor_line": 724,
+              "category": "correctness",
+              "consequence": "A malformed dynamic-group booking request gets a 500 \"Unable to load users\" instead of a 4xx with an actionable message. That makes client errors look like server faults in monitoring and gives callers nothing to act on.",
+              "explanation": "The new loadUsers throws a plain `Error` when `dynamicUserList` is empty (a booking request with no eventTypeId and no usernames). The catch block only maps HttpError and PrismaClientKnownRequestError to 400. Every other error becomes `HttpError(500, \"Unable to load users\")`, and the original message is lost. The same catch turns an unexpected non-array `eventType.hosts` into a 500. The old code ended with `eventType.users || []`. The new code returns `users.length ? users : eventType.users` with no fallback, so an undefined `eventType.users` would make `users.some(...)` throw an uncaught TypeError. I did not find a path where `eventType.users` is undefined: it appears to be selected by getEventTypesFromDB. The impact is therefore limited to the status code and message.",
+              "id": "finding-19c18929908366fe19427367",
+              "lines": [
+                724,
+                763
+              ],
+              "path": "packages/features/bookings/lib/handleNewBooking.ts",
+              "severity": "p2",
+              "title": "loadUsers turns client input errors into a generic 500 and drops the `|| []` fallback"
+            },
+            {
+              "anchor_line": 151,
+              "category": "correctness",
+              "consequence": "Without team billing (self-hosted), organizations are created with no slug, which breaks org URLs and routing that depend on it. With billing enabled, the slug is claimed before the billing flow completes, which bypasses the requestedSlug mechanism and can collide with other organizations' slugs.",
+              "explanation": "The old code wrote `slug` on the organization when `!IS_TEAM_BILLING_ENABLED`. When billing is enabled it stored only `metadata.requestedSlug`, which is presumably so the slug is claimed after payment or verification. The change rewrote the guard as a ternary and dropped the `!`, so the condition is now `IS_TEAM_BILLING_ENABLED ? { slug } : {}`. With billing enabled, the slug is now written directly to the team row and also stored as requestedSlug. With billing disabled, the slug is never written, and requestedSlug is not written either. The change was meant to be a type cleanup of the spread, but it flipped the logic. I did not read the rest of the handler or its callers, so this is based on the diff alone.",
+              "id": "finding-d3ba3c27a7bb5c4eaedf917e",
+              "lines": [
+                151,
+                153
+              ],
+              "path": "packages/trpc/server/routers/viewer/organizations/create.handler.ts",
+              "severity": "p1",
+              "title": "Organization slug condition inverted: slug is now set only when team billing is enabled"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 2,
+            "p2": 2,
+            "total": 4
+          },
+          "head_sha": "bd797c1ea00a61425735f2b9fd7ce212ebf8c8ab",
+          "input_tokens": 352084,
+          "investigated": 11,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 145.112,
+          "other_changed_code": 32,
+          "output_tokens": 10572,
+          "pr": "calcom-04",
+          "provider_usd": 0.593554,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 43,
+          "risk_candidates": 11,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 43,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 52.961
+        }
+      },
+      "id": "calcom-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "fix: handle collective multiple host on destinationCalendar",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.289,
+          "changed_lines": 345,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts",
+            "packages/lib/server/service/insightsBooking.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "56ff75f07b92ba8ef499ff28a2f98c25f339fdae",
+          "input_tokens": 110752,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 34.872,
+          "other_changed_code": 18,
+          "output_tokens": 2201,
+          "pr": "calcom-05",
+          "provider_usd": 0.192548,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 18,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 18,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 31.662
+        }
+      },
+      "id": "calcom-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: convert InsightsBookingService to use Prisma.sql raw queries",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.783,
+          "changed_lines": 444,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/features/bookings/lib/handleCancelBooking.ts",
+            "packages/features/bookings/lib/handleNewBooking.ts",
+            "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+            "packages/features/ee/workflows/components/WorkflowStepContainer.tsx",
+            "packages/features/ee/workflows/lib/reminders/emailReminderManager.ts",
+            "packages/features/ee/workflows/lib/reminders/smsReminderManager.ts",
+            "packages/prisma/migrations/20230217230604_add_cancelled_to_workflow_reminder/migration.sql",
+            "packages/prisma/schema.prisma",
+            "packages/trpc/server/routers/viewer/bookings.tsx",
+            "packages/trpc/server/routers/viewer/workflows.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 53,
+              "category": "correctness",
+              "consequence": "One bad reminder can stop all later cancelled reminders from being cancelled on every cron run. Cancelled or rescheduled bookings can then still get their scheduled emails sent. Rows already cancelled at SendGrid are re-cancelled on each run and never cleaned up.",
+              "explanation": "The loop awaits client.request for each reminder inside a single try/catch, so the first failure (for example SendGrid returning an error for an already-sent or invalid batch_id) jumps to the catch and skips every remaining reminder. The prisma.workflowReminder.delete calls are lazy and are only executed by Promise.all after the loop. A mid-loop failure therefore means none of the rows already cancelled at SendGrid are deleted either. The failing row also stays cancelled=true, so it is first in line on every cron run and fails the same way each time. The findMany has no method: EMAIL filter and no referenceId check, unlike the other queries in this handler. In the code I could see, only emailReminderManager sets cancelled=true, and it does so only when referenceId is present. So the SMS and null-referenceId cases are latent rather than currently reachable.",
+              "id": "finding-f412ac1cf4ab726dfb64d205",
+              "lines": [
+                43,
+                78
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+              "severity": "p2",
+              "title": "One failing SendGrid cancel aborts the whole cancel loop and blocks later runs"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "2ebfcf448c7e4136ac1b8b9ef9b526a4424fd155",
+          "input_tokens": 306491,
+          "investigated": 4,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 9,
+          "model_seconds": 193.048,
+          "other_changed_code": 22,
+          "output_tokens": 12307,
+          "pr": "calcom-06",
+          "provider_usd": 0.572519,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 27,
+          "risk_candidates": 4,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 27,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 69.5
+        }
+      },
+      "id": "calcom-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Comprehensive workflow reminder management for booking lifecycle events",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.315,
+          "changed_lines": 121,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/test/lib/getSchedule.test.ts",
+            "packages/lib/slots.ts",
+            "packages/trpc/server/routers/viewer/slots.ts",
+            "packages/types/schedule.d.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 138,
+              "category": "correctness",
+              "consequence": "Fixed and loose hosts with split-day schedules lose valid bookable slots from getSchedule results. Slots inside the second range of a day disappear, which is a regression, because this check did not exist before the change.",
+              "explanation": "The new block uses workingHours.find(...) and returns \"unavailable\" as soon as any entry that includes the slot's weekday has the slot outside its range. A user's working hours are commonly several entries for the same day, for example 09:00-12:00 and 13:00-17:00, or different hosts and ranges after getAggregateWorkingHours. A slot at 14:00 lies inside the second range but is outside the first (end > 720), so find returns true and the slot is dropped. The check should pass if the slot fits in any range, not fail if it misses any one range. Also, `end` is computed from slotStartTime, the same value as `start`, so it never uses the slot end time. A slot that runs past the end of working hours is therefore not checked as intended. Separately, the `dayjs(...) === dayjs(...)` comparison in the date-override branch compares object references, so it is always false.",
+              "id": "finding-7f0d0a38cf74c598d20d6b7c",
+              "lines": [
+                79,
+                152
+              ],
+              "path": "packages/trpc/server/routers/viewer/slots.ts",
+              "severity": "p2",
+              "title": "Working-hours check in checkIfIsAvailable rejects valid slots when a day has several ranges, and its end bound is a copy of start"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "3ef328421f60cd096b7676ef7ee7c32b71593049",
+          "input_tokens": 58212,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 38.724,
+          "other_changed_code": 9,
+          "output_tokens": 2926,
+          "pr": "calcom-07",
+          "provider_usd": 0.147696,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 9,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 9,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 24.331
+        }
+      },
+      "id": "calcom-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Advanced date override handling and timezone compatibility improvements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.575,
+          "changed_lines": 494,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            ".env.example",
+            "apps/web/pages/api/webhook/app-credential.ts",
+            "packages/app-store/_utils/oauth/createOAuthAppCredential.ts",
+            "packages/app-store/_utils/oauth/decodeOAuthState.ts",
+            "packages/app-store/_utils/oauth/encodeOAuthState.ts",
+            "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+            "packages/app-store/_utils/oauth/refreshOAuthTokens.ts",
+            "packages/app-store/googlecalendar/api/add.ts",
+            "packages/app-store/googlecalendar/api/callback.ts",
+            "packages/app-store/googlecalendar/lib/CalendarService.ts",
+            "packages/app-store/hubspot/api/add.ts",
+            "packages/app-store/hubspot/api/callback.ts",
+            "packages/app-store/hubspot/lib/CalendarService.ts",
+            "packages/app-store/larkcalendar/api/add.ts",
+            "packages/app-store/larkcalendar/api/callback.ts",
+            "packages/app-store/larkcalendar/lib/CalendarService.ts",
+            "packages/app-store/office365calendar/api/add.ts",
+            "packages/app-store/office365calendar/api/callback.ts",
+            "packages/app-store/office365calendar/lib/CalendarService.ts",
+            "packages/app-store/office365video/api/add.ts",
+            "packages/app-store/office365video/api/callback.ts",
+            "packages/app-store/office365video/lib/VideoApiAdapter.ts",
+            "packages/app-store/salesforce/api/add.ts",
+            "packages/app-store/salesforce/api/callback.ts",
+            "packages/app-store/salesforce/lib/CalendarService.ts",
+            "packages/app-store/stripepayment/api/callback.ts",
+            "packages/app-store/tandemvideo/api/callback.ts",
+            "packages/app-store/webex/api/callback.ts",
+            "packages/app-store/webex/lib/VideoApiAdapter.ts",
+            "packages/app-store/zoho-bigin/api/add.ts",
+            "packages/app-store/zoho-bigin/api/callback.ts",
+            "packages/app-store/zoho-bigin/lib/CalendarService.ts",
+            "packages/app-store/zohocrm/api/_getAdd.ts",
+            "packages/app-store/zohocrm/api/callback.ts",
+            "packages/app-store/zohocrm/lib/CalendarService.ts",
+            "packages/app-store/zoomvideo/api/add.ts",
+            "packages/app-store/zoomvideo/api/callback.ts",
+            "packages/app-store/zoomvideo/lib/VideoApiAdapter.ts",
+            "packages/lib/constants.ts",
+            "turbo.json"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 23,
+              "category": "security",
+              "consequence": "A remote attacker could in theory recover the secret through timing measurements. This is hard to exploit over a network.",
+              "explanation": "The header value is compared to CALCOM_WEBHOOK_SECRET with !==, which leaks timing information. A header sent as an array, for a repeated header, also compares unequal safely, so that case is not a bypass.",
+              "id": "finding-f3540eee575b94884b1867b6",
+              "lines": [
+                17,
+                93
+              ],
+              "path": "apps/web/pages/api/webhook/app-credential.ts",
+              "severity": "p2",
+              "title": "Webhook secret compared with non-constant-time !=="
+            },
+            {
+              "anchor_line": 6,
+              "category": "security",
+              "consequence": "Any accepted team member without admin rights can create or overwrite team-level app credentials. Only admins should be able to do this.",
+              "explanation": "createOAuthAppCredential takes teamId from the unsigned `state` query JSON (decodeOAuthState is a bare JSON.parse). When `state.teamId` is set, it only checks that the user is an accepted member of that team (lines 30-45). It then creates a team credential and returns at line 56. The admin check, `throwIfNotHaveAdminAccessToTeam`, sits after that branch (line 59). It is called with `state?.teamId ?? null`, so it can only run when teamId is falsy, and it never checks anything for a real team. A non-admin member can set `state={\"teamId\":<their team>}` on an OAuth callback and attach a credential to the team. The state is not bound to the session and has no signature or nonce. JSON.parse errors in decodeOAuthState are not caught, so malformed state throws. I did not check whether returnTo goes through getSafeRedirectUrl.",
+              "id": "finding-6a0d1239533be90326b18028",
+              "lines": [
+                6,
+                7
+              ],
+              "path": "packages/app-store/_utils/oauth/createOAuthAppCredential.ts",
+              "severity": "p2",
+              "title": "Team OAuth credential creation only checks membership, never admin access, from an unauthenticated state value"
+            },
+            {
+              "anchor_line": 5,
+              "category": "correctness",
+              "consequence": "With credential sync enabled, an Office365 refresh corrupts the stored credential. The real refresh_token is replaced by a placeholder, and the expiry data is lost or becomes stale, so later refreshes fail. Expiry handling and the validation of the token response are also broken.",
+              "explanation": "The hypothesis that every refresh fails is wrong. Zod schemas do not override toString, so both computed keys evaluate to \"[object Object]\". The second key silently replaces the first, which leaves \"[object Object]\" as an optional unknown. The effective schema is just access_token: string, plus that optional key. Responses therefore pass validation, but the expiry number is never required. Because z.object strips unknown keys by default, the parsed data contains only access_token. That drops refresh_token, expires_in and expiry_date. The code then sets data.refresh_token = \"refresh_token\" because it is falsy. In office365calendar/lib/CalendarService.ts:264 the parsed data is spread over the stored credentials and written to the DB. In sync mode this replaces the real refresh_token with the literal \"refresh_token\" and loses expires_in.",
+              "id": "finding-dca5eb773ccf39f96837c82c",
+              "lines": [
+                5,
+                30
+              ],
+              "path": "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+              "severity": "p2",
+              "title": "Credential-sync schema strips token fields and the placeholder refresh_token overwrites the real one"
+            },
+            {
+              "anchor_line": 14,
+              "category": "correctness",
+              "consequence": "When APP_CREDENTIAL_SYNC is enabled, token refresh fails for Google Calendar, Zoho CRM and Zoho Bigin. For HubSpot it overwrites the stored credential key with a serialized Response and a NaN expiry. The affected integrations stop working, and the HubSpot credentials are corrupted.",
+              "explanation": "With credential sync enabled, refreshOAuthTokens returns the raw `fetch` Response. In the non-sync branch it returns whatever the refresh function returns, and the callers are written for those shapes. Nothing reads the Response body (`response.json()`) or maps it to the expected shape. Zoho CRM and Zoho Bigin read `tokenInfo.data.error`, but a Response has no `.data`, so this throws a TypeError. Google reads `res?.data` and then `token.access_token`, which is a TypeError on undefined. The catch block swallows it unless the message is `invalid_grant`, so the refresh silently fails. HubSpot treats the Response as a token object: `expiresIn` is undefined, so `expiryDate` becomes NaN. It then writes the Response object into `prisma.credential.update` as the credential key, which stores a corrupted value.",
+              "id": "finding-0010f7ad76ce249b1db2a7f1",
+              "lines": [
+                3,
+                216
+              ],
+              "path": "packages/app-store/_utils/oauth/refreshOAuthTokens.ts",
+              "severity": "p1",
+              "title": "refreshOAuthTokens returns an unparsed fetch Response in sync mode, which breaks every caller"
+            },
+            {
+              "anchor_line": 98,
+              "category": "correctness",
+              "consequence": "After the first successful token refresh, every Google Calendar credential is saved in a corrupted shape. Later calls throw a parse error, so availability checks and booking creation fail. The user's refresh token is buried inside `data`, so the user must reconnect Google Calendar.",
+              "explanation": "The old code called `googleCredentialSchema.parse(...)`, which returns the parsed credential. The change replaced it with `parseRefreshTokenResponse(googleCredentials, googleCredentialSchema)`. That helper returns the zod `safeParse` result, an object shaped `{ success: true, data: {...} }`, and does not return the data itself. The result is assigned to `key` and written to `prisma.credential.update({ data: { key } })`. The stored credential key therefore becomes `{ success, data: { access_token, refresh_token, ... } }`. On the next load, `googleCredentialSchema.parse(credential.key)` in `googleAuth` fails because the top-level fields are missing.",
+              "id": "finding-91584e89e27fa1a1a506ff90",
+              "lines": [
+                86,
+                97
+              ],
+              "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+              "severity": "p1",
+              "title": "Google refresh stores the safeParse result wrapper as the credential key"
+            },
+            {
+              "anchor_line": 96,
+              "category": "correctness",
+              "consequence": "Creating a Salesforce calendar service throws after the token fetch, so Salesforce event creation fails. Once the import is fixed, the connection would still use the stale access token.",
+              "explanation": "The new refresh block in `getClient` calls `prisma.credential.update`, but the file has no `prisma` import. Its imports are visible at lines 1-20 and a grep finds no other `prisma` reference. This is a ReferenceError at runtime and a TypeScript error. Separately, the refresh runs on every client construction. The returned `jsforce.Connection` is still built with `credentialKey.access_token`, the old token, instead of the refreshed one. `parseRefreshTokenResponse` also returns the `safeParse` wrapper. The `.success` and `.data` accesses are correct, but `accessTokenParsed.data` is the parsed object.",
+              "id": "finding-732d8d6aafb19de62e257a36",
+              "lines": [
+                75,
+                100
+              ],
+              "path": "packages/app-store/salesforce/lib/CalendarService.ts",
+              "severity": "p1",
+              "title": "Salesforce getClient uses prisma without importing it and ignores the refreshed access token"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 3,
+            "p2": 3,
+            "total": 6
+          },
+          "head_sha": "824145b0e245661875240ed5c8745decd2293d1a",
+          "input_tokens": 595617,
+          "investigated": 57,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 11,
+          "model_seconds": 230.763,
+          "other_changed_code": 4,
+          "output_tokens": 16433,
+          "pr": "calcom-08",
+          "provider_usd": 1.06345,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 61,
+          "risk_candidates": 57,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 61,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 78.784
+        }
+      },
+      "id": "calcom-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "OAuth credential sync and app integration enhancements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.196,
+          "changed_lines": 44,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+            "packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql",
+            "packages/prisma/schema.prisma"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 38,
+              "category": "correctness",
+              "consequence": "If another handler uses retryCount, the SMS cron will delete its pending reminders after two failures and they will never be sent. Deleting the SMS rows this way also drops them silently, with no record of the failure.",
+              "explanation": "The deleteMany OR branch `{ retryCount: { gt: 1 } }` has no `method: WorkflowMethods.SMS` filter, while the surrounding comment and the first branch are SMS-only. Any WorkflowReminder of another method (EMAIL, WHATSAPP) with retryCount > 1 would be deleted by the SMS cron. A grep shows that only scheduleSMSReminders.ts increments retryCount on workflow reminders, so non-SMS rows stay at the default 0 today. This means the cross-method deletion is latent rather than currently reachable. It becomes live as soon as another handler (for example email) starts using retryCount.",
+              "id": "finding-31340552c0bb8a137814d8a3",
+              "lines": [
+                31,
+                197
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+              "severity": "p2",
+              "title": "Retry-exhausted cleanup in SMS cron is not scoped to method SMS"
+            },
+            {
+              "anchor_line": 190,
+              "category": "correctness",
+              "consequence": "One failing reminder, with a failing database write while handling its error, makes the cron request throw. The remaining unscheduled reminders in that run are skipped until the next run. A reminder whose SMS was already scheduled can be rescheduled and sent twice.",
+              "explanation": "The new `prisma.workflowReminder.update` inside the `catch` block is not wrapped in its own try/catch. If it throws, the error escapes the per-reminder loop and the handler. This can happen if the database is unavailable, or if the row was deleted concurrently, which gives a Prisma \"record not found\" error. The same catch also runs when the failure came after `twilio.scheduleSMS` succeeded, for example when the `scheduled: true` update fails. That case increments retryCount instead of recording the sid, so a retry can send a duplicate SMS. The new delete clause `retryCount > 1` also has no `method: SMS` condition. It currently only affects SMS rows because only this handler increments retryCount, but it would silently delete reminders of other methods if they ever use the counter.",
+              "id": "finding-cecb5bea89b8868b9eee077e",
+              "lines": [
+                31,
+                197
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+              "severity": "p2",
+              "title": "Unguarded retryCount update in catch block can abort the whole batch"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "2dae0bfb8c72b51aa49260dc1f7f215a6290f3a6",
+          "input_tokens": 141889,
+          "investigated": 5,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 80.878,
+          "output_tokens": 6001,
+          "pr": "calcom-09",
+          "provider_usd": 0.257879,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 5,
+          "risk_candidates": 5,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 5,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 47.809
+        }
+      },
+      "id": "calcom-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "SMS workflow reminder retry count tracking",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.591,
+          "changed_lines": 555,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/components/booking/BookingListItem.tsx",
+            "apps/web/components/dialog/AddGuestsDialog.tsx",
+            "packages/emails/email-manager.ts",
+            "packages/emails/src/templates/AttendeeAddGuestsEmail.tsx",
+            "packages/emails/src/templates/OrganizerAddGuestsEmail.tsx",
+            "packages/emails/src/templates/index.ts",
+            "packages/emails/templates/attendee-add-guests-email.ts",
+            "packages/emails/templates/organizer-add-guests-email.ts",
+            "packages/trpc/server/routers/viewer/bookings/_router.tsx",
+            "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+            "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+            "packages/ui/form/MultiEmail.tsx",
+            "packages/ui/form/MultiEmailLazy.tsx",
+            "packages/ui/index.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 46,
+              "category": "security",
+              "consequence": "Team admins who are not owners are wrongly refused. Mixed-case blacklisted emails bypass the blacklist. Duplicate attendees can be created. A very large list causes unbounded work and mass emailing.",
+              "explanation": "`isTeamAdminOrOwner` is `isTeamAdmin(...) && isTeamOwner(...)`, so it only passes for someone who is both. A team admin who is not an owner is denied unless they are also the organizer or an attendee. Separately, `ZAddGuestsInputSchema` is `z.array(z.string().email())` with no `.max()`. Server-side uniqueness is only checked against existing attendees, not within the input. The blacklist comparison is case-sensitive against the raw guest string, while the blacklist entries are lowercased. A large list triggers one translation lookup per attendee, a createMany, a calendar update and emails. Any attendee, or anyone matching the email, can submit such a list.",
+              "id": "finding-256a4f821445a71bd15845f9",
+              "lines": [
+                22,
+                174
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+              "severity": "p2",
+              "title": "Team admin/owner check requires both roles, and the guest list has no size bound or server-side dedupe"
+            },
+            {
+              "anchor_line": 169,
+              "category": "correctness",
+              "consequence": "Addresses listed in BLACKLISTED_GUEST_EMAILS, which the handler is meant to exclude, still get emails. Existing attendees get a duplicate notification. This can be used to send unwanted mail to arbitrary addresses.",
+              "explanation": "The handler builds `uniqueGuests` by dropping existing attendees and blacklisted emails, and only those are saved. The notification call then uses `sendAddGuestsEmails(evt, guests)` with the unfiltered input. A blacklisted address, or an existing attendee, still receives an 'added to event' email even though it was not added. Duplicates inside the input are also emailed more than once.",
+              "id": "finding-ba741de75a79086f9ddbcabc",
+              "lines": [
+                22,
+                174
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+              "severity": "p2",
+              "title": "Add-guests emails are sent to the raw input list, not the filtered unique guests"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "baa9045af7711ea0b86390cb0bf0fdce5430228c",
+          "input_tokens": 137073,
+          "investigated": 5,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 49.207,
+          "other_changed_code": 26,
+          "output_tokens": 4733,
+          "pr": "calcom-10",
+          "provider_usd": 0.266192,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 34,
+          "risk_candidates": 5,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 34,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 43.202
+        }
+      },
+      "id": "calcom-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Add guest management functionality to existing bookings",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.66,
+          "changed_lines": 142,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/grafana-data/src/types/config.ts",
+            "packages/grafana-runtime/src/config.ts",
+            "pkg/api/dtos/frontend_settings.go",
+            "pkg/api/frontendsettings.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database_test.go",
+            "pkg/services/anonymous/anonimpl/api/api.go",
+            "pkg/services/anonymous/anonimpl/client.go",
+            "pkg/services/anonymous/anonimpl/impl.go",
+            "pkg/services/anonymous/anonimpl/impl_test.go",
+            "pkg/setting/setting.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 97,
+              "category": "correctness",
+              "consequence": "The frontend config field is typed as undefined and cannot represent the numeric device limit.",
+              "explanation": "`anonymousDeviceLimit = undefined;` has no type annotation, so TypeScript infers the field type as `undefined` (or `any` without strict null checks). Boot data containing a numeric limit cannot be typed against it, and a consumer comparing it to a number fails type checking.",
+              "id": "finding-f96df8c605e4d70cfbd9a52c",
+              "lines": [
+                97,
+                97
+              ],
+              "path": "packages/grafana-runtime/src/config.ts",
+              "severity": "p2",
+              "title": "anonymousDeviceLimit initialised to undefined gets type undefined"
+            },
+            {
+              "anchor_line": 144,
+              "category": "correctness",
+              "consequence": "A device that is over the anonymous device limit is rejected once, then gets anonymous access for the cache TTL (29 minutes) on retry. The limit is bypassed and the device is never stored.",
+              "explanation": "TagDevice now returns the error from tagDeviceUI, and Anonymous.Authenticate in client.go rejects the request on ErrDeviceLimitReached. tagDeviceUI (impl.go:87) calls localCache.SetDefault(key) before CreateOrUpdateDevice runs. When the store returns ErrDeviceLimitReached, the failed device's key stays cached. The next request from the same device within the 29-minute TTL hits the cache at impl.go:83 and returns nil. That request is authenticated as anonymous without being registered. The first request is rejected, and every later one passes. So the limit that this change newly propagates is not enforced for repeat requests.",
+              "id": "finding-09e890f75bc44fed47774f06",
+              "lines": [
+                147,
+                147
+              ],
+              "path": "pkg/services/anonymous/anonimpl/impl.go",
+              "severity": "p2",
+              "title": "Device-limit error now surfaces only once; the cache is set before the store write, so retries bypass the limit"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "3647ba7360b8d157e4a294a650a365b6aca070d8",
+          "input_tokens": 200908,
+          "investigated": 20,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 58.796,
+          "other_changed_code": 9,
+          "output_tokens": 4494,
+          "pr": "grafana-01",
+          "provider_usd": 0.337451,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 29,
+          "risk_candidates": 20,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 29,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 43.585
+        }
+      },
+      "id": "grafana-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Anonymous: Add configurable device limit",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.414,
+          "changed_lines": 273,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/services/authz/rbac.go",
+            "pkg/services/authz/rbac/cache.go",
+            "pkg/services/authz/rbac/service.go",
+            "pkg/services/authz/rbac/service_test.go"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "d9dc93c4a6c88ef850dbe526cb3226ae99cafa20",
+          "input_tokens": 130165,
+          "investigated": 23,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 28.548,
+          "output_tokens": 2551,
+          "pr": "grafana-02",
+          "provider_usd": 0.232636,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 23,
+          "risk_candidates": 23,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 23,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 37.234
+        }
+      },
+      "id": "grafana-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "AuthZService: improve authz caching",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.35,
+          "changed_lines": 215,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/plugins/log/fake.go",
+            "pkg/plugins/log/ifaces.go",
+            "pkg/plugins/log/logger.go",
+            "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/logger_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/metrics_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/metrics_middleware_test.go",
+            "pkg/services/pluginsintegration/pluginsintegration.go"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "00393c2ac9103072bc2194118e455f9248a37816",
+          "input_tokens": 224846,
+          "investigated": 3,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 56.41,
+          "other_changed_code": 43,
+          "output_tokens": 3264,
+          "pr": "grafana-03",
+          "provider_usd": 0.378249,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 55,
+          "risk_candidates": 3,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 55,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 41.638
+        }
+      },
+      "id": "grafana-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Plugins: Chore: Renamed instrumentation middleware to metrics middleware",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.325,
+          "changed_lines": 63,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "public/app/plugins/datasource/loki/querySplitting.test.ts",
+            "public/app/plugins/datasource/loki/querySplitting.ts",
+            "public/app/plugins/datasource/loki/shardQuerySplitting.test.ts",
+            "public/app/plugins/datasource/loki/shardQuerySplitting.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3ba2457a7090b2b76f4b368c8a9db835d0bec66c",
+          "input_tokens": 232800,
+          "investigated": 7,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 42.8,
+          "output_tokens": 4024,
+          "pr": "grafana-04",
+          "provider_usd": 0.222998,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 7,
+          "risk_candidates": 7,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 7,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 52.784
+        }
+      },
+      "id": "grafana-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Advanced Query Processing Architecture",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 1.271,
+          "changed_lines": 960,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx",
+            "public/app/features/alerting/unified/components/rules/RuleDetails.test.tsx",
+            "public/app/features/alerting/unified/components/rules/RulesTable.test.tsx",
+            "public/app/features/alerting/unified/hooks/useAbilities.ts",
+            "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+            "public/app/features/alerting/unified/rule-list/GrafanaGroupLoader.test.tsx",
+            "public/app/features/alerting/unified/rule-list/GrafanaGroupLoader.tsx",
+            "public/app/features/alerting/unified/rule-list/GrafanaRuleListItem.tsx",
+            "public/app/features/alerting/unified/rule-list/components/RuleActionsButtons.V2.tsx",
+            "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+            "public/app/features/alerting/unified/utils/rules.ts",
+            "public/app/types/unified-alerting-dto.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 243,
+              "category": "correctness",
+              "consequence": "For federated Mimir rule groups, the UI now reports edit, delete and pause as supported. Users with the matching permissions see those actions enabled where they were previously blocked. Any server-side enforcement is the only remaining guard.",
+              "explanation": "The old useAllAlertRuleAbilities computed isFederated = isFederatedRuleGroup(rule.group) from the CombinedRule, so federated rules were treated as immutable and Update, Delete, Pause, Restore and DeletePermanently reported NotSupported. The change turns the hook into a wrapper around useAllRulerRuleAbilities, where isFederated is hard-coded to false (TODO). The federated check is not done anywhere on this path, and the wrapper has the CombinedRule available to do it.",
+              "id": "finding-73f26604ee20b573f3304a14",
+              "lines": [
+                223,
+                278
+              ],
+              "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+              "severity": "p2",
+              "title": "Federated-rule-group guard dropped from useAllAlertRuleAbilities"
+            },
+            {
+              "anchor_line": 324,
+              "category": "correctness",
+              "consequence": "In the rewritten rule list, users cannot pause or export Grafana recording rules from the menu. These actions were available before the change.",
+              "explanation": "The ruler-based useAllRulerRuleAbilities gated ModifyExport, Pause, Restore and DeletePermanently on isGrafanaManagedAlertRule, which is rulerRuleType.grafana.rule and is true for both alerting and recording Grafana rules. The new useAllGrafanaPromRuleAbilities gates them on isAlertingRule, which is prometheusRuleType.grafana.alertingRule and is false for Grafana recording rules. The list view no longer fetches ruler rules, so AlertRuleMenu has only the prom-based abilities there. A Grafana-managed recording rule in the list view therefore gets canPause=false and canExport=false, even for a user with full permissions. No authorization bypass was found. The checks only became stricter, and the permission flags (isEditable, exportAllowed) are still applied.",
+              "id": "finding-773a3270615dbf7bbf90fb9c",
+              "lines": [
+                397,
+                406
+              ],
+              "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+              "severity": "p2",
+              "title": "Grafana recording rules lose Pause/Export/Restore/DeletePermanently abilities in the prom-based path"
+            },
+            {
+              "anchor_line": 157,
+              "category": "correctness",
+              "consequence": "React logs a missing-key warning for every Grafana rule in the list. When filters change or more pages load, React matches items by position instead of by identity. Rows can then keep stale internal state, such as expanded or menu state, or remount unnecessarily.",
+              "explanation": "The change replaced `<GrafanaRuleLoader key={key} .../>` with `<GrafanaRuleListItem .../>` and dropped the `key={key}` prop. The sibling `DataSourceRuleLoader` and `UnknownRuleListItem` branches in the same `rules.map` still pass `key`. Grafana-origin items now have no key.",
+              "id": "finding-0926e2cb4c9ec1e9d131cfca",
+              "lines": [
+                157,
+                161
+              ],
+              "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+              "severity": "p2",
+              "title": "Missing React key on GrafanaRuleListItem in the filtered rule list"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "3e6d620d2c1d1f6c10611fba8b0ee062d6fb2a68",
+          "input_tokens": 461961,
+          "investigated": 1,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 103.15,
+          "other_changed_code": 56,
+          "output_tokens": 7644,
+          "pr": "grafana-05",
+          "provider_usd": 0.669481,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 59,
+          "risk_candidates": 1,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 59,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 53.334
+        }
+      },
+      "id": "grafana-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Notification Rule Processing Engine",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.603,
+          "changed_lines": 655,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/apiserver/rest/dualwriter_mode1_test.go",
+            "pkg/apiserver/rest/dualwriter_mode3.go",
+            "pkg/apiserver/rest/dualwriter_mode3_test.go",
+            "pkg/tests/apis/playlist/playlist_test.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 45,
+              "category": "correctness",
+              "consequence": "Storage failures are counted as legacy failures, and legacy delete-collection results are counted as storage results. The mode 3 metrics are misleading.",
+              "explanation": "When Storage.Create (line 45) or Storage.Update (line 125) fails, the code calls recordLegacyDuration(true, ...) instead of recordStorageDuration. In DeleteCollection, the legacy goroutine's result is recorded with recordStorageDuration (line 168) instead of recordLegacyDuration.",
+              "id": "finding-6185807cbe95b41fb0e8ef18",
+              "lines": [
+                37,
+                169
+              ],
+              "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+              "severity": "p2",
+              "title": "Storage and legacy metrics are recorded with the wrong recorder"
+            },
+            {
+              "anchor_line": 51,
+              "category": "correctness",
+              "consequence": "In mode 3 the legacy store stops receiving writes reliably. Legacy and unified storage diverge, and any rollback to an earlier mode loses data. The errors only show up as legacy failure metrics. The fix is to derive the goroutine context from context.WithoutCancel(ctx).",
+              "explanation": "In Create (line 51), Delete, Update and DeleteCollection, the legacy write runs in a goroutine. Its context comes from context.WithTimeoutCause(ctx, ...), where ctx is the incoming request context. The handler returns right after launching the goroutine, and the API server then cancels the request context. The derived context is cancelled with it, so the 10s timeout never matters. The legacy Create, Update, Delete and DeleteCollection calls usually run with an already-cancelled context and fail with context canceled, or are never performed. The old code made these calls synchronously, so they completed. The goroutines also read obj, objInfo and options after the handler has returned. I did not check whether the callers reuse those objects.",
+              "id": "finding-f4f360590324e8be9e7c6633",
+              "lines": [
+                37,
+                169
+              ],
+              "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+              "severity": "p1",
+              "title": "Async legacy writes inherit the request context and are cancelled when the request returns"
+            },
+            {
+              "anchor_line": 97,
+              "category": "correctness",
+              "consequence": "Metric label cardinality grows with every deleted object name, and delete metrics are not grouped by kind. Logs from downstream storage code lack the request fields.",
+              "explanation": "Delete sets ctx = klog.NewContext(ctx, d.Log) (line 97) instead of the enriched log, so the context logger loses the name, kind and method values. On success it calls recordStorageDuration(false, mode3Str, name, ...) (line 106), passing the object name where every other call passes options.Kind.",
+              "id": "finding-86b7ad5554e9c8e378e1ba04",
+              "lines": [
+                94,
+                116
+              ],
+              "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+              "severity": "p2",
+              "title": "Delete uses the wrong logger and the wrong metric label"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 1,
+            "p2": 2,
+            "total": 3
+          },
+          "head_sha": "67b74e1e8a7d26d24617b7313b90fa4649138318",
+          "input_tokens": 235486,
+          "investigated": 1,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 5,
+          "model_seconds": 82.577,
+          "other_changed_code": 17,
+          "output_tokens": 6619,
+          "pr": "grafana-06",
+          "provider_usd": 0.431446,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 21,
+          "risk_candidates": 1,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 21,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 60.333
+        }
+      },
+      "id": "grafana-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Dual Storage Architecture",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.33,
+          "changed_lines": 261,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/services/annotations/annotationsimpl/cleanup_test.go",
+            "pkg/services/annotations/annotationsimpl/xorm_store.go",
+            "pkg/services/cleanup/cleanup.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 576,
+              "category": "correctness",
+              "consequence": "On an instance with a large annotation backlog, every batch (the batch size is configurable) writes error-level log lines with thousands of IDs. This floods the logs and can trigger error alerting. Cleanup passes now run ten times as often, which means more DB load and more lock contention with the concurrent inserts the change was meant to protect against.",
+              "explanation": "The rewritten cleanup batches call r.log.Error on every iteration, in CleanAnnotations (time and count paths) and in CleanOrphanedAnnotationTags. Each call logs the full ids slice and the SQL condition, and does so even when err is nil. Those entries are debug output logged at Error severity. In the same change, CleanUpService.Run drops its ticker from 10 minutes to 1 minute. That looks like a debugging leftover, and it makes these cleanup passes run ten times as often.",
+              "id": "finding-92e53b2857f017c4c0ecc05b",
+              "lines": [
+                77,
+                582
+              ],
+              "path": "pkg/services/annotations/annotationsimpl/xorm_store.go",
+              "severity": "p2",
+              "title": "Debug logging at Error level dumps every ID batch, and the cleanup interval was cut from 10 minutes to 1"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "81c45bfe449584dc7ff50e4fabd5d0c6568999b5",
+          "input_tokens": 97525,
+          "investigated": 8,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 36.249,
+          "other_changed_code": 7,
+          "output_tokens": 3268,
+          "pr": "grafana-07",
+          "provider_usd": 0.214531,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 15,
+          "risk_candidates": 8,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 15,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 43.283
+        }
+      },
+      "id": "grafana-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Database Performance Optimizations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.219,
+          "changed_lines": 16,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/api/webassets/webassets.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 48,
+              "category": "performance",
+              "consequence": "Redundant file I/O and JSON parsing, serialized under the lock, on a cold start. The result is correct, so the impact is small.",
+              "explanation": "The change reads the cache under RLock, releases it, then takes the write Lock. It never re-checks entryPointAssetsCache after acquiring the lock. When the cache is empty at startup, N concurrent requests all pass the nil check. They then queue on the mutex, and each one in turn re-reads and re-parses assets-manifest.json and overwrites the cache. The same happens after a failed load, because the failure leaves the cache nil. There is no API or wire contract break. The exported signature and return types are unchanged.",
+              "id": "finding-81ce1b170fb542fa106112e4",
+              "lines": [
+                41,
+                49
+              ],
+              "path": "pkg/api/webassets/webassets.go",
+              "severity": "p2",
+              "title": "No cache re-check after taking the write lock, so every queued caller re-reads the manifest"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "95000f9fc8049d47f837b6e8603c230c2a073ae5",
+          "input_tokens": 26378,
+          "investigated": 3,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 1,
+          "model_seconds": 15.403,
+          "output_tokens": 1294,
+          "pr": "grafana-08",
+          "provider_usd": 0.057275,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 3,
+          "risk_candidates": 3,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 3,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 34.2
+        }
+      },
+      "id": "grafana-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Frontend Asset Optimization",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.397,
+          "changed_lines": 81,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "go.mod",
+            "pkg/expr/reader.go",
+            "pkg/expr/sql/db.go",
+            "pkg/expr/sql/parser.go",
+            "pkg/expr/sql_command.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 195,
+              "category": "correctness",
+              "consequence": "SQL expression queries can never be parsed. Enabling the sqlExpressions feature toggle does not help. The inverted logic would also break the flag if the stub were later replaced with a real implementation.",
+              "explanation": "enableSqlExpressions inverts the flag (`enabled := !IsEnabledGlobally(FlagSqlExpressions)`). It then returns false when that inverted value is true, and it also returns false on the fall-through path. Every path returns false, whatever the flag is set to. ReadQuery's QueryTypeSQL branch therefore always returns the error \"sqlExpressions is not implemented\", even when FlagSqlExpressions is enabled. The new `sql.DB` methods in pkg/expr/sql/db.go are also stubs that return \"not implemented\". The performance hypothesis does not hold: no input-dependent or multiplicative work was found on this path. The stubs only return errors immediately.",
+              "id": "finding-495b750c5ae96d99c9923930",
+              "lines": [
+                129,
+                200
+              ],
+              "path": "pkg/expr/reader.go",
+              "severity": "p2",
+              "title": "enableSqlExpressions always returns false, so the feature flag has no effect"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "ea71201ddc66f06a3f16387e85a09c53514aaadd",
+          "input_tokens": 58127,
+          "investigated": 2,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 1,
+          "model_seconds": 19.727,
+          "other_changed_code": 17,
+          "output_tokens": 1990,
+          "pr": "grafana-09",
+          "provider_usd": 0.12993,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 33,
+          "risk_candidates": 2,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 33,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 40.829
+        }
+      },
+      "id": "grafana-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Advanced SQL Analytics Framework",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.442,
+          "changed_lines": 82,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/server/module_server_test.go",
+            "pkg/storage/unified/resource/search.go",
+            "pkg/storage/unified/resource/server.go",
+            "pkg/storage/unified/search/bleve.go",
+            "pkg/storage/unified/sql/backend.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 99,
+              "category": "concurrency_state",
+              "consequence": "Go can abort the whole process with \"fatal error: concurrent map iteration and map write\" during startup if a write event arrives while init logs. This is unrecoverable.",
+              "explanation": "The change adds `s.search.TotalDocs()` to the log line in searchSupport.init. That call runs right after the goroutine that consumes WatchWriteEvents is started. handleEvent can reach getOrCreateIndex and then BuildIndex, which writes `b.cache[key]` under cacheMu. `bleveBackend.TotalDocs` ranges over `b.cache` without taking cacheMu (bleve.go:146). The change also removed the function-wide lock from BuildIndex, so the only synchronisation left is the short write lock. A write that lands during the unlocked range is a concurrent map read and write.",
+              "id": "finding-41158c62f38247c11cbdbb2d",
+              "lines": [
+                99,
+                216
+              ],
+              "path": "pkg/storage/unified/search/bleve.go",
+              "severity": "p2",
+              "title": "TotalDocs iterates the bleve cache map without cacheMu while the new init log call and event goroutine can write it"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "d762a9643618a6ba7c43da27374bd9ffc80889ce",
+          "input_tokens": 84763,
+          "investigated": 20,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 39.457,
+          "other_changed_code": 1,
+          "output_tokens": 2449,
+          "pr": "grafana-10",
+          "provider_usd": 0.180413,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 21,
+          "risk_candidates": 20,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 21,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 43.663
+        }
+      },
+      "id": "grafana-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Unified Storage Performance Optimizations",
+      "url": ""
+    }
+  ],
+  "publication": {
+    "always": [
+      "name the model and its price list date; the figure is for that model only",
+      "state that it is the mean over this corpus, which is not the reader's code",
+      "do not publish another reviewer's price from this report: it holds only what you supplied"
+    ],
+    "cost_per_review": {
+      "figures": {
+        "auto": {
+          "mean_tokens": 331019.33333399997,
+          "mean_usd": 0.52892,
+          "median_usd": 0.308296,
+          "p90_usd": 1.074659,
+          "reviews": 30
+        }
+      },
+      "missing": [],
+      "ready": true
+    },
+    "head_to_head": {
+      "missing": [
+        "0 pull requests carry the other reviewer's comments; at least 8 are needed",
+        "no baseline comment has a verdict, so its precision is unknown"
+      ],
+      "ready": false
+    },
+    "quality": {
+      "missing": [
+        "auto: 0 labelled pull requests scored; at least 8 are needed",
+        "catch and noise are rates over a handful of pull requests; quote them with their intervals"
+      ],
+      "ready": false
+    }
+  },
+  "pushes": {
+    "auto": {
+      "carry_forward": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "complete_pairs": 0,
+      "findings_after_push": {
+        "carried": 0,
+        "fixed": 0,
+        "new": 0,
+        "stale": 0,
+        "unreported": 0
+      },
+      "full": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "pushes": 0,
+      "saved": {
+        "calls_fraction": null,
+        "usd_fraction": null,
+        "usd_mean": null
+      },
+      "unavailable": {}
+    }
+  },
+  "reference_team": {
+    "basis": "a projection from this report's mean cost per review and per push, not a quote and not a price",
+    "by_depth": {
+      "auto": {
+        "first_review_usd": 0.52892,
+        "monthly_usd_with_carry_forward": null,
+        "monthly_usd_without": null,
+        "push_usd_carry_forward": null,
+        "push_usd_full": null
+      }
+    },
+    "developers": 10,
+    "prs_per_month": 300,
+    "reviews_per_pr": 1.2
+  },
+  "run": {
+    "basis": "a live provider run",
+    "code": {
+      "git_head": "7e9ae9f1e3eeefd69da123179927d4594608d7d3",
+      "prompt_version": 4,
+      "repo_context": {
+        "enabled": true,
+        "version": 1
+      },
+      "schema_version": 3
+    },
+    "command": "lemoncrow dev eval review benchmark --corpus evals/review/golden_comment_prs.yaml --depth auto --max-usd 20.0 --max-calls 200 --pr sentry-01 --pr sentry-02 --pr sentry-03 --pr sentry-04 --pr sentry-05 --pr sentry-06 --pr sentry-07 --pr sentry-08 --pr sentry-09 --pr sentry-10 --pr calcom-01 --pr calcom-02 --pr calcom-03 --pr calcom-04 --pr calcom-05 --pr calcom-06 --pr calcom-07 --pr calcom-08 --pr calcom-09 --pr calcom-10 --pr grafana-01 --pr grafana-02 --pr grafana-03 --pr grafana-04 --pr grafana-05 --pr grafana-06 --pr grafana-07 --pr grafana-08 --pr grafana-09 --pr grafana-10 --no-pushes --workdir /home/user/bench-data/workdir --out-dir /home/user/bench-data/dev/reports --name run3-dev-auto --record-dir /home/user/bench-data/dev/records-run3",
+    "driver": "claude",
+    "ledger": {
+      "calls": 157,
+      "max_calls": 200,
+      "max_usd": 20.0,
+      "spent_usd": 15.867614,
+      "stopped": "",
+      "unpriced_calls": 0
+    },
+    "mode": "live",
+    "model": "sonnet",
+    "notes": [],
+    "options": {
+      "depths": [
+        "auto"
+      ],
+      "input_usd_per_mtok": null,
+      "line_window": 8,
+      "max_calls": 200,
+      "max_usd": 20.0,
+      "mode": "live",
+      "output_usd_per_mtok": null,
+      "pushes": false,
+      "recording": true,
+      "similarity": 0.2,
+      "with_impact": true
+    },
+    "overshoot_note": "the spending ceiling is checked before each call, so a run can pass it by the calls in flight (at most the investigators of the deepest depth)",
+    "wall_time_note": "wall_seconds is the elapsed time of the AI stage; model_seconds sums each call's latency"
+  },
+  "schema": 1
+}

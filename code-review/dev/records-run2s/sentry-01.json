@@ -1,0 +1,57 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "794802f721b59b41cb91cd2bb23f3fbf70d40893010071d6b02a62f448ebd77e",
+      "model": "sonnet",
+      "prompt_digest": "842e3980f4698eb7990c3fce161e28bfaeace98dee7903fc80a033e80301a110",
+      "response": {
+        "category": "correctness",
+        "consequence": "An authorized caller can send a negative-offset cursor with `optimized_pagination=true` and get an unhandled 500 from the audit-log endpoint. The branch is dead or broken code, and the comments claiming it is safe are wrong.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "source:new:src/sentry/api/endpoints/organization_auditlogs.py@sha256:247f884c4df443920621b9699731520e13c01b181fe80358549cd798a75734d9"
+        ],
+        "explanation": "When `enable_advanced_features` is set and `cursor.offset < 0`, the code runs `queryset[cursor.offset:stop]`. The comment says Django handles negative slicing, but Django querysets raise `AssertionError: Negative indexing is not supported` for a negative start. The offset comes from the client-supplied `cursor` query parameter. The audit-log endpoint turns this path on with `?optimized_pagination=true` for superusers and global-access members. A request such as `cursor=0:-5:1` therefore fails. `stop = start_offset + limit + extra` can also fall below the start, so the slice is invalid even if negative starts were allowed. The path does not provide the \"access beyond normal pagination bounds\" its comment describes. The base `get_result` change now clamps negative non-prev offsets to 0, which makes the two paginators behave differently for the same cursor.",
+        "lines": {
+          "end_line": 882,
+          "start_line": 877
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:77f04ab50bcd074002cfd4ed"
+        ],
+        "title": "Negative cursor offset is sliced directly on a Django queryset, which is unsupported"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "1f80dcbe50b36d9fab138fd26a1a03ab6d2df63feec1c9d30aa92edcb57df9d5",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 18671,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22200,
+        "output_tokens": 1764,
+        "provider_cost": 0.094529,
+        "request_id": "",
+        "seconds": 14.602
+      }
+    }
+  ],
+  "case_id": "sentry-01",
+  "case_input_digest": "1be05f7e7de639b15900d16368c58df01a43ba949ac0e9795ac33900a6be7d54",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:44:24+00:00"
+  },
+  "version": 1
+}

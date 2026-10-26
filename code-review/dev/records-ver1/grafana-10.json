@@ -1,0 +1,124 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "221e6a2a07086e4a8c93754be89427120d9892cca86199d5f524b92b8d7ac1ef",
+      "model": "sonnet",
+      "prompt_digest": "fb4b71b0cf27aaba8f7b01249f22e08cdfbfd4a667b0d224805293437229a1b1",
+      "response": {
+        "category": "correctness",
+        "consequence": "None; the test simply doesn't run under postgres.",
+        "evidence_refs": [],
+        "explanation": "The change only adds an early t.Skip for the postgres DB type in an integration test, with a TODO explaining why. It does not alter production code or any other test path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:73d5005980ba38704671ad8a"
+        ],
+        "title": "No defect: test skip for postgres is intentional"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 9323,
+        "cache_write_input_tokens": 966,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10291,
+        "output_tokens": 439,
+        "provider_cost": 0.009843099999999999,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c68c1da410d71517b27f875cc6510234cffab0d193eaf79ec8d2f0a38ac50d57",
+      "model": "sonnet",
+      "prompt_digest": "8b89a0b7e9cbcd2b0ebca093bca748d9126ff917daa3d6a2e103f486fcddf23b",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "Under load at startup, the process can crash with a fatal concurrent map access error. The window is brief but the failure is not recoverable.",
+        "evidence_refs": [
+          "source:new:pkg/storage/unified/search/bleve.go@sha256:ad6d159f6ac0aa1f3d26b7d0d6f230a97a42fe171b6bb96375f7a8e719a5d35d",
+          "source:new:pkg/storage/unified/resource/search.go@sha256:13a29251614ed223b36bf814ce299ca205c6cc61677095febd9333895c4f7969"
+        ],
+        "explanation": "The change adds a call to s.search.TotalDocs() in searchSupport.init, after the goroutine that handles write events has already started. BuildIndex now writes b.cache under cacheMu only around the assignment. TotalDocs ranges over b.cache with no lock. If a write event triggers handleEvent, getOrCreateIndex and BuildIndex while TotalDocs is iterating, the map is read and written concurrently. This can cause a Go \"concurrent map iteration and map write\" fatal error. The same unlocked iteration also races with concurrent BuildIndex calls from other goroutines.",
+        "lines": {
+          "end_line": 146,
+          "start_line": 145
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:564e7851c60ac95b302f97e0",
+          "target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "title": "Unlocked b.cache iteration in TotalDocs races with BuildIndex writes from the event goroutine"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 30358,
+        "cache_write_input_tokens": 967,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 31327,
+        "output_tokens": 1739,
+        "provider_cost": 0.027054600000000005,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f0e1917cf58b32402bd5c39e6084c704ace6ef7dd25b595c25b6d3172b5fc302",
+      "model": "sonnet",
+      "prompt_digest": "823824c5ca21310d45ac7642eab9ee514bdf399830ddd42c3b6c82f67752d4f7",
+      "response": {
+        "verdicts": [
+          {
+            "finding_id": "finding-12716bd479910dba8921291d",
+            "reason": "TotalDocs at bleve.go:146 ranges over b.cache without cacheMu while BuildIndex writes it under the lock, and init calls it after the event goroutine has started, so a concurrent map iteration and write is possible.",
+            "verdict": "keep"
+          }
+        ]
+      },
+      "schema_digest": "9f2f3a1965415c4a67066ae287dcce6640e370878a5e0b4e4649df0929564791",
+      "stage": "finding_verification",
+      "system_digest": "d912f65725c6677d35ac975591b4d909da05cc465b66ba7adb49c391f1452e73",
+      "usage": {
+        "cache_read_input_tokens": 11011,
+        "cache_write_input_tokens": 6532,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 17547,
+        "output_tokens": 338,
+        "provider_cost": 0.0312033,
+        "request_id": "",
+        "seconds": 5.923
+      }
+    }
+  ],
+  "case_id": "grafana-10",
+  "case_input_digest": "897220768459cddae55e956f88c037f694036cacc8973421f9c1547e60d30ec4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:09:02+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,134 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "753b72ac7098e62f80f0712db710fcbf3fad74dae9e0e7cdb67c2e34c61b27eb",
+      "model": "sonnet",
+      "prompt_digest": "5c4c1e33459a76917e634423f804073f6c07369a23f73e12561bdc9eb0f7d4e8",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect identified.",
+        "evidence_refs": [
+          "source:new:packages/lib/payment/handlePayment.ts@sha256:e65cb386dd434229d989b3f998bc52cd72a29bae855944c7ad9330907992eea8"
+        ],
+        "explanation": "The change only adds `await` to the appStore lookup. Awaiting a non-promise value is harmless. If the entries are lazy-loaded module promises, the await is needed so that the `\"lib\" in paymentApp` check runs on the resolved module. I found no removed guard and no failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7bbaeb1b99becf99da2cfdfa"
+        ],
+        "title": "Added await on appStore lookup is not a defect"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 6677,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10206,
+        "output_tokens": 640,
+        "provider_cost": 0.0341097,
+        "request_id": "",
+        "seconds": 9.706
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "88cd4eb35a2579ade7368de1c1394586138dbc02757205c8ecf3ec5b9b5a080a",
+      "model": "sonnet",
+      "prompt_digest": "1253f4597dfe19f0ccbbcce69dbf57626ffb9ce1a62ec60fc280783735f639f5",
+      "response": {
+        "category": "correctness",
+        "consequence": "If a calendar or video deletion fails (expired credentials, API error), the error becomes an unhandled rejection. That can crash the Node process or log nothing useful, and the intended try/catch logging is dead. Handlers can return before the old events are removed, leaving stale busy slots.",
+        "evidence_refs": [
+          "source:new:packages/app-store/vital/lib/reschedule.ts@sha256:e38508d7614d5295e4ebdca2b1aeabb21aeb92d4fb966d4bf0754129e4273aca",
+          "source:new:packages/app-store/wipemycalother/lib/reschedule.ts@sha256:1b9778c6748fee76741011db5ce900329eb1fcd94579d1855f572fa615a7c97d",
+          "source:new:packages/trpc/server/routers/viewer/bookings.tsx@sha256:d9aa8dfd68bde34fc084558df5f77e921b763a0671c7d9de5e3892bf0b25ead4"
+        ],
+        "explanation": "The change made the forEach callback async because getCalendar now returns a Promise. Array.forEach does not await the callback's promise. In vital/lib/reschedule.ts (125-128) and wipemycalother/lib/reschedule.ts (125-128), the surrounding try/catch no longer catches errors from getCalendar, deleteEvent or deleteMeeting. Those errors become unhandled promise rejections. The same pattern is in bookings.tsx (the bookingRefsFiltered.forEach near line 553), where there is no catch at all. Previously the getCalendar call was synchronous. The deletions are also not awaited, so the reschedule flow continues (sending emails, webhooks, returning) before the calendar events are deleted.",
+        "lines": {
+          "end_line": 128,
+          "start_line": 125
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:f73fad14dfb9f4fee2a05be3",
+          "target:sym:9a9a19d7a6c060c69e5adbed",
+          "target:sym:6ddb681578e9bb7ed6a8d5ec"
+        ],
+        "title": "forEach(async) makes calendar/video deletions unawaited and bypasses try/catch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 59909,
+        "cache_write_input_tokens": 26197,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 86112,
+        "output_tokens": 1710,
+        "provider_cost": 0.13026590000000002,
+        "request_id": "",
+        "seconds": 24.589
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8cbf7a10bc8b76c37061f07d07f1f728e0fb3dcdab15c78a62013ffdd54e3fe5",
+      "model": "sonnet",
+      "prompt_digest": "f58554250bbbf98c4df8f5afc95e1bf561144db5c3566677758c8cb06b2273ab",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No concrete failing input found.",
+        "evidence_refs": [],
+        "explanation": "Every caller of getVideoAdapters in videoClient.ts now awaits it. Every getCalendar caller found by grep awaits it, except CalendarManager.ts:28. That call stores the promise and CalendarManager.ts:48 awaits it later, so it is correct. appStore lookups in deletePayment, handleCancelBooking and trpc bookings are awaited too. The recurring-event forEach(async) in handleCancelBooking was already like that before this change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No caller mismatch found for async getVideoAdapters/getCalendar"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 58870,
+        "cache_write_input_tokens": 26449,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 85325,
+        "output_tokens": 1169,
+        "provider_cost": 0.1256935,
+        "request_id": "",
+        "seconds": 26.778
+      }
+    }
+  ],
+  "case_id": "calcom-02",
+  "case_input_digest": "ea13442e2720523e73056de48455f95f5de30a3570a991ac76967bec746ba785",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

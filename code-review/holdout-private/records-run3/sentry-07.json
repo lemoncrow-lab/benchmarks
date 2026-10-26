@@ -1,0 +1,141 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "8a48ae361e5cfd31bf9adc91c571a8949431bfcf06d35b7ca18c81e54b34e5e0",
+      "model": "sonnet",
+      "prompt_digest": "460fe9fd227b6e5ca546f31121e9a16817300bed225cf0a4d5424e59d9d2ce9f",
+      "response": {
+        "category": "correctness",
+        "consequence": "The `queued` timestamp is wrong for every assignment source. It is the worker's import time, not the enqueue time, and gets older the longer the process runs. Any logic that relies on it gets incorrect results.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/services/assignment_source.py@sha256:885ab5f3b8ef5398cf84e90112d9352978908c663d9034ef89e7ed4eccfdfa0e"
+        ],
+        "explanation": "`queued: datetime = timezone.now()` is evaluated when the class body runs, at module import. Every AssignmentSource built through from_integration (sync.py lines 98 and 115) gets the same process-start timestamp as `queued`, not the time it was created. to_dict then sends that stale value to the Celery task. If anything uses `queued` to order or dedupe assignment events, it will see wrong values. The field needs `field(default_factory=timezone.now)`.",
+        "lines": {
+          "end_line": 18,
+          "start_line": 18
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 18,
+          "original": "    queued: datetime = timezone.now()",
+          "start_line": 18,
+          "text": "    queued: datetime = field(default_factory=timezone.now)"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e2667472e8f5513cf4f56a3f"
+        ],
+        "title": "AssignmentSource.queued default is evaluated once at import time"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 80963,
+        "cache_write_input_tokens": 4578,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 85547,
+        "output_tokens": 1359,
+        "provider_cost": 0.0423178,
+        "request_id": "",
+        "seconds": 24.922
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c4ed8ed1aeeb0cf6aaf66bd5a0c186435442811bd3b2c738ddd1712a54df582c",
+      "model": "sonnet",
+      "prompt_digest": "820c9a39e986f09091b9431025a9f997c30ba3109d5ad73151f32f35450e8063",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The new optional assignment_source parameter defaults to None and is passed to sync_group_assignee_outbound, which accepts assignment_source (src/sentry/integrations/utils/sync.py:127). Existing callers are unaffected.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:bd499e83362672a855b5ebf0",
+          "target:sym:d92fbcb52323bed2e6873477"
+        ],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 26694,
+        "cache_write_input_tokens": 2452,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 29150,
+        "output_tokens": 667,
+        "provider_cost": 0.0201636,
+        "request_id": "",
+        "seconds": 19.802
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cbc12964ea0489d5ffcd97c5c4fe3ee5834d997f8688b9e7daecb3ef02b6833a",
+      "model": "sonnet",
+      "prompt_digest": "2bfc59d83c3e47ba12010b861c6e09f24312d1ccc703032abea2690705c77b2b",
+      "response": {
+        "category": "verification",
+        "consequence": "The test suite passes while `queued` carries the process import time instead of the time the source was created. Any logic that relies on `queued` will use a wrong value, and the tests will not catch it.",
+        "evidence_refs": [
+          "source:new:tests/sentry/integrations/services/test_assignment_source.py@sha256:779891b9d0f2f017f2aea74f9e2d7cecf82019662015761830301221ca00425f"
+        ],
+        "explanation": "AssignmentSource declares `queued: datetime = timezone.now()` (assignment_source.py:18). The default is evaluated once at import, so every instance shares the same stale timestamp. test_to_dict only asserts `result.get(\"queued\") is not None`, which passes with that bug. It never checks that `queued` is a fresh time or that two instances differ. A default_factory would also pass, so the assertion cannot tell the two apart.",
+        "lines": {
+          "end_line": 36,
+          "start_line": 36
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:0954c11aa0a87074892ecceb"
+        ],
+        "title": "test_to_dict cannot detect import-time default for `queued`"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 60932,
+        "cache_write_input_tokens": 1838,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62776,
+        "output_tokens": 1075,
+        "provider_cost": 0.0258856,
+        "request_id": "",
+        "seconds": 17.683
+      }
+    }
+  ],
+  "case_id": "sentry-07",
+  "case_input_digest": "6417782c81a3c12be527350a5d7e796d88f5eb0b067f1d9db0b4a1e7b833fc21",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

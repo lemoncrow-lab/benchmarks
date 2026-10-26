@@ -1,0 +1,258 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "209b2d4ab982a88dde703e26514fa747cf3ac1b702fda7561945d2d31c0dd280",
+      "model": "sonnet",
+      "prompt_digest": "fa59e266e6b28e3e0c20f871b2d4f7083cf658df722d173b625da0ede346b798",
+      "response": {
+        "category": "correctness",
+        "consequence": "A booking with a Google Meet location and no destination calendar crashes `EventManager.create` with a TypeError. Previously it fell back to Cal Video (`integrations:daily`), so the booking or confirmation flow now fails instead.",
+        "evidence_refs": [
+          "source:new:packages/core/EventManager.ts@sha256:063d5bf52852bc2ba79909fb247301e3e9ecf1b5dc949f6c8192b6a8b12b75d2",
+          "source:new:packages/trpc/server/routers/viewer/bookings/confirm.handler.ts@sha256:8991f716c85771967485f8b95690398e6d6d17091cc30dc9fcb6f3a2152b17de"
+        ],
+        "explanation": "The old code used `evt.destinationCalendar?.integration`, which is safe when there is no destination calendar. The new code destructures `const [mainHostDestinationCalendar] = evt.destinationCalendar ?? [];` and then reads `mainHostDestinationCalendar.integration` with no optional chaining. When `destinationCalendar` is `[]` or undefined, the destructured value is undefined and the read throws a TypeError. The changed callers now pass `[]` when neither the booking nor the user has a destination calendar. This applies in the confirm handler, the editLocation handler and the cron reminder.",
+        "lines": {
+          "end_line": 119,
+          "start_line": 119
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 119,
+          "original": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar.integration !== \"google_calendar\") {",
+          "start_line": 119,
+          "text": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar?.integration !== \"google_calendar\") {"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:43aec7e61a37d222797251a0"
+        ],
+        "title": "Google Meet fallback throws when destinationCalendar is empty or undefined"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 28876,
+        "cache_write_input_tokens": 22905,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51787,
+        "output_tokens": 1972,
+        "provider_cost": 0.1164001,
+        "request_id": "",
+        "seconds": 21.636
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "72b20f229f3fb7c607a5cf69f042d902ca0f7913ce0c7c253f6cb34b02e22070",
+      "model": "sonnet",
+      "prompt_digest": "b552218856dd77066a9600038655181a5864b9648c2e8ba0d15cdc3f3a2ac2bc",
+      "response": {
+        "category": "correctness",
+        "consequence": "For a collective event where the organizer has no destination calendar but other hosts do, those hosts' calendar events are not created, and the booking's destinationCalendar relation is not connected. The behavior depends on host order.",
+        "evidence_refs": [
+          "source:new:packages/features/bookings/lib/handleNewBooking.ts@sha256:71d7096a9d3acdb4e6a16c03def8692b26c1a4bf3cb7fc090d1ef501bdb6a3d2"
+        ],
+        "explanation": "evt.destinationCalendar is set to null when neither eventType.destinationCalendar nor organizerUser.destinationCalendar exists. The later `evt.destinationCalendar?.push(...teamDestinationCalendars)` is then a silent no-op, so the destination calendars collected from the other COLLECTIVE hosts are discarded. This happens even when teamDestinationCalendars is non-empty.",
+        "lines": {
+          "end_line": 1079,
+          "start_line": 1063
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:018b7c888dce838a4682579e"
+        ],
+        "title": "Collective team members' destination calendars dropped when organizer has no destination calendar"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 84444,
+        "cache_write_input_tokens": 24868,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 109320,
+        "output_tokens": 1801,
+        "provider_cost": 0.12820420000000002,
+        "request_id": "",
+        "seconds": 19.402
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c3aacd1c6fdcd709da7f19fc5629b157b472675da9508684d2550c0a71363bdb",
+      "model": "sonnet",
+      "prompt_digest": "4791b10326041547d9cab64386b93aa8a00d22f7b06f2a9e5a52747958452100",
+      "response": {
+        "category": "correctness",
+        "consequence": "With team billing disabled (self-hosted), organizations are created with no slug, so org URLs and lookups by slug break. With billing enabled, the slug is set immediately instead of waiting for payment and verification, which skips the intended `requestedSlug` flow.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/organizations/create.handler.ts@sha256:95770550f5265267b9af0849ca77d1d262e85be0f646c84b4fb9b1c5dbbc16e5",
+          "target:target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "explanation": "The old code set the organization `slug` only when `!IS_TEAM_BILLING_ENABLED`, and put `requestedSlug` in metadata only when billing was enabled. The change rewrote the first spread as `IS_TEAM_BILLING_ENABLED ? { slug } : {}` and dropped the negation. The slug is now set when billing is enabled, which is also when `requestedSlug` is set. When billing is disabled, no slug is set at all.",
+        "lines": {
+          "end_line": 152,
+          "start_line": 152
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 152,
+          "original": "            ...(IS_TEAM_BILLING_ENABLED ? { slug } : {}),",
+          "start_line": 152,
+          "text": "            ...(!IS_TEAM_BILLING_ENABLED ? { slug } : {}),"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "title": "Organization slug condition inverted in createHandler"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 29563,
+        "cache_write_input_tokens": 23591,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53160,
+        "output_tokens": 1859,
+        "provider_cost": 0.11815250000000001,
+        "request_id": "",
+        "seconds": 19.499
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e279b450d68df2953839d26d353565068c4e70a61ee1483b32eaca83e0f18e5e",
+      "model": "sonnet",
+      "prompt_digest": "63e20f3bc6cc3f6ec97d87ef5cd46d8db7919bc364bb55ad608e6120e22e0040",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The class field change to DestinationCalendar[] matches the CalendarEvent interface in packages/types/Calendar.d.ts:171, which the class implements. The builder's setDestinationCalendar has no callers that pass a single object. The added optional externalId on EventResult is backward compatible.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:348da717febd70a9b76c8558",
+          "target:sym:656a3299a3a95e22aba51da5"
+        ],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 40754,
+        "cache_write_input_tokens": 10251,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51013,
+        "output_tokens": 867,
+        "provider_cost": 0.05444949999999999,
+        "request_id": "",
+        "seconds": 12.496
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e69e7fff82e4252fd35e116dfe02361a4edfd1f42b9bb4cb1eebfb064f1e0a6f",
+      "model": "sonnet",
+      "prompt_digest": "dd89dbde874ad1514e5f2ebfcd4756ddf9ad69def335470734e4a0c9a1e6fd85",
+      "response": {
+        "category": "correctness",
+        "consequence": "Cancelling an event without an explicit externalCalendarId, for example from the deleteCredential or payment flows, tries to delete from the wrong calendar (\"primary\"). The event stays on the intended destination calendar. `updateEvent` without an external id sends `calendarId: undefined` and the Google API call fails.",
+        "evidence_refs": [
+          "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+        ],
+        "explanation": "The old fallback used `event.destinationCalendar?.externalId` when no `externalCalendarId` was passed. The change replaced it with `event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId`. That fallback only runs when `externalCalendarId` is falsy, so it searches for a calendar whose externalId equals undefined, null or an empty string. It effectively never matches, so the fallback always returns undefined. In `deleteEvent`, calls without an explicit calendar id now delete from \"primary\" instead of the booking's destination calendar. In `updateEvent`, `calendarId` becomes undefined.",
+        "lines": {
+          "end_line": 317,
+          "start_line": 315
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "The Google `events.update` call goes out without a calendarId and fails, so the event update does not happen.",
+            "evidence_refs": [
+              "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+            ],
+            "explanation": "The same no-op `find` is used in `updateEvent`, so `selectedCalendar` is undefined whenever `externalCalendarId` is falsy. The old code used the destination calendar's externalId.",
+            "lines": {
+              "end_line": 256,
+              "start_line": 254
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:f5511191f3c5692f2c9bbe65"
+            ],
+            "title": "updateEvent calendarId is undefined when externalCalendarId is not supplied"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 317,
+          "original": "      const calendarId = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId;",
+          "start_line": 315,
+          "text": "      const calendarId = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.[0]?.externalId;"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d4fbe2fe8cce3d6c1b324665",
+          "target:sym:f5511191f3c5692f2c9bbe65"
+        ],
+        "title": "Google deleteEvent/updateEvent destination-calendar fallback can never match"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 30962,
+        "cache_write_input_tokens": 25483,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56451,
+        "output_tokens": 2806,
+        "provider_cost": 0.1354713,
+        "request_id": "",
+        "seconds": 27.673
+      }
+    }
+  ],
+  "case_id": "calcom-04",
+  "case_input_digest": "caefb9f74d9d3d7b997fbed1a75e4cf2a3f61ec0207b1d76cd805b4f3446f908",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

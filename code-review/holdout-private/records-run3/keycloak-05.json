@@ -1,0 +1,475 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "0acdc4b173c31bd19ace7b8ff009966cfb3d7d2a270a8739b751e2a223621f85",
+      "model": "sonnet",
+      "prompt_digest": "c5b35096074bcd2126f79d2e73f7a1788a195abce2fbda023f02a82440882c51",
+      "response": {
+        "category": "security",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only passes the `client` argument to createPermission to match the static overloads in AbstractPermissionTest (lines 66 and 70). The BAD_REQUEST and delete/update assertions are unchanged, so no authorization or validation path is weakened.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:ae9e3abd7481053ca27e1aad",
+          "target:sym:d77704d2a79cfb914b43bc03"
+        ],
+        "title": "Test-only signature update; no weakened check"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15445,
+        "cache_write_input_tokens": 10803,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 26252,
+        "output_tokens": 665,
+        "provider_cost": 0.052232600000000004,
+        "request_id": "",
+        "seconds": 11.828
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "0b305c7d9faad7c6d6931d016bd5afe25ff70d6fbeba73567d3d78a642f0b771",
+      "model": "sonnet",
+      "prompt_digest": "f8d87596c05516b67a0885e561caeeb95312c76697b0a5656e7325993b3d25b8",
+      "response": {
+        "category": "correctness",
+        "consequence": "An FGAP v2 admin with only an all-clients MAP_ROLES_COMPOSITE permission gets an NPE (HTTP 500) from the available role mappings endpoint. Clients without their own resource are not listed. With a mix of per-client and all-clients permissions, the listing is incomplete.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java@sha256:fab52b5d37c5c8b4d25bbe91bb90b7d9e617b95132033f5a47dd3d0332bad5ad",
+          "source:new:services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionEvaluator.java@sha256:dcf473688de4b2d2c2b09dd4c2c8567961fedefb5b6ebf76d237bc4f555600b8"
+        ],
+        "explanation": "getClientsWithPermission calls resourceStore.findByType(server, \"Clients\", ...) and adds resource.getName() for every resource that evaluates to the scope. The type-level resource is created with name \"Clients\" and type \"Clients\" (AdminPermissionsSchema.java:249-250), so findByType returns it too. When an admin holds an all-clients permission for the scope, the name \"Clients\" is added to the result as if it were a client id. Real clients are not expanded: there is no code that lists the realm's clients when the type resource is granted. The only caller, AvailableRoleMappingResource.getRoleIdsWithPermissions (line 230), calls realm.getClientById(cid).getRolesStream() on each returned id. For \"Clients\", getClientById returns null, which causes a NullPointerException. If the all-clients permission is granted, the real clients that have no per-client resource are missing from the set. Because the interface Javadoc says all-clients permissions apply to all clients, the result under-reports.",
+        "lines": {
+          "end_line": 142,
+          "start_line": 138
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:24508c112186cc0f3fdd18e6"
+        ],
+        "title": "getClientsWithPermission returns the \"Clients\" type resource name as a client id and omits clients covered by an all-clients permission"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 90929,
+        "cache_write_input_tokens": 21916,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 112855,
+        "output_tokens": 2868,
+        "provider_cost": 0.1270875,
+        "request_id": "",
+        "seconds": 35.84
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "6834b344fa407e80c598991bcec0d5cf93e8fa9d1c838d0fe934e3b50b123bc3",
+      "model": "sonnet",
+      "prompt_digest": "be5cc8f0342c778f23e915b92ba9e804d7551ad1563e1a400bc7d551a795c0ce",
+      "response": {
+        "category": "correctness",
+        "consequence": "Representations of client permissions show a null name for specific clients, and the \"Clients\" type resource is not shown as \"All clients\". This is a presentation defect only. I found no authorization bypass in the changed code.",
+        "evidence_refs": [
+          "source:new:server-spi-private/src/main/java/org/keycloak/authorization/AdminPermissionsSchema.java@sha256:433e03df7b5430fa903ddbbfb83cc3f3528dc95f9864135c7ee9ec1c38059d11"
+        ],
+        "explanation": "The change adds the Clients resource type. getOrCreateResource names client resources with the client's internal UUID (resolveClient returns client.getId()). getResourceName still resolves display names only for the Users type. For a policy with resourceType \"Clients\", it falls through to resource.getDisplayName(). Resources created by getOrCreateResource don't set a display name, so this returns null. The \"All clients\" type resource is also not mapped.",
+        "lines": {
+          "end_line": 325,
+          "start_line": 310
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:24f0f15a0086b026c25d52b9"
+        ],
+        "title": "getResourceName not extended for the new Clients resource type"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 19244,
+        "cache_write_input_tokens": 15413,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 34661,
+        "output_tokens": 1266,
+        "provider_cost": 0.0774427,
+        "request_id": "",
+        "seconds": 15.94
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "6b7bc7ec99e90c5d9162753e6754d2d20949304dc887178dbe253396c6f46055",
+      "model": "sonnet",
+      "prompt_digest": "f2b7b13dcef2c373bb1f4c20e9e938294dec60a0b6eba51a0a5325a9d6d9c4cd",
+      "response": {
+        "category": "security",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only moves test helpers into AbstractPermissionTest and passes the client explicitly. The shared helpers' signatures match the new call sites. The test assertions, including the Forbidden and NotFound checks, are unchanged. No production authorization code was touched.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No authorization defect found in test refactor"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29693,
+        "cache_write_input_tokens": 26880,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56577,
+        "output_tokens": 930,
+        "provider_cost": 0.12204709999999999,
+        "request_id": "",
+        "seconds": 15.546
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "6ebec7e4004845023d61cf8115cfe2639d7f1fbfb0858c17eac111642870cfdb",
+      "model": "sonnet",
+      "prompt_digest": "032941fa1a2ef1edb9ba0e589344aed1e920b7a6904cd09d9f5247e1729f5bc2",
+      "response": {
+        "category": "security",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The new V2 evaluator checks the admin roles and then the realm resource-server permissions. It denies access when the admin is not in the same realm or the resource server is missing. The new feature guard in registerListener only skips cleanup when ADMIN_FINE_GRAINED_AUTHZ is disabled. V1 and V2 are versions of the same feature, so V1 is off whenever V2 is on. That also avoids calling V2's UnsupportedOperationException setPermissionsEnabled on client removal. I found no input that crosses the authorization path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No exploitable authorization defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29877,
+        "cache_write_input_tokens": 23845,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53726,
+        "output_tokens": 1155,
+        "provider_cost": 0.1121939,
+        "request_id": "",
+        "seconds": 18.509
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "75117f576eb0188cb1b0f959ed1636a82fb0b9c89b669503b166ef810d5f327a",
+      "model": "sonnet",
+      "prompt_digest": "5d822a3fe43d0f3c7fb2c71d9d4584973d62d7d596d168373198d89a0bbb233a",
+      "response": {
+        "category": "security",
+        "consequence": "No security defect from this change.",
+        "evidence_refs": [],
+        "explanation": "The change only touches test code. It converts the permission helpers to static methods that take the client as a parameter. It adds user and client policy helpers that register cleanup. It adds client permission tests that expect ForbiddenException before a permission is granted and after it is scoped to one client. The tests assert denial where it is expected. No production authorization path, guard or validation is changed, and no untrusted input crosses a trust boundary through this change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:18d6065f6e021df8e3910e41",
+          "target:hun:4c1447772081b9857ae60388",
+          "target:sym:141e77477b3d055624ce3922",
+          "target:hun:698e16de08861263bb3af448",
+          "target:sym:e2e0031d1685cb9908687622"
+        ],
+        "title": "No authorization or validation weakening found in the test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 28692,
+        "cache_write_input_tokens": 22228,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50926,
+        "output_tokens": 1142,
+        "provider_cost": 0.10536290000000001,
+        "request_id": "",
+        "seconds": 18.887
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "81c810568714f8fce1a3957b2f8097f64a2d3a4e64893389b071651389290172",
+      "model": "sonnet",
+      "prompt_digest": "6807de082072eaa94b52f8bfaf54e8ce0c16ea903875427c3863cc290e4642c0",
+      "response": {
+        "category": "security",
+        "consequence": "No defect found.",
+        "evidence_refs": [],
+        "explanation": "The change only moves the policy and permission helpers into AbstractPermissionTest. The shared helpers exist with matching signatures, and no calls to the removed helpers remain in the file. The impersonate test keeps the same assertions: forbidden at first, forbidden with the negative permission, allowed once it is removed.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:d3f9e0b931f0a8bfc53740e2"
+        ],
+        "title": "Test refactor to shared helpers introduces no authorization weakening"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 62723,
+        "cache_write_input_tokens": 30186,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 92915,
+        "output_tokens": 1034,
+        "provider_cost": 0.1395724,
+        "request_id": "",
+        "seconds": 24.446
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9127633142b6d3b6ba9e7e0f2018d070b7922fdec6716dfc9ce02041e56e7fe3",
+      "model": "sonnet",
+      "prompt_digest": "294378e7727163268fe0c855f7c7fa003026086705775153ce4254677bcfe6d1",
+      "response": {
+        "category": "correctness",
+        "consequence": "No confirmed defect from this hypothesis.",
+        "evidence_refs": [],
+        "explanation": "hasPermission(ClientModel, scope) uses the same pattern as UserPermissionsV2.hasPermission. It falls back to the type-level resource only when no per-client resource exists. It checks findByResource on that resource before evaluating. The two findByName variants resolve the same owner: ResourceStore.findByName(server, name) delegates to the three-argument form with resourceServer.getClientId(), which is the same value as server.getId(). I did not find a concrete failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:24508c112186cc0f3fdd18e6"
+        ],
+        "title": "Client permission fallback matches the user V2 design"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 69460,
+        "cache_write_input_tokens": 14996,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 84466,
+        "output_tokens": 1646,
+        "provider_cost": 0.08452050000000001,
+        "request_id": "",
+        "seconds": 26.74
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9b140aeb652c71bb2a172c3763600dd122326e5ca16c54291f32084bff308608",
+      "model": "sonnet",
+      "prompt_digest": "94782d6fab242315755356cba987afd9ea2a9d488d6fbb5875e421322b181499",
+      "response": {
+        "category": "correctness",
+        "consequence": "No exception is thrown on client delete in the V1-only or V2-only configurations.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/services/resources/admin/permissions/AdminPermissions.java@sha256:4b124914cf1c39e2440ce8892c9a2b5adb6aac6419d9ab496d2554b1beb94035",
+          "source:new:services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java@sha256:fab52b5d37c5c8b4d25bbe91bb90b7d9e617b95132033f5a47dd3d0332bad5ad"
+        ],
+        "explanation": "The change wraps the listener body in a check of the V1 feature ADMIN_FINE_GRAINED_AUTHZ. V2 does not depend on V1: Profile.java declares ADMIN_FINE_GRAINED_AUTHZ_V2 with only the AUTHORIZATION dependency. With only V2 on, the guard is false, so the listener does nothing and the V2 setPermissionsEnabled that throws is never called. This is the purpose of the guard. Both versions share one feature key and are versions of the same feature, so I did not find a way to enable both together. I did not open Profile's validation to confirm that, and I found no code that enables both. The throwing branch is therefore not reachable in normal configurations.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:818db4d658ca0151bc093303"
+        ],
+        "title": "Listener guard prevents V2-only client delete from reaching ClientPermissionsV2.setPermissionsEnabled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 41539,
+        "cache_write_input_tokens": 22188,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 63733,
+        "output_tokens": 1534,
+        "provider_cost": 0.10959730000000001,
+        "request_id": "",
+        "seconds": 26.04
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ef706abba837c87017966439e48118838426553b6ee9410e83f4ccfaf3c2bd79",
+      "model": "sonnet",
+      "prompt_digest": "c9b9d42c803a23bbe575664cfac2ff88a3cbed4267fb5b297d5500e945c9247f",
+      "response": {
+        "category": "security",
+        "consequence": "No authorization regression from the map-roles methods.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java@sha256:fab52b5d37c5c8b4d25bbe91bb90b7d9e617b95132033f5a47dd3d0332bad5ad"
+        ],
+        "explanation": "The V1 ClientPermissions.canMapRoles, canMapCompositeRoles and canMapClientScopeRoles (ClientPermissions.java:536-655) check only the per-client permission policy. They do not check the manage-clients admin role. The V2 overrides also check only the per-client permission, so the V2 override loses no admin-role check that V1 had. The new Javadoc on ClientPermissionEvaluator also describes these methods as permission-only. I did not trace the call sites of the throwing V2 methods (canExchangeTo, getPermissions, isPermissionsEnabled), so this answer does not cover them.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:24508c112186cc0f3fdd18e6",
+          "target:sym:430c500d8db96ab77ab4392c"
+        ],
+        "title": "V2 map-roles checks match V1 semantics"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 44942,
+        "cache_write_input_tokens": 20123,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 65071,
+        "output_tokens": 1063,
+        "provider_cost": 0.09726309999999999,
+        "request_id": "",
+        "seconds": 13.649
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "bc70cf84c3a06c046a41445010d1f7f20a21f6a63940b011f8c1cd0131586e1b",
+      "model": "sonnet",
+      "prompt_digest": "6f16e2f978a8c691cdf52d6023e9c930bc5f256c8ebbefc87cd9fd9f708db5e5",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Profile feature definitions showing whether V1 and V2 can be enabled together, or whether V2 implies V1. The ClientRemovedEvent dispatch path. A test that deletes a client with V2 enabled. Whether V2 cleanup of the client's permissions and resources happens elsewhere when only V2 is on.",
+            "failure_mode": "The registerListener ClientRemovedEvent branch calls management(...).clients().setPermissionsEnabled(client, false). When ADMIN_FINE_GRAINED_AUTHZ_V2 is on, management() returns MgmtPermissionsV2, so this reaches ClientPermissionsV2.setPermissionsEnabled, which throws UnsupportedOperationException. If the listener's guard also passes, deleting a client could fail. Role and group removal may be affected through the same path. If only V2 is enabled, the guard skips cleanup entirely.",
+            "investigation_rationale": "The listener guard was changed to check Feature.ADMIN_FINE_GRAINED_AUTHZ. management() chooses V2 on a different feature flag. Check whether both flags can be enabled at once. Check whether V2 clients(), roles() and groups() all throw on setPermissionsEnabled. Check whether the ClientRemovedEvent is dispatched inside the client-delete transaction.",
+            "priority_rationale": "A runtime exception on a core admin operation (client delete) is high impact.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:818db4d658ca0151bc093303",
+              "target:sym:24508c112186cc0f3fdd18e6",
+              "target:hun:9c53dec905db2d48a2583ba3"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "A scenario with an all-clients MANAGE permission plus a per-client permission for a different scope or a negative permission. The evaluator code for type fallback. Null handling of getResourceTypeResource when the admin-permissions client or its resources are missing. Whether the two findByName variants resolve the same resource.",
+            "failure_mode": "In hasPermission(ClientModel, scope), the fallback to the all-clients resource runs only when no per-client resource exists. Once a per-client resource exists, the evaluation uses only that resource. An all-clients permission for the scope may then be ignored if the policy evaluator doesn't merge type-level permissions. Separately, getResourceTypeResource can return null, which would cause an NPE in findByResource(server, null). Two different lookups find the type resource: findByName(server, TYPE) and findByName(TYPE, server.getId()).",
+            "investigation_rationale": "Compare with the user-permission V2 logic, where the tests show an all-users permission acting as a fallback and a negative per-user permission overriding it. Check whether the clients path behaves the same way. Check how root.evaluatePermission and the policy provider handle type-level and object-level resources.",
+            "priority_rationale": "This is the core authorization decision for client management. A wrong result is either privilege denial or, if negative permissions are skipped, over-grant.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:24508c112186cc0f3fdd18e6",
+              "target:hun:8ee115569a19279e2116bb4e"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Callers of getClientsWithPermission. Behavior of resourceStore.findByType for the type resource. A test listing clients with only an all-clients VIEW or MANAGE permission.",
+            "failure_mode": "getClientsWithPermission only returns names of resources of type Clients that are granted the scope. It omits clients covered solely by an all-clients permission, so list and query results under-report. It may also include the type-level resource name (\"Clients\") as if it were a client id.",
+            "investigation_rationale": "The V2 interface Javadoc says all-clients permissions apply to all clients. Check the callers (client list and search) for how the returned set is used, and whether the type resource is returned by findByType.",
+            "priority_rationale": "A mismatch between the documented contract and the implementation gives wrong listing visibility for FGAP admins. The tests only cover the single-client case.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:24508c112186cc0f3fdd18e6",
+              "target:sym:430c500d8db96ab77ab4392c"
+            ]
+          },
+          {
+            "category": "security",
+            "evidence_needed": "V1 canMapRoles implementation. The call sites of the throwing methods and whether they are guarded by a V2 feature check. Tests of the role-mapping endpoints under V2.",
+            "failure_mode": "The V2 methods canMapRoles, canMapCompositeRoles and canMapClientScopeRoles check only the per-client permission and not the manage-clients admin role. canView(ClientModel) and canConfigure(ClientModel) delegate to canManage, which includes the role check. If the V1 contract allowed a MANAGE_CLIENTS admin to map roles, V2 would deny it. If the permission semantics are looser than intended, the V2 mapping could grant too much. canExchangeTo throws UnsupportedOperationException, so token-exchange callers could produce a 500 error.",
+            "investigation_rationale": "Compare the V2 overrides with the V1 ClientPermissions semantics. Check the callers of canExchangeTo and the other throwing methods (getPermissions, isPermissionsEnabled) in V2 flows such as client representation, role-mapping endpoints and token exchange.",
+            "priority_rationale": "API-level behavior changes and unhandled exceptions in authorization paths affect admin REST endpoints and token exchange.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:24508c112186cc0f3fdd18e6",
+              "target:sym:430c500d8db96ab77ab4392c"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 43302,
+        "cache_write_input_tokens": 40793,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 84101,
+        "output_tokens": 4746,
+        "provider_cost": 0.2187516,
+        "request_id": "",
+        "seconds": 44.916
+      }
+    }
+  ],
+  "case_id": "keycloak-05",
+  "case_input_digest": "b054720f912d0d219a97cdfac360ba4329cacb925c62a37436627be3511ed3eb",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

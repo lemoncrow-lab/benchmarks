@@ -1,0 +1,437 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "aed10fbe2e5b2f2d5d045a369021176e6b692c5cd7b96e29b56adbf528436ab9",
+      "model": "sonnet",
+      "prompt_digest": "7ec9154a16752059bbccdf42dc3bd7b84b37fb97862eeffa98d6cc1353c4e2f4",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-5dd0237b84340a9a8386217a",
+              "finding-4cfc47f1b9a57802302db35b"
+            ],
+            "keep_id": "finding-4cfc47f1b9a57802302db35b"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 8355,
+        "cache_write_input_tokens": 5470,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 13831,
+        "output_tokens": 219,
+        "provider_cost": 0.0255093,
+        "request_id": "",
+        "seconds": 8.732
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1fda0fcbc475051500f32bccae38fe5ddba78c209a1b7cf92427832cccf1444c",
+      "model": "sonnet",
+      "prompt_digest": "9b5b4f4f0f7d2ae35291ba7d43f4520804b954e767039c43182e54f38bb518b3",
+      "response": {
+        "category": "correctness",
+        "consequence": "A malformed request body produces an unhandled exception and a 500 response instead of a clean validation error. Impact is limited because the caller must already be authenticated.",
+        "evidence_refs": [
+          "source:new:apps/web/pages/api/auth/two-factor/totp/disable.ts@sha256:605ff81c9838f779ff1d4979ea961e4bb89f52fe20f960075b5022c63983a20b"
+        ],
+        "explanation": "The new backup-code branch is taken whenever `req.body.backupCode` is truthy. It then calls `req.body.backupCode.replaceAll(\"-\", \"\")` without checking the type. A JSON body such as `{\"backupCode\": 123}` or `{\"backupCode\": {}}` is truthy but has no `replaceAll` method, so the handler throws a TypeError. The throw is unhandled, so the request fails with a 500 instead of the intended 400 `IncorrectBackupCode`. The earlier concerns do not hold. The session check, the 401 handling and the password check for CAL users already exist before this change. The new code adds no rate limiting, but the existing TOTP path had none either.",
+        "lines": {
+          "end_line": 60,
+          "start_line": 60
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:759fc0495622d04ac20b846b"
+        ],
+        "title": "Non-string backupCode makes the handler throw a 500 error"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 27743,
+        "cache_write_input_tokens": 9897,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 37648,
+        "output_tokens": 1716,
+        "provider_cost": 0.060331300000000004,
+        "request_id": "",
+        "seconds": 23.863
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "36ac51723c77bcdf85b5b5abb65fbaef894e51147b4a27fd4696f2e7a8552f44",
+      "model": "sonnet",
+      "prompt_digest": "f5c85f4d47e55669d830972d6608628753a40bc06eb0792f2fe8c49553324cfc",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "An attacker who has a password and one backup code can use that code more than once by racing requests. A consumed backup code can also become valid again. This breaks the single-use guarantee of 2FA backup codes.",
+        "evidence_refs": [
+          "source:new:packages/features/auth/lib/next-auth-options.ts@sha256:649b5fda61cfc711737fc558c4cf941eea263409c5146b93e8319f129095a1ad",
+          "target:target:sym:ea6eb77824a86b90177f47c8"
+        ],
+        "explanation": "The user row, including the encrypted backupCodes, is read once at the top of authorize. The code decrypts it, finds the index, sets that entry to null, re-encrypts, and calls prisma.user.update with `where: { id }` only. There is no transaction, no row lock, and no compare-and-set on the previous backupCodes value. Two concurrent logins with the same valid backup code both read the same unconsumed list, both find the code, and both pass. Each then writes back its own copy, so the last write wins. A concurrent login using a different backup code can also overwrite the first login's nulling, which revives the code that was just consumed. I checked the indexOf concern: the stored entries are nulled and the input is a non-empty string, so it cannot match a nulled entry.",
+        "lines": {
+          "end_line": 155,
+          "start_line": 148
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:ea6eb77824a86b90177f47c8"
+        ],
+        "title": "Backup code consumption is a non-atomic read-modify-write, so a code can be reused concurrently"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15713,
+        "cache_write_input_tokens": 9954,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 25673,
+        "output_tokens": 2061,
+        "provider_cost": 0.0628528,
+        "request_id": "",
+        "seconds": 23.412
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "39b2acbb21f724cc0fc69dc922971db4898ec297bf318fb4ffba6090bc31dffb",
+      "model": "sonnet",
+      "prompt_digest": "8a5849f89106a3ff70830603b5d4741c479fb28508137a1c3d58df1a1fa61677",
+      "response": {
+        "category": "security",
+        "consequence": "No concrete failing input or state was identified.",
+        "evidence_refs": [],
+        "explanation": "The setup endpoint still requires a session, a CAL identity provider, a correct password and 2FA not already enabled before it generates codes. Codes come from crypto.randomBytes and are stored encrypted. The new nullable backupCodes column is added by an additive migration, so existing rows read as null. The login and disable endpoints already handle a null value by returning MissingBackupCodes. Used codes are set to null in the stored array, and indexOf on the cleaned input cannot match a null entry.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:828ee18137f936247085e29a"
+        ],
+        "title": "No exploitable defect found in backup-code setup/migration"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 63669,
+        "cache_write_input_tokens": 29569,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93244,
+        "output_tokens": 1238,
+        "provider_cost": 0.1395122,
+        "request_id": "",
+        "seconds": 18.946
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7d4f0d60eca7034f104bda832e9ed5cb721161623db9f99bc17e112e4ecae816",
+      "model": "sonnet",
+      "prompt_digest": "ac7ff8e81924f9428b378a4dd16e71eaf4e197cbb9bd0ca53267fb6798347be2",
+      "response": {
+        "category": "security",
+        "consequence": "An attacker who has only the email and a backup code (or a current TOTP code) can log in without the password. Sending a dummy totpCode alongside the backup code is enough.",
+        "evidence_refs": [
+          "source:new:packages/features/auth/lib/next-auth-options.ts@sha256:649b5fda61cfc711737fc558c4cf941eea263409c5146b93e8319f129095a1ad"
+        ],
+        "explanation": "Line 121 only verifies the password when `!credentials.totpCode`. Nothing later checks it. A request with an email, an arbitrary non-empty totpCode, no password and a valid backupCode skips the password check. It then enters the new backup-code branch (line 131), which doesn't look at totpCode, and succeeds. A request with a valid totpCode and no password is also accepted by the existing TOTP branch. The password factor is therefore not enforced for CAL users. The change adds a second way to authenticate without the password, using a backup code. The totpCode-only skip itself predates the change.",
+        "lines": {
+          "end_line": 121,
+          "start_line": 121
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:ea6eb77824a86b90177f47c8"
+        ],
+        "title": "Password check skipped whenever totpCode is supplied; new backup-code path inherits the bypass"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 16367,
+        "cache_write_input_tokens": 11535,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 27906,
+        "output_tokens": 1197,
+        "provider_cost": 0.0606657,
+        "request_id": "",
+        "seconds": 16.372
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7ec41468031f0c995a516c98b767146e12241d044520786922625d410fab0087",
+      "model": "sonnet",
+      "prompt_digest": "7a608e6f2411f71a654330ccd74db71289558f29232fe8f2d458a939f0418f62",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "A backup code that is meant to be single-use can be redeemed more than once. In a race, a code that was already used can also become valid again. This weakens the one-time guarantee of the second-factor recovery codes.",
+        "evidence_refs": [
+          "source:new:packages/features/auth/lib/next-auth-options.ts@sha256:649b5fda61cfc711737fc558c4cf941eea263409c5146b93e8319f129095a1ad"
+        ],
+        "explanation": "In authorize(), the backup-code branch reads user.backupCodes in the earlier findUnique, checks the code with indexOf, then writes back the whole re-encrypted array with prisma.user.update. The update has no condition that the stored backupCodes are unchanged. Two concurrent login requests with the same valid backup code both read the old array, both find the code, and both succeed. The update only nulls the one entry, so the second write does not restore the code, but both sessions are issued. The same pattern would also lose updates if two different codes are used at once: the later write re-enables the earlier consumed code, because it writes back an array that still holds it. The rate limiter reduces how easily this can be triggered, but it does not make the consumption atomic.",
+        "lines": {
+          "end_line": 151,
+          "start_line": 144
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:ea6eb77824a86b90177f47c8"
+        ],
+        "title": "Backup code consumption is a non-atomic read-modify-write, so a single-use code can be replayed concurrently"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 24589,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 28118,
+        "output_tokens": 2077,
+        "provider_cost": 0.1219177,
+        "request_id": "",
+        "seconds": 24.317
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b0f656a5a13860cee2dd1654d4dab0d00c225f92531fdb392216fe2d6e2e21d0",
+      "model": "sonnet",
+      "prompt_digest": "1ea4931b14d1fa1067f71a8669f73a3f6d4e723d753a58783ade3001cc39c871",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The modal passes backupCode to TwoFactorAuthAPI.disable, which sends it to the disable endpoint. The endpoint handles backupCode, MissingBackupCodes and IncorrectBackupCode. The BackupCode and TwoFactor components register the matching form fields. TwoFactor accepts the autoFocus prop. The else-if chain fixes the earlier bug where the generic error overwrote specific messages. The e2e additions are valid assertions.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:d9b1bed51f9ae65a143d2949"
+        ],
+        "title": "No defect found in backup-code disable flow"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 70300,
+        "cache_write_input_tokens": 21550,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 91858,
+        "output_tokens": 1605,
+        "provider_cost": 0.1109883,
+        "request_id": "",
+        "seconds": 24.624
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cbed0a025fd88540e25d8f5e01e47e2da0398c19edb5cc38ab5bee4b5319fa96",
+      "model": "sonnet",
+      "prompt_digest": "03e7fd4635c0e7b07b5216e18e9f70c840899d91ee166be67729438b7817e212",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No lockout or silent secret replacement from the setup handler.",
+        "evidence_refs": [
+          "source:new:apps/web/pages/api/auth/two-factor/totp/setup.ts@sha256:a3c1bdda0ba408efb1b379c7392023d5d114614e337d64a857de902aea9d839e"
+        ],
+        "explanation": "setup.ts lines 42-44 return 400 TwoFactorAlreadyEnabled when user.twoFactorEnabled is true, before any secret or backup codes are overwritten. A re-run therefore cannot replace the secret or codes of a user who has 2FA enabled. Users who enabled 2FA before the migration have null backupCodes. Login and disable handle that case with a MissingBackupCodes error, and the TOTP code path is unaffected.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:828ee18137f936247085e29a"
+        ],
+        "title": "Setup is guarded against re-run when 2FA is already enabled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15880,
+        "cache_write_input_tokens": 11874,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 27758,
+        "output_tokens": 888,
+        "provider_cost": 0.0588325,
+        "request_id": "",
+        "seconds": 13.337
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "d332bee66d6b7e8dafa405296273ddf933ed49cc523a5deb5e71748574c02f19",
+      "model": "sonnet",
+      "prompt_digest": "ab30859fd4e46c033d7ee685bf8d81385153d077eb5ceabfbe66c02e2f5fc627",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect.",
+        "evidence_refs": [
+          "source:new:packages/lib/test/builder.ts@sha256:ea764b569073c46b4517a540f700917d353f70e9d890c9ad7db6b09358b86960"
+        ],
+        "explanation": "The change only adds a `backupCodes: null` default to the test builder, which matches the other nullable fields such as `bio` and `defaultScheduleId`. Nothing is removed or weakened, and no input or state that goes wrong could be named.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7973d7526b53b71c8fc846a0"
+        ],
+        "title": "Adding backupCodes: null to buildUser fixture is correct"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 12535,
+        "cache_write_input_tokens": 7728,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 20269,
+        "output_tokens": 807,
+        "provider_cost": 0.0408698,
+        "request_id": "",
+        "seconds": 14.859
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4debc44fa19442b3e116cfec7955594b1ed3458e4819b21b8ee23877172bafbe",
+      "model": "sonnet",
+      "prompt_digest": "6a96711573270b23fa03b3a409ad300b9208ea5928ad242e163def98c7407862",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "security",
+            "evidence_needed": "Full authorize flow (lines 53-218) showing whether password is checked unconditionally for CAL users. Confirmation that totpCode-only or backupCode+totpCode submissions can log in without a correct password.",
+            "failure_mode": "In authorize, password verification is skipped whenever credentials.totpCode is present (`user.password && !credentials.totpCode`). An attacker who knows only an email can supply any totpCode, bypass the password check, and authenticate with just a valid TOTP. Also, the backup-code path runs after the same skipped password check, so a backupCode with a totpCode set would bypass the password.",
+            "investigation_rationale": "Read the full authorize function to see whether the password is verified elsewhere when totpCode or backupCode is present, and whether the 2FA branches still require the password.",
+            "priority_rationale": "Possible authentication bypass of the password factor in the core login path.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:ea6eb77824a86b90177f47c8",
+              "target:sym:4f8c34fdf8e40c369f57a7d3"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "Code showing no transaction or compare-and-set on backupCodes. Check whether `backupCodes.indexOf(\"\")` or similar can match a nulled entry.",
+            "failure_mode": "Backup code consumption is a read-modify-write (decrypt, null out the index, re-encrypt, update) with no transaction or lock. Concurrent logins with the same backup code can both succeed, so the code is reusable. Rate limiting runs only after the user lookup, and `indexOf` on a nulled array could match odd inputs, such as an empty backupCode after replaceAll.",
+            "investigation_rationale": "Inspect the backup code verification and update logic for atomicity, and check how an empty or null-matching input is handled.",
+            "priority_rationale": "Single-use backup codes are a security guarantee. Races or null matching weaken 2FA.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:ea6eb77824a86b90177f47c8"
+            ]
+          },
+          {
+            "category": "security",
+            "evidence_needed": "Lines 1-34 of disable.ts showing the session check and any rate limiting. Type validation of req.body fields.",
+            "failure_mode": "The disable handler verifies the password only if `user.password && identityProvider === CAL`. For other identity providers, a stolen session plus a backup or TOTP code is enough. It also has no rate limiting on backupCode and code attempts, so they can be brute-forced. `req.body.backupCode.replaceAll` throws on a non-string body value, and the unhandled 500 leaks the error path.",
+            "investigation_rationale": "Check the top of the handler (session check, rate limit) and the validation of body types.",
+            "priority_rationale": "The endpoint removes the 2FA protection and is brute-forceable if unthrottled.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:759fc0495622d04ac20b846b"
+            ]
+          },
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Setup.ts lines 13-48 showing a guard for twoFactorEnabled. Any backfill or UI flow for pre-existing 2FA users.",
+            "failure_mode": "Setup stores backup codes and the secret encrypted with CALENDSO_ENCRYPTION_KEY and returns the plaintext backup codes. The setup handler sets twoFactorEnabled false but overwrites any existing backupCodes and secret, so a re-run of setup by a user with 2FA already enabled invalidates the existing codes and secret. Existing users have a NULL backupCodes after migration, so the login path throws MissingBackupCodes.",
+            "investigation_rationale": "Check whether setup refuses when 2FA is already enabled, and how users who enabled 2FA before the migration get backup codes.",
+            "priority_rationale": "Could lock out users or silently replace the 2FA secret.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:ad9c7ee3185f0225ec96e6fc",
+              "target:hun:4c78e431b2cbf6002f2464d4",
+              "target:sym:828ee18137f936247085e29a"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 21440,
+        "cache_write_input_tokens": 964,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22406,
+        "output_tokens": 1448,
+        "provider_cost": 0.022438600000000003,
+        "request_id": "",
+        "seconds": 15.81
+      }
+    }
+  ],
+  "case_id": "calcom-03",
+  "case_input_digest": "431d6716640ff753fa6d41aff2c96becd1b4466f6d380e8851729eab61a3a7c7",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

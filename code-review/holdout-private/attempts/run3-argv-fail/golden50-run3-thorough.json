@@ -1,0 +1,3641 @@
+{
+  "aggregate": {
+    "thorough": {
+      "catch": {
+        "by_rule": {
+          "location": 0,
+          "symbol": 0
+        },
+        "caught": 0,
+        "ci95": null,
+        "expected": 0,
+        "labelled_prs": 0,
+        "missed": [],
+        "missed_by_cause": {
+          "asked_not_reported": 0,
+          "no_risk_candidate": 0,
+          "not_asked": 0
+        },
+        "rate": null
+      },
+      "complete": 8,
+      "context_tokens": {
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "n": 8,
+        "p90": 0.0,
+        "total": 0.0
+      },
+      "cost_per_catch_usd": null,
+      "errored": 0,
+      "findings": {
+        "p0": 0,
+        "p1": 2,
+        "p2": 19,
+        "per_review": {
+          "p0": 0.0,
+          "p1": 0.25,
+          "p2": 2.375,
+          "total": 2.625
+        },
+        "total": 21
+      },
+      "incomplete": 1,
+      "input_tokens": {
+        "max": 2050634.0,
+        "mean": 484871.375,
+        "median": 203374.0,
+        "n": 8,
+        "p90": 1058922.3,
+        "total": 3878971.0
+      },
+      "model_calls": {
+        "max": 20.0,
+        "mean": 7.875,
+        "median": 7.0,
+        "n": 8,
+        "p90": 13.7,
+        "total": 63.0
+      },
+      "model_seconds": {
+        "max": 443.357,
+        "mean": 167.993125,
+        "median": 126.0275,
+        "n": 8,
+        "p90": 317.9366,
+        "total": 1343.945
+      },
+      "noise": {
+        "ci95": null,
+        "duplicates": 0,
+        "findings": 0,
+        "rate": null,
+        "rate_excluding_duplicates": null,
+        "rate_p0_p1": null,
+        "unmatched": 0,
+        "unmatched_p0_p1": 0
+      },
+      "output_tokens": {
+        "max": 25289.0,
+        "mean": 10496.25,
+        "median": 9290.5,
+        "n": 8,
+        "p90": 18776.2,
+        "total": 83970.0
+      },
+      "provider_usd": {
+        "max": 0.788822,
+        "mean": 0.324537,
+        "median": 0.283214,
+        "n": 8,
+        "p90": 0.614646,
+        "total": 2.596299
+      },
+      "prs": 50,
+      "ran": 9,
+      "skipped": 41,
+      "tokens_unreported_reviews": 0,
+      "usd_unreported_reviews": 0,
+      "wall_seconds": {
+        "max": 135.837868,
+        "mean": 91.370906,
+        "median": 89.204348,
+        "n": 8,
+        "p90": 125.85857,
+        "total": 730.967247
+      },
+      "zero_call_reviews": 0
+    }
+  },
+  "baseline": {
+    "against_labels": {
+      "caught": 0,
+      "ci95": null,
+      "comments": 0,
+      "expected": 0,
+      "labelled_prs_with_comments": 0,
+      "noise_rate": null,
+      "rate": null,
+      "unmatched": 0
+    },
+    "by_depth": {
+      "thorough": {
+        "agreed": 0,
+        "near_misses": 0,
+        "ours_only": 0,
+        "share_of_theirs_we_also_raised": null,
+        "theirs_only": 0
+      }
+    },
+    "inline_comments": 0,
+    "judged": {
+      "invalid": 0,
+      "valid": 0
+    },
+    "prs_with_comments": 0,
+    "summary_comments": 0
+  },
+  "corpus": {
+    "digest": "0cb96eadf6de578bd1c74cf321fe59210b0c06161ad1183ae2d4c3d15b448e05",
+    "id": "golden-comment-prs",
+    "labelled_prs": 0,
+    "labels": 0,
+    "line_tolerance": 3,
+    "match": "either",
+    "organization": null,
+    "path": "golden_comment_prs.yaml",
+    "prs": 50,
+    "visibility": "private"
+  },
+  "generated_at": "2026-10-26T09:59:23+00:00",
+  "kind": "review-benchmark",
+  "name": "golden50-run3-thorough",
+  "prs": [
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 2.507,
+          "changed_lines": 138,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 71,
+              "category": "correctness",
+              "consequence": "Audit log requests from callers with no organization member return 500 instead of results, even without `optimized_pagination=true`. Separately, the gate grants the optimized paginator, which allows negative offsets (paginator.py:877-882), to any member with global access. That is broader than administrators.",
+              "explanation": "`enable_advanced` is computed eagerly, before `use_optimized` is checked, on every request. For a non-superuser it evaluates `organization_context.member.has_global_access`. `RpcUserOrganizationContext.member` is declared `RpcOrganizationMember | None = None` (model.py:346). When the member is None, for example for a user who is not a member of the organization, an API token, or a superuser-style access that doesn't go through membership, this raises AttributeError and the endpoint returns a 500. Previously the endpoint never touched `member`. The check also uses `is_superuser` rather than `is_active_superuser`, and `has_global_access` is a team-scope flag, not an admin check. The consequence is that ordinary requests that don't ask for optimized pagination are also affected.",
+              "id": "finding-0d0ff3b1cbe866015cffacca",
+              "lines": [
+                68,
+                91
+              ],
+              "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+              "severity": "p2",
+              "title": "Gate dereferences nullable organization_context.member, causing AttributeError on every request"
+            },
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "Any user with global access can trigger an unhandled AssertionError (HTTP 500) on the audit-log endpoint with a crafted cursor. The \"advanced\" negative-offset feature cannot work as described.",
+              "explanation": "Cursor.from_string (src/sentry/utils/cursors.py:53-61) parses the offset with int(bits[1]) and does not reject negatives. With optimized_pagination=true and an admin or superuser, the endpoint passes enable_advanced_features=True. OptimizedCursorPaginator.get_result then slices the queryset with queryset[cursor.offset:stop] when the offset is negative. Django QuerySet.__getitem__ asserts that slice indices are non-negative (\"Negative indexing is not supported\"), so a request with a cursor like \"0:-5:0\" raises AssertionError. The comment claiming Django handles negative slicing is wrong. The non-advanced branch clamps with max(0, offset), but the new branch removes that guard. If a backend did allow negative indexing, the slice would be anchored to the end of the result set and reach rows outside the intended window.",
+              "id": "finding-a1244edf52c82587b1c1d673",
+              "lines": [
+                68,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative cursor offset used as queryset slice start causes 500 on audit-log endpoint"
+            },
+            {
+              "anchor_line": 839,
+              "category": "correctness",
+              "consequence": "Any request with optimized_pagination=true by a superuser or global-access member returns a 500 instead of audit log rows. Cursor-based paging could not work even if the first error were fixed.",
+              "explanation": "OptimizedCursorPaginator copies Paginator (integer keys), not DateTimePaginator. The audit-log endpoint (organization_auditlogs.py:76-83) uses it with order_by=\"-datetime\". get_item_key calls math.floor/ceil on a datetime attribute, which raises TypeError. build_cursor calls get_item_key on the result items, so the first page fails whenever there are results. value_from_cursor returns the raw integer cursor value instead of converting it back to a timezone-aware datetime, so build_queryset would filter a datetime column with an integer on any later page. DateTimePaginator (paginator.py:230-241) does the conversion in both directions.",
+              "id": "finding-07c4d61a9b26cb7e171a6a98",
+              "lines": [
+                821,
+                844
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p1",
+              "title": "OptimizedCursorPaginator applies math.floor/ceil to datetime keys and uses a raw cursor value"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 1,
+            "p2": 2,
+            "total": 3
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 214692,
+          "investigated": 9,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 7,
+          "model_seconds": 143.365,
+          "output_tokens": 10554,
+          "pr": "sentry-01",
+          "provider_usd": 0.341529,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 10,
+          "risk_candidates": 9,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 10,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 98.938
+        }
+      },
+      "id": "sentry-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Enhanced Pagination Performance for High-Volume Audit Logs",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.354,
+          "changed_lines": 212,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py",
+            "src/sentry/scripts/spans/add-buffer.lua",
+            "src/sentry/spans/buffer.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py",
+            "tests/sentry/spans/test_buffer.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 71,
+              "category": "correctness",
+              "consequence": "The previously working audit-log endpoint returns a 500 for non-superuser callers without a member, even when they do not use the new parameter. Any org member with global access, not only admins, can opt into the unsafe paginator.",
+              "explanation": "`enable_advanced` is computed on every request, even when `optimized_pagination` is absent. `RpcUserOrganizationContext.member` is typed `RpcOrganizationMember | None = None`. `request.user.is_superuser or` short-circuits for superusers, so they are safe. Any non-superuser caller whose context has no member (for example, a token-authenticated request that passes OrganizationAuditPermission without being a member) hits `None.has_global_access` and gets a 500. Before this change those requests succeeded. The gate also uses `has_global_access`, which is broader than the \"administrators\" the comment describes.",
+              "id": "finding-a8768c694053096ad0b2118b",
+              "lines": [
+                68,
+                91
+              ],
+              "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+              "severity": "p2",
+              "title": "Unconditional access to organization_context.member.has_global_access can raise AttributeError on the default path"
+            },
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "A crafted cursor such as `?optimized_pagination=true&cursor=0:-5:0` makes the audit log endpoint return a server error. If the queryset were ever sliced differently, for example after being converted to a list, the same input would read outside the normal pagination bounds. The new branch has no valid use and only adds a failure path.",
+              "explanation": "The `Cursor` constructor in src/sentry/utils/cursors.py accepts any integer offset (`int(offset)`), and the offset comes from the client's cursor string. When `?optimized_pagination=true` is set by a superuser or a member with global access, `OptimizedCursorPaginator.get_result` runs with `enable_advanced_features=True`. For `cursor.offset < 0` it then evaluates `queryset[cursor.offset:stop]` with a negative start. Django querysets don't support negative indexing, and slicing with a negative start raises `AssertionError('Negative indexing is not supported.')`. Nothing catches it, so the request fails with a 500. The code comment claiming that Django handles negative slicing is wrong. The comment that this is 'safe because permissions are checked at the queryset level' is not a bounds check. The regular branch clamps with `max(0, offset)`, and this branch skips that clamp on purpose. I d…",
+              "id": "finding-7c885276449956e4afc8874b",
+              "lines": [
+                68,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative cursor offset is passed straight into a queryset slice, giving a 500 or an out-of-bounds read"
+            },
+            {
+              "anchor_line": 182,
+              "category": "correctness",
+              "consequence": "Requests with a prev cursor whose offset is negative fail with an AssertionError (HTTP 500) in every BasePaginator subclass. Even where the slice does not fail, the extra-row trim is wrong, so rows can be duplicated or dropped.",
+              "explanation": "The change removes the clamp of the start offset to 0 when cursor.is_prev is true. A prev cursor with a negative offset, for example offset -1 as built by prev-cursor logic, now reaches queryset[start_offset:stop] with a negative start. Django querysets reject negative indexing with \"Negative indexing is not supported\". The comment claiming the queryset handles boundaries is wrong. The trim check `len(results) == offset + limit + extra` also still uses the raw offset, so with a negative offset it compares against the wrong length.",
+              "id": "finding-44731bb65da6e89d3bafce97",
+              "lines": [
+                179,
+                184
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative offset no longer clamped for prev cursors; Django slice raises"
+            },
+            {
+              "anchor_line": 838,
+              "category": "correctness",
+              "consequence": "GET requests to the audit-log endpoint with optimized_pagination=true by a superuser or a member with global access return a 500 for any non-empty result. A negative-offset cursor also causes an error.",
+              "explanation": "The audit-log endpoint passes order_by=\"-datetime\" to OptimizedCursorPaginator. Its get_item_key calls math.floor/ceil directly on getattr(item, \"datetime\"), which is a datetime, so it raises TypeError. DateTimePaginator avoids this by converting the datetime to a float timestamp times a multiplier (paginator.py:233-236). value_from_cursor also returns the raw cursor.value instead of converting it back to a datetime (paginator.py:238-241). The cursor value is therefore a number, not a datetime, when it is used to filter the queryset. build_cursor calls get_item_key on the results, so any non-empty page hits the TypeError. Separately, with enable_advanced_features=True and a negative cursor.offset, queryset[negative:stop] is sliced. Django querysets reject negative indexing with an AssertionError. The user supplies the offset through the cursor.",
+              "id": "finding-1666fca85cb8a9f32618943d",
+              "lines": [
+                821,
+                844
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p1",
+              "title": "OptimizedCursorPaginator uses numeric key logic on the datetime field, so the optimized audit-log path fails"
+            },
+            {
+              "anchor_line": 30,
+              "category": "correctness",
+              "consequence": "Traces with very deep span chains are flushed as multiple partial segments instead of one. The segment is split and incomplete.",
+              "explanation": "The loop that follows the redirect hash was reduced from `for i = 0, 10000` to `for i = 0, 1000`. The removed comment said deeper trees may not be joined correctly. Now a parent chain deeper than about 1000 stops before reaching the real set root, so `set_span_id` is an intermediate node. The script still writes `hset(span_id -> set_span_id)` and merges into that intermediate set, so the segment is split across several sets. The change also adds `zunionstore` with default SUM aggregation, so a payload present in both sets gets its score doubled. That distorts the end-timestamp ordering that the new `zpopmin` trimming depends on.",
+              "id": "finding-63553fbd24cab29d16e54f30",
+              "lines": [
+                30,
+                30
+              ],
+              "path": "src/sentry/scripts/spans/add-buffer.lua",
+              "severity": "p2",
+              "title": "Redirect-chain walk limit cut from 10000 to 1000 with no replacement handling"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 1,
+            "p2": 4,
+            "total": 5
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 390387,
+          "investigated": 10,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 10,
+          "model_seconds": 238.458,
+          "other_changed_code": 31,
+          "output_tokens": 15985,
+          "pr": "sentry-02",
+          "provider_usd": 0.457236,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 10,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 121.582
+        }
+      },
+      "id": "sentry-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Optimize spans buffer insertion with eviction during insert",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.706,
+          "changed_lines": 485,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "pyproject.toml",
+            "src/sentry/api/endpoints/organization_events_stats.py",
+            "src/sentry/api/helpers/error_upsampling.py",
+            "src/sentry/search/events/datasets/discover.py",
+            "src/sentry/testutils/factories.py",
+            "tests/sentry/api/helpers/test_error_upsampling.py",
+            "tests/snuba/api/endpoints/test_organization_events_stats.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 220,
+              "category": "correctness",
+              "consequence": "For allowlisted projects, count results on dashboard-widget split or fallback requests are inconsistently upsampled. Some requests return raw counts, and some apply `upsampled_count()` to a dataset that does not support it, which can cause query errors.",
+              "explanation": "`_get_event_stats` receives `scoped_dataset`, which is the dataset the query actually runs against. The upsampling check is called with the closed-over outer `dataset`. The dashboard-widget split path in `fn` passes a different dataset. For example, `discover` is used for the errors-only query when the outer dataset is `metrics_enhanced_performance`. `_should_apply_sample_weight_transform` returns False for the outer metrics dataset, so error queries that really run on `discover` or `errors` are never upsampled. The opposite mismatch also happens. With an outer `discover` dataset whose query contains `event.type:error`, the check returns True. The transform then applies to calls that use a different `scoped_dataset`, such as the `scoped_dataset` fallback call. That dataset may be transactions-like, and `upsampled_count()` is only defined in the discover dataset config.",
+              "id": "finding-9f0dc889beaf415c81835e0f",
+              "lines": [
+                218,
+                299
+              ],
+              "path": "src/sentry/api/endpoints/organization_events_stats.py",
+              "severity": "p2",
+              "title": "Upsampling eligibility uses outer `dataset` instead of `scoped_dataset`"
+            },
+            {
+              "anchor_line": 27,
+              "category": "correctness",
+              "consequence": "For up to 60 seconds after an allowlist change, queries return the wrong count semantics. Raw count() is returned where upsampled_count() is expected, or the reverse. The wrong values reach users silently. A hash collision between two project sets could also give one set the other's eligibility.",
+              "explanation": "is_errors_query_for_error_upsampled_projects caches the eligibility result for 60s under a key built from the organization id and hash(tuple(sorted(project_ids))). invalidate_upsampling_cache is defined, but a grep of the snapshot finds no caller. The code that updates `issues.client_error_sampling.project_allowlist` therefore never clears the entry. The invalidator also couldn't clear entries reliably. Each distinct project subset has its own key, and the invalidator only deletes the one key for the exact subset it is given. After an allowlist change, any query whose project set was cached before the change keeps its old answer for up to 60s. A project that was added is still treated as not upsampled, and one that was removed is still upsampled. The docstring of `_are_all_projects_error_upsampled` says the config is read fresh so the latest state is always used. The cache layer in fron…",
+              "id": "finding-f85caf3db581525718e51887",
+              "lines": [
+                13,
+                40
+              ],
+              "path": "src/sentry/api/helpers/error_upsampling.py",
+              "severity": "p2",
+              "title": "Cached allowlist eligibility is never invalidated when the allowlist changes"
+            },
+            {
+              "anchor_line": 135,
+              "category": "correctness",
+              "consequence": "Discover queries that are not purely about errors are reported with upsampled counts. Counts are wrong, and sample_weight may be missing on transaction rows.",
+              "explanation": "_is_error_focused_query returns True whenever the lowercased query contains the substring \"event.type:error\". That also matches \"!event.type:error\", \"event.type:error OR event.type:transaction\", and \"-event.type:error\". For the discover dataset, _should_apply_sample_weight_transform then returns True, so count() is rewritten to upsampled_count(). For a negated query that returns non-error events, or a mixed query that includes transactions, this applies sample_weight to rows that are not errors. The allowlist check is not the problem. The option is registered in src/sentry/options/defaults.py and is compared against int project ids in the same way elsewhere in event_manager.py.",
+              "id": "finding-6fb854b3e7e17c22296540a4",
+              "lines": [
+                130,
+                140
+              ],
+              "path": "src/sentry/api/helpers/error_upsampling.py",
+              "severity": "p2",
+              "title": "Substring match on \"event.type:error\" misclassifies negated and compound discover queries"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+          "input_tokens": 633903,
+          "investigated": 25,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 11,
+          "model_seconds": 264.185,
+          "other_changed_code": 6,
+          "output_tokens": 14121,
+          "pr": "sentry-03",
+          "provider_usd": 0.539999,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 32,
+          "risk_candidates": 25,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 32,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 118.473
+        }
+      },
+      "id": "sentry-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(upsampling) - Support upsampled error count with performance optimizations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.266,
+          "changed_lines": 297,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/github/integration.py",
+            "src/sentry/web/frontend/pipeline_advancer.py",
+            "tests/sentry/integrations/github/test_integration.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 402,
+              "category": "security",
+              "consequence": "This is login CSRF in the GitHub integration setup. A victim's installation flow can be completed with an attacker-chosen GitHub identity. That undermines the check that the installing user owns the GitHub account.",
+              "explanation": "`OAuthLoginView.dispatch` sets `state = pipeline.signature` and later accepts any callback whose `state` equals `pipeline.signature`. In `src/sentry/pipeline/base.py:132-133`, the signature is `md5_text` of the pipeline view class names. It is a constant that depends only on the code. It is not random, not tied to a user session, and not tied to an org, and anyone can compute it. An attacker can start their own GitHub authorization, get a code for their own GitHub account, and send the victim a callback URL with `state=<known signature>&code=<attacker code>`. The check passes, the code is exchanged, and the attacker's GitHub login is bound as `github_authenticated_user` in the victim's pipeline. The non-constant-time `!=` comparison adds nothing exploitable, since the value is public anyway. The redirect URL also interpolates `state` and `redirect_uri` without URL-encoding, which is a m…",
+              "id": "finding-333da23567f012941d4a2f59",
+              "lines": [
+                390,
+                439
+              ],
+              "path": "src/sentry/integrations/github/integration.py",
+              "severity": "p2",
+              "title": "OAuth state is the static pipeline signature, so it gives no CSRF protection"
+            },
+            {
+              "anchor_line": 392,
+              "category": "security",
+              "consequence": "An attacker could link another party's GitHub App installation to their own Sentry organization when no Integration row exists for it yet. That would give them access to that installation's repositories and metadata. How exploitable this is depends on build_integration, which I did not read.",
+              "explanation": "OAuthLoginView.dispatch binds a client-supplied installation_id from request.GET (lines 392-394) and later binds the OAuth login as github_authenticated_user (line 438). The only check linking the two is in GitHubInstallation.dispatch (lines 500-505), and it runs only when an Integration row with that external_id already exists. When Integration.DoesNotExist is raised (lines 481-482), the code calls pipeline.next_step() without comparing the authenticated user to the installation. No call verifies that the user can access the installation, for example through GitHub's user installations API. An attacker can supply an installation_id that Sentry hasn't recorded yet and finish OAuth with their own GitHub account. The pipeline then continues with the attacker-chosen installation_id. I did not read build_integration, so I haven't confirmed what the later step does with that ID.",
+              "id": "finding-d538d97b1bbaab84c14e96cf",
+              "lines": [
+                390,
+                439
+              ],
+              "path": "src/sentry/integrations/github/integration.py",
+              "severity": "p2",
+              "title": "Authenticated GitHub user is not tied to the installation_id unless an Integration row already exists"
+            },
+            {
+              "anchor_line": 502,
+              "category": "correctness",
+              "consequence": "Re-installing a GitHub installation whose Integration row has no stored sender fails with an unhandled 500 and cannot be completed.",
+              "explanation": "The new authenticated-user check in GitHubInstallation.dispatch reads integration.metadata[\"sender\"][\"login\"] unguarded. The sender metadata is only set in build_integration when the state carries it (webhook-created or older Integration rows may lack it). For an Integration that exists with no OrganizationIntegration and no \"sender\" in its metadata, this lookup raises KeyError instead of returning the error view. The OAuth step has already succeeded at that point, so the user sees a 500 rather than the failure page.",
+              "id": "finding-292413a2842d200fab444010",
+              "lines": [
+                448,
+                506
+              ],
+              "path": "src/sentry/integrations/github/integration.py",
+              "severity": "p2",
+              "title": "Sender check raises KeyError for existing integrations without sender metadata"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "843d7c71926b03f0c5847a0740ac3f7fb3c5fbad",
+          "input_tokens": 192056,
+          "investigated": 2,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 7,
+          "model_seconds": 108.69,
+          "other_changed_code": 23,
+          "output_tokens": 8027,
+          "pr": "sentry-04",
+          "provider_usd": 0.224899,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 25,
+          "risk_candidates": 2,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 25,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 79.47
+        }
+      },
+      "id": "sentry-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "GitHub OAuth Security Enhancement",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 2.798,
+          "changed_lines": 3212,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/constants.py",
+            "src/sentry/feedback/usecases/feedback_summaries.py",
+            "src/sentry/grouping/parameterization.py",
+            "src/sentry/hybridcloud/tasks/deliver_webhooks.py",
+            "src/sentry/integrations/github/integration.py",
+            "src/sentry/integrations/gitlab/integration.py",
+            "src/sentry/integrations/source_code_management/commit_context.py",
+            "src/sentry/issues/endpoints/browser_reporting_collector.py",
+            "src/sentry/issues/grouptype.py",
+            "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py",
+            "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py",
+            "src/sentry/options/defaults.py",
+            "src/sentry/preprod/__init__.py",
+            "src/sentry/preprod/analytics.py",
+            "src/sentry/preprod/api/endpoints/organization_preprod_artifact_assemble.py",
+            "src/sentry/projectoptions/defaults.py",
+            "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+            "src/sentry/replays/usecases/delete.py",
+            "src/sentry/snuba/ourlogs.py",
+            "src/sentry/tasks/auth/check_auth.py",
+            "src/sentry/workflow_engine/endpoints/validators/base/detector.py",
+            "src/sentry/workflow_engine/processors/delayed_workflow.py",
+            "src/sentry/workflow_engine/processors/workflow.py",
+            "static/app/components/codeSnippet.tsx",
+            "static/app/components/codecov/branchSelector/branchSelector.tsx",
+            "static/app/components/codecov/datePicker/dateSelector.tsx",
+            "static/app/components/codecov/integratedOrgSelector/integratedOrgSelector.tsx",
+            "static/app/components/codecov/repoPicker/repoSelector.tsx",
+            "static/app/components/core/button/styles.chonk.tsx",
+            "static/app/components/events/eventAttachments.tsx",
+            "static/app/components/events/groupingInfo/groupingVariant.tsx",
+            "static/app/components/events/interfaces/spans/newTraceDetailsHeader.tsx",
+            "static/app/components/feedback/feedbackSummary.tsx",
+            "static/app/components/feedback/list/useFeedbackSummary.tsx",
+            "static/app/components/group/times.tsx",
+            "static/app/components/replays/breadcrumbs/breadcrumbItem.tsx",
+            "static/app/components/replays/timeAndScrubberGrid.tsx",
+            "static/app/components/scrollCarousel.tsx",
+            "static/app/utils/analytics/replayAnalyticsEvents.tsx",
+            "static/app/views/alerts/list/rules/alertRuleStatus.tsx",
+            "static/app/views/alerts/list/rules/row.tsx",
+            "static/app/views/codecov/tests/onboardingSteps/addUploadToken.tsx",
+            "static/app/views/dashboards/widgetCard/chart.tsx",
+            "static/app/views/dashboards/widgets/common/types.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/defaultTableCellRenderers.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/fixtures/sampleHTTPRequestTableData.ts",
+            "static/app/views/dashboards/widgets/tableWidget/tableWidgetVisualization.stories.tsx",
+            "static/app/views/dashboards/widgets/tableWidget/tableWidgetVisualization.tsx",
+            "static/app/views/explore/charts/index.tsx",
+            "static/app/views/explore/components/traceItemSearchQueryBuilder.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/aggregateFields.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/index.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/sortBys.tsx",
+            "static/app/views/explore/contexts/pageParamsContext/visualizes.tsx",
+            "static/app/views/explore/hooks/useAddToDashboard.tsx",
+            "static/app/views/explore/hooks/useAnalytics.tsx",
+            "static/app/views/explore/hooks/useExploreAggregatesTable.tsx",
+            "static/app/views/explore/hooks/useExploreTimeseries.tsx",
+            "static/app/views/explore/hooks/useGetTraceItemAttributeKeys.tsx",
+            "static/app/views/explore/hooks/useGetTraceItemAttributeValues.tsx",
+            "static/app/views/explore/hooks/useTopEvents.tsx",
+            "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+            "static/app/views/explore/spans/spansTab.tsx",
+            "static/app/views/explore/tables/aggregateColumnEditorModal.tsx",
+            "static/app/views/explore/toolbar/toolbarSaveAs.tsx",
+            "static/app/views/explore/toolbar/toolbarSortBy.tsx",
+            "static/app/views/explore/toolbar/toolbarVisualize.tsx",
+            "static/app/views/explore/types.tsx",
+            "static/app/views/explore/utils.tsx",
+            "static/app/views/feedback/feedbackListPage.tsx",
+            "static/app/views/insights/common/components/chartActionDropdown.tsx",
+            "static/app/views/insights/pages/transactionNameSearchBar.tsx",
+            "static/app/views/organizationStats/teamInsights/teamMisery.tsx",
+            "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+            "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx",
+            "static/app/views/performance/newTraceDetails/traceWaterfall.tsx",
+            "static/app/views/profiling/profileSummary/index.tsx",
+            "static/app/views/replays/detail/ai/index.tsx",
+            "static/app/views/settings/dynamicSampling/organizationSampleRateInput.tsx",
+            "static/app/views/settings/organizationAuditLog/auditLogList.tsx",
+            "static/app/views/settings/organizationIntegrations/detailedView/integrationLayout.tsx",
+            "static/app/views/settings/project/projectOwnership/codeOwnerFileTable.tsx",
+            "static/gsAdmin/views/instanceLevelOAuth/instanceLevelOAuthDetails.tsx",
+            "tests/sentry/api/endpoints/test_browser_reporting_collector.py",
+            "tests/sentry/api/endpoints/test_project_details.py",
+            "tests/sentry/api/serializers/test_project.py",
+            "tests/sentry/replays/test_project_replay_summarize_breadcrumbs.py",
+            "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+            "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+            "tests/snuba/api/endpoints/test_organization_events_stats.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 52,
+              "category": "correctness",
+              "consequence": "Reports that break the either-or contract are accepted and counted in metrics. Malformed reports with no time field at all also pass validation, so the 422 validation does not enforce the documented schema. The effect is limited, since the endpoint only emits a metric.",
+              "explanation": "BrowserReportSerializer is meant to accept either `age` (Working Draft) or `timestamp` (Editor's Draft), never both. The cross-checks in `validate_timestamp` and `validate_age` test `self.initial_data.get(...)` for truthiness. A report with `age: 0` and `timestamp: 5` is therefore accepted: `age=0` is falsy, so `validate_timestamp` passes, and `validate_age` sees a truthy timestamp and rejects it. Because the check is not symmetric, the result depends on which field holds the 0. `age=0` is a realistic value for a report that was just generated. Both fields are `required=False`, so a report with neither field also validates. The old dataclass required `timestamp`, so this loosens the contract. The new serializer never enforces that one of them is present.",
+              "id": "finding-f2f9e3c4e0e9422f476c361b",
+              "lines": [
+                50,
+                60
+              ],
+              "path": "src/sentry/issues/endpoints/browser_reporting_collector.py",
+              "severity": "p2",
+              "title": "Age/timestamp exclusivity check uses truthiness and does not require either field"
+            },
+            {
+              "anchor_line": 118,
+              "category": "correctness",
+              "consequence": "The summary request can include errors attributed to the wrong event IDs. This happens whenever some error nodes have expired, or when a mix of cached and uncached nodes is returned. The data sent to Seer is then incorrect. Fix this by looking each result up by its node_id key instead of zipping by position.",
+              "explanation": "fetch_error_details pairs error_ids with events.values() via zip. nodestore.get_multi returns a dict keyed by node_id. It deduplicates ids. It omits nodes that were not found, which the base implementation does not return as None. It appends cached items after the freshly fetched ones through items.update(cache_items), so its order differs from the input order. When any error node is missing, or the results are a mix of cached and uncached, values() no longer lines up with error_ids. The `id` field then gets the wrong event ID, and the payloads are paired with the wrong IDs. The `data is not None` filter never catches a missing node, because missing nodes are absent from the dict rather than present as None. Duplicate error_ids shift the pairing too.",
+              "id": "finding-2f8f3e878c9268dd2ac6fabc",
+              "lines": [
+                104,
+                170
+              ],
+              "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+              "severity": "p2",
+              "title": "Error IDs are zipped positionally with nodestore.get_multi results, misattributing or dropping errors"
+            },
+            {
+              "anchor_line": 65,
+              "category": "correctness",
+              "consequence": "The span attributes drawer shows is_segment, project_id and received by default, so the new hiding does not work in normal use. Typing a search query hides them, so the list is inconsistent.",
+              "explanation": "HIDDEN_ATTRIBUTES (is_segment, project_id, received) is only applied inside the `sorted.filter(...)` call. That call comes after the early return `if (!searchQuery.trim()) return sorted;`. With an empty search box, the unfiltered sorted list is returned, so the hidden attributes are shown. They disappear only once the user types something that matches them.",
+              "id": "finding-b61d9ffb74ead8bb473e10a5",
+              "lines": [
+                65,
+                68
+              ],
+              "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+              "severity": "p2",
+              "title": "Hidden attributes are only filtered out when a search query is present"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+          "input_tokens": 2050634,
+          "investigated": 102,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 20,
+          "model_seconds": 443.357,
+          "other_changed_code": 240,
+          "output_tokens": 25289,
+          "pr": "sentry-05",
+          "provider_usd": 0.788822,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 387,
+          "risk_candidates": 131,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 387,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 135.838
+        }
+      },
+      "id": "sentry-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Replays Self-Serve Bulk Delete System",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.221,
+          "changed_lines": 249,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/consumers/__init__.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "src/sentry/spans/consumers/process/flusher.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 254,
+              "category": "correctness",
+              "consequence": "After a hang, the old flusher keeps running next to the new one. Both flush and produce the same shards' segments, so duplicate segments are sent to Kafka. Each hang also leaks a process. On shutdown, flusher processes that don't exit are not terminated.",
+              "explanation": "In production, processes are created via mp_context.Process, where mp_context is multiprocessing.get_context(\"spawn\"). That class is multiprocessing.context.SpawnProcess. It subclasses BaseProcess, not multiprocessing.context.Process, which is what multiprocessing.Process refers to. So `isinstance(process, multiprocessing.Process)` is always False for these objects. The old code called self.process.kill() unconditionally. In `_ensure_processes_alive` (lines 253-257), a flusher flagged as \"hang\" is therefore never killed. A replacement is created via `_create_process_for_shards` while the hung process keeps running, and it still holds its shards. `join()` (line 346) has the same guard, so `process.terminate()` is never called on shutdown either.",
+              "id": "finding-8c63cdc143fd476f30efa672",
+              "lines": [
+                31,
+                126
+              ],
+              "path": "src/sentry/spans/consumers/process/flusher.py",
+              "severity": "p2",
+              "title": "isinstance(process, multiprocessing.Process) is False for spawn-context processes, so hung flushers are never killed"
+            },
+            {
+              "anchor_line": 61,
+              "category": "verification",
+              "consequence": "The intended wait never happens, so the test can still fail intermittently when the flusher has not yet produced the message before join. The fix looks like it works but doesn't.",
+              "explanation": "test_basic starts with monkeypatch.setattr(\"time.sleep\", lambda _: None). The change adds `import time` and `time.sleep(0.1)` to \"give flusher threads time to process after drift change\". That call resolves to the patched lambda, so it returns immediately and waits for nothing. The added comment describes behavior the code doesn't have. The test still goes straight from the second step.poll() to step.join(). Whether `(msg,) = messages` passes still depends on the race the sleep was meant to remove. By contrast, test_flusher.py imports `from time import sleep` at module level, which keeps the real function.",
+              "id": "finding-2a7efedc8abc27d3545ca96c",
+              "lines": [
+                60,
+                63
+              ],
+              "path": "tests/sentry/spans/consumers/process/test_consumer.py",
+              "severity": "p2",
+              "title": "time.sleep(0.1) added to test_basic is a no-op because time.sleep is monkeypatched"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "9bf83b05423beff6dcc542f93e903c562e97469b",
+          "input_tokens": 143280,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 54.27,
+          "other_changed_code": 23,
+          "output_tokens": 4498,
+          "pr": "sentry-06",
+          "provider_usd": 0.116303,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 24,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 24,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 59.212
+        }
+      },
+      "id": "sentry-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Span Buffer Multiprocess Enhancement with Health Monitoring",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.219,
+          "changed_lines": 227,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/mixins/issues.py",
+            "src/sentry/integrations/services/assignment_source.py",
+            "src/sentry/integrations/tasks/sync_assignee_outbound.py",
+            "src/sentry/integrations/utils/sync.py",
+            "src/sentry/models/groupassignee.py",
+            "tests/sentry/integrations/services/test_assignment_source.py",
+            "tests/sentry/models/test_groupassignee.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 18,
+              "category": "correctness",
+              "consequence": "The `queued` value on every assignment source is the process start time, not when the assignment was queued. Anything that reads `queued` to order or expire sources, or to debug them, gets wrong data. The value is also serialized into the Celery task payload by `to_dict`.",
+              "explanation": "`queued: datetime = timezone.now()` calls `timezone.now()` once, when the class body runs at module import. Every `AssignmentSource` built without an explicit `queued`, including all those from `from_integration`, gets that same stale import-time timestamp. A `default_factory` (`field(default_factory=timezone.now)`, which also needs `field` imported from dataclasses) would give each instance its own time.",
+              "id": "finding-7f35f126f878a001527dbb63",
+              "lines": [
+                15,
+                30
+              ],
+              "path": "src/sentry/integrations/services/assignment_source.py",
+              "severity": "p2",
+              "title": "AssignmentSource.queued default is evaluated once at import time"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "f9919d789416dd32549d7bb9e238d5df55d5265a",
+          "input_tokens": 145642,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 50.553,
+          "other_changed_code": 34,
+          "output_tokens": 2978,
+          "pr": "sentry-07",
+          "provider_usd": 0.070069,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 34,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 34,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 58.858
+        }
+      },
+      "id": "sentry-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(ecosystem): Implement cross-system issue synchronization",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.191,
+          "changed_lines": 553,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/monitors/logic/incident_occurrence.py",
+            "src/sentry/monitors/logic/incidents.py",
+            "src/sentry/monitors/logic/mark_failed.py",
+            "src/sentry/monitors/types.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 168,
+              "category": "correctness",
+              "consequence": "The event's monitor context shows the raw stored schedule_type value, such as an integer, instead of the display string like 'crontab' or 'interval'. The code clearly meant to show the display string.",
+              "explanation": "get_monitor_environment_context copies monitor.config into `config`. It then replaces `schedule_type` in that copy with the human-readable display value. The returned dict ignores the copy and uses `monitor_environment.monitor.config`. The `schedule_type` conversion is therefore dead code.",
+              "id": "finding-f2c783262c6b0d8fb819717d",
+              "lines": [
+                159,
+                171
+              ],
+              "path": "src/sentry/monitors/logic/incident_occurrence.py",
+              "severity": "p2",
+              "title": "Monitor context returns the raw config, not the copy with the schedule_type display value"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "c3b32a7babfcf62b91553388bcd9e9fbfd30a690",
+          "input_tokens": 108377,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 41.067,
+          "other_changed_code": 12,
+          "output_tokens": 2518,
+          "pr": "sentry-08",
+          "provider_usd": 0.057442,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 12,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 12,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 58.596
+        }
+      },
+      "id": "sentry-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "ref(crons): Reorganize incident creation / issue occurrence logic",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.367,
+          "changed_lines": 1282,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [
+            "InternalLLMError: claude intelligence execution failed: [Errno 7] Argument list too long: '/opt/node22/bin/claude'",
+            "BudgetStop: a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls"
+          ],
+          "examined_files": [],
+          "failed_calls": 1,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "33f4fddf64465f75308957c4431e56fd0443eca3",
+          "input_tokens": null,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 1,
+          "model_seconds": 0.003,
+          "other_changed_code": 13,
+          "output_tokens": null,
+          "pr": "sentry-09",
+          "provider_usd": null,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 99,
+          "risk_candidates": 84,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": true,
+          "targets": 99,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "unknown"
+          ],
+          "wall_seconds": 45.23
+        }
+      },
+      "id": "sentry-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(uptime): Add ability to use queues to manage parallelism",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "de60b7fb01a1df4ecca82cc842a8b5fb16d92794",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "sentry-10",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "sentry-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(workflow_engine): Add in hook for producing occurrences from the stateful detector",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "7269aca1c02cb34a6f6526d81fc7662d8bf214ba",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-01",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Optimize cache key overflow management with performance improvements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "e043a5efd872362a3fc146ed0d9ce4393e316c1e",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-02",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Async import of the appStore packages",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "a308075bc39b77ed7059b0cae9d443d669a7bf98",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-03",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: 2fa backup codes",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "bd797c1ea00a61425735f2b9fd7ce212ebf8c8ab",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-04",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "fix: handle collective multiple host on destinationCalendar",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "56ff75f07b92ba8ef499ff28a2f98c25f339fdae",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-05",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: convert InsightsBookingService to use Prisma.sql raw queries",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "2ebfcf448c7e4136ac1b8b9ef9b526a4424fd155",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-06",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Comprehensive workflow reminder management for booking lifecycle events",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3ef328421f60cd096b7676ef7ee7c32b71593049",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-07",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Advanced date override handling and timezone compatibility improvements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "824145b0e245661875240ed5c8745decd2293d1a",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-08",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "OAuth credential sync and app integration enhancements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "2dae0bfb8c72b51aa49260dc1f7f215a6290f3a6",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-09",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "SMS workflow reminder retry count tracking",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "baa9045af7711ea0b86390cb0bf0fdce5430228c",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "calcom-10",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "calcom-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Add guest management functionality to existing bookings",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3647ba7360b8d157e4a294a650a365b6aca070d8",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-01",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Anonymous: Add configurable device limit",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "d9dc93c4a6c88ef850dbe526cb3226ae99cafa20",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-02",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "AuthZService: improve authz caching",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "00393c2ac9103072bc2194118e455f9248a37816",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-03",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Plugins: Chore: Renamed instrumentation middleware to metrics middleware",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3ba2457a7090b2b76f4b368c8a9db835d0bec66c",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-04",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Advanced Query Processing Architecture",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3e6d620d2c1d1f6c10611fba8b0ee062d6fb2a68",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-05",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Notification Rule Processing Engine",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "67b74e1e8a7d26d24617b7313b90fa4649138318",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-06",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Dual Storage Architecture",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "81c45bfe449584dc7ff50e4fabd5d0c6568999b5",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-07",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Database Performance Optimizations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "95000f9fc8049d47f837b6e8603c230c2a073ae5",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-08",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Frontend Asset Optimization",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "ea71201ddc66f06a3f16387e85a09c53514aaadd",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-09",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Advanced SQL Analytics Framework",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "d762a9643618a6ba7c43da27374bd9ffc80889ce",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "grafana-10",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "grafana-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Unified Storage Performance Optimizations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-01",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Fixing Re-authentication with passkeys",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "3e597722a9164d145bc46aa1de5bd714fb6ba357",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-02",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add caching support for IdentityProviderStorageProvider.getForLogin operations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "b95d12a968e8374a93ddcd56f47ab12eb4136ff4",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-03",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add AuthzClientCryptoProvider for authorization client cryptographic operations",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "0f91e67b9025d978059b21b5c41283e5000a509c",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-04",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add rolling-updates feature flag and compatibility framework",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "7e5540896bbbafc02234b6ea2b15215dc24cb972",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-05",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add Client resource type and scopes to authorization schema",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "679f44692dbc288bedc8f1535071c8467dbaf70c",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-06",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add Groups resource type and scopes to authorization schema",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "5d77e7ea7d431aa0a6b65904457b7471bd050e81",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-07",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Add HTML sanitizer for translated message resources",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "c8738721df2cd2d16fe16adec571b4192354a771",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-08",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Implement access token context encoding framework",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "134437a5a7e31472763ffa2ac3cc91030e7ee389",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-09",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Implement recovery key support for user storage providers",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "332c9b6e4a1288705f173a9b797742859384d1e0",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "keycloak-10",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "keycloak-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "keycloak/keycloak",
+      "skipped": "",
+      "title": "Fix concurrent group access to prevent NullPointerException",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-01",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: automatically downsize large images",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-02",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: per-topic unsubscribe option in emails",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "5f8a130277dbddc95d133cd2832be639baf89213",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-03",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "Add comprehensive email validation for blocked users",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-04",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "Enhance embed URL handling and validation system",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "5b229316ee4c661836ed1161139692a3e8527444",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-05",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "Optimize header layout performance with flexbox mixins",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "267d8be1f556ed59639ced396c885bb44586da19",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-06",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "UX: show complete URL path if website domain is same as instance domain",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "d38c4d5f7443223c81529c22470293771baf9f38",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-07",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "scale-color $lightness must use $secondary for dark themes",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "060cda77729cb1c4a827560e09e89a7b22078ba9",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-08",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FIX: proper handling of group memberships",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "ecfa17b5a79dfdc91e7a4d50b42ae78a35d0a293",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-09",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: Localization fallbacks (server-side)",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "thorough": {
+          "capture_seconds": 0.0,
+          "changed_lines": 0,
+          "complete": false,
+          "context_tokens": 0,
+          "depth": "thorough",
+          "errors": [],
+          "examined_files": [],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "d1c69189f3c90ecf56013a8da904da9bff9a8e19",
+          "input_tokens": 0,
+          "investigated": 0,
+          "kind": "review",
+          "model": "",
+          "model_calls": 0,
+          "model_seconds": 0,
+          "output_tokens": 0,
+          "pr": "discourse-10",
+          "provider_usd": 0,
+          "push": "",
+          "pushes": {},
+          "reason": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+          "rereviewed_targets": 0,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "skipped",
+          "stopped_by_budget": true,
+          "targets": 0,
+          "unchanged_targets": 0,
+          "usd_sources": [],
+          "wall_seconds": 0.0
+        }
+      },
+      "id": "discourse-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "discourse/discourse",
+      "skipped": "",
+      "title": "FEATURE: Can edit category/host relationships for embedding",
+      "url": ""
+    }
+  ],
+  "publication": {
+    "always": [
+      "name the model and its price list date; the figure is for that model only",
+      "state that it is the mean over this corpus, which is not the reader's code",
+      "do not publish another reviewer's price from this report: it holds only what you supplied"
+    ],
+    "cost_per_review": {
+      "figures": {
+        "thorough": {
+          "mean_tokens": 495367.625,
+          "mean_usd": 0.324537,
+          "median_usd": 0.283214,
+          "p90_usd": 0.614646,
+          "reviews": 8
+        }
+      },
+      "missing": [
+        "the run stopped early: a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+        "thorough: 1 incomplete, 0 errored, 41 skipped"
+      ],
+      "ready": false
+    },
+    "head_to_head": {
+      "missing": [
+        "the run stopped early: a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+        "0 pull requests carry the other reviewer's comments; at least 8 are needed",
+        "no baseline comment has a verdict, so its precision is unknown"
+      ],
+      "ready": false
+    },
+    "quality": {
+      "missing": [
+        "the run stopped early: a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+        "thorough: 0 labelled pull requests scored; at least 8 are needed",
+        "catch and noise are rates over a handful of pull requests; quote them with their intervals"
+      ],
+      "ready": false
+    }
+  },
+  "pushes": {
+    "thorough": {
+      "carry_forward": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "complete_pairs": 0,
+      "findings_after_push": {
+        "carried": 0,
+        "fixed": 0,
+        "new": 0,
+        "stale": 0,
+        "unreported": 0
+      },
+      "full": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "pushes": 0,
+      "saved": {
+        "calls_fraction": null,
+        "usd_fraction": null,
+        "usd_mean": null
+      },
+      "unavailable": {}
+    }
+  },
+  "reference_team": {
+    "basis": "a projection from this report's mean cost per review and per push, not a quote and not a price",
+    "by_depth": {
+      "thorough": {
+        "first_review_usd": 0.324537,
+        "monthly_usd_with_carry_forward": null,
+        "monthly_usd_without": null,
+        "push_usd_carry_forward": null,
+        "push_usd_full": null
+      }
+    },
+    "developers": 10,
+    "prs_per_month": 300,
+    "reviews_per_pr": 1.2
+  },
+  "run": {
+    "basis": "a live provider run",
+    "code": {
+      "git_head": "e8f095400806c5a0d6fba38742ac760ba2f4eb0d",
+      "prompt_version": 4,
+      "repo_context": {
+        "enabled": true,
+        "version": 1
+      },
+      "schema_version": 3
+    },
+    "command": "lemoncrow dev eval review benchmark --corpus evals/review/golden_comment_prs.yaml --depth thorough --max-usd 90.0 --max-calls 700 --no-pushes --workdir /home/user/bench-data/workdir --out-dir /home/user/bench-data/holdout-private/reports --name golden50-run3-thorough --record-dir /home/user/bench-data/holdout-private/records-run3 --input-usd-per-mtok 3.0 --output-usd-per-mtok 15.0",
+    "driver": "claude",
+    "ledger": {
+      "calls": 64,
+      "max_calls": 700,
+      "max_usd": 90.0,
+      "spent_usd": 2.596299,
+      "stopped": "a call to sonnet reported no cost and the local price table has none, so --max-usd cannot be enforced; pass --input-usd-per-mtok and --output-usd-per-mtok, or use --max-calls",
+      "unpriced_calls": 1
+    },
+    "mode": "live",
+    "model": "sonnet",
+    "notes": [],
+    "options": {
+      "depths": [
+        "thorough"
+      ],
+      "input_usd_per_mtok": 3.0,
+      "line_window": 8,
+      "max_calls": 700,
+      "max_usd": 90.0,
+      "mode": "live",
+      "output_usd_per_mtok": 15.0,
+      "pushes": false,
+      "recording": true,
+      "similarity": 0.2,
+      "with_impact": true
+    },
+    "overshoot_note": "the spending ceiling is checked before each call, so a run can pass it by the calls in flight (at most the investigators of the deepest depth)",
+    "wall_time_note": "wall_seconds is the elapsed time of the AI stage; model_seconds sums each call's latency"
+  },
+  "schema": 1
+}

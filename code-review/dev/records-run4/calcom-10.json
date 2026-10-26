@@ -1,0 +1,92 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "18e85ffe6bc044f1bbab4fe0853974a4a5cb8b846f6b590e18c073aa24563f90",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified in the targeted code.",
+        "evidence_refs": [],
+        "explanation": "I found no failing input in the targeted code. sendAddGuestsEmails is called from addGuests.handler.ts. New guests get the scheduled email and existing attendees get the add-guests email. Both templates are registered in packages/emails/src/templates/index.ts. The new translation keys exist in the English locale file. AddGuestsDialog exists and is wired into BookingListItem.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed in the add-guests change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 125729,
+        "cache_write_input_tokens": 7208,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 132947,
+        "output_tokens": 1502,
+        "provider_cost": 0.0584561,
+        "request_id": "",
+        "seconds": 20.523
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5a88e22939bbad8632290983cb9d396bfa6634c969e2893ed99e5b0d61944ee9",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "Blacklisted or non-added addresses receive notification emails, which defeats the blacklist. Existing attendees get duplicate emails. Mixed-case emails bypass the blacklist and duplicate checks. A caller who is any attendee can submit a very large guest list and trigger unbounded DB writes and emails.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+          "target:target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "explanation": "The handler builds `uniqueGuests` by removing existing attendees and blacklisted addresses. Only `uniqueGuests` are written to the database. The final call is `sendAddGuestsEmails(evt, guests)`, which passes the raw input array instead. A blacklisted address (listed in BLACKLISTED_GUEST_EMAILS) therefore never becomes an attendee but still gets an email. Addresses already on the booking get a second 'guests added' email. Duplicates within the input are emailed more than once. Separately, the blacklist check compares the guest string as typed against lowercased blacklist entries. `Bad@x.com` passes the filter and is saved, and it also bypasses the existing-attendee comparison. The schema (`addGuests.schema.ts`) has no limit on array size or uniqueness. The server accepts any number of guests, each of which gets a createMany row, a translation lookup and an email.",
+        "lines": {
+          "end_line": 168,
+          "start_line": 168
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Add-guests emails go to the unfiltered input list, including blacklisted and existing attendees"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 57852,
+        "cache_write_input_tokens": 2391,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60249,
+        "output_tokens": 2303,
+        "provider_cost": 0.0409557,
+        "request_id": "",
+        "seconds": 24.721
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:55:04+00:00"
+  },
+  "version": 1
+}

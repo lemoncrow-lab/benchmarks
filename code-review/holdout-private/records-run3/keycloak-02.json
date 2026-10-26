@@ -1,0 +1,326 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "2c0dfc4e7f17db4ab211d41bb7263020f924d5e5b87863820e891eafc63afe1e",
+      "model": "sonnet",
+      "prompt_digest": "f43f0bef8f62de49eb0c1fbfc55383f482ecd5da402b0eea4a8c91cb7ec18e02",
+      "response": {
+        "category": "correctness",
+        "consequence": "No stale login cache scenario was found.",
+        "evidence_refs": [
+          "source:new:model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java@sha256:7aa5c4bfa5eaf4554c0e7ec8f63ebad0ac58beba1ce387a5741de00c354cf654"
+        ],
+        "explanation": "The null-handling concern predates this change. registerIDPInvalidation already dereferenced idpById before the change, so a null from getById already threw there. The new call adds no new failure. registerIDPLoginInvalidationOnUpdate compares the login predicate for the original and updated models and also compares organizationId. It invalidates in every case except the two no-change ones.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:25c1c8cfe3927c7d18739e04"
+        ],
+        "title": "No new defect in update() login invalidation"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 39806,
+        "cache_write_input_tokens": 11773,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51587,
+        "output_tokens": 1472,
+        "provider_cost": 0.0665317,
+        "request_id": "",
+        "seconds": 27.856
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "6192524ffe4f419c3fd0f7d4de964f5989c011a22e54a2aacbe9aef5d6c4b52b",
+      "model": "sonnet",
+      "prompt_digest": "c593ed75fa2cb403c569a8c98dfa30296788d45f50575931d036bbafebaf5f17",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "After a concurrent create, update or remove of a login IDP, login IDP lists for other organizations or fetch modes can stay stale. Newly added IDPs would be missing from login, or removed IDPs would keep being listed until the next invalidation. The window is narrow, but the staleness is not self-healing.",
+        "evidence_refs": [
+          "source:new:model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java@sha256:7aa5c4bfa5eaf4554c0e7ec8f63ebad0ac58beba1ce387a5741de00c354cf654",
+          "target:target:sym:2e83f65d6b9469eec2bbfed8"
+        ],
+        "explanation": "In getForLogin, and in the same-shaped branch of getByOrganization, a request that misses on its searchKey does the following. It reads the existing IdentityProviderListQuery. It calls invalidateObject(cacheKey), which bumps the revision. It then builds a new IdentityProviderListQuery that copies all of the previous query's searchKeys (IdentityProviderListQuery constructor, lines 39-45). It stores the result with addRevisioned(query, cache.getCurrentCounter()). Suppose another transaction commits an invalidation of this key after the earlier cache.get(cacheKey) and before this invalidateObject. The previous object is then already stale, but its sets for other searchKeys (for example other organization ids) are copied into an entry carrying the new, current revision. addRevisioned's checks cannot reject it. The startup revision is taken as the current counter after the bump, so it passes the \"rev > startupRevision\" check. The revision equals the object's revision, so the entry is cached. The stale sets for the other searchKeys now survive as valid until the next invalidation. Other providers use the loaded revision or startupRevision and never merge pre-invalidation data.",
+        "lines": {
+          "end_line": 240,
+          "start_line": 236
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:2e83f65d6b9469eec2bbfed8"
+        ],
+        "title": "Merging a previously cached query into a fresh-revision entry can resurrect stale IDP id sets"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 56194,
+        "cache_write_input_tokens": 17126,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 73328,
+        "output_tokens": 2374,
+        "provider_cost": 0.0992035,
+        "request_id": "",
+        "seconds": 30.787
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "77f352070e74d5d2c6c5b090e1392960680870668e254e0f7038adf59c908389",
+      "model": "sonnet",
+      "prompt_digest": "de4f0795d6c702b7e4dde887a6c0e767e40b8902e273ffeba9c51df9b30b655b",
+      "response": {
+        "category": "verification",
+        "consequence": "IDPs such as idp-alias-0..20 and their org links can leak into later tests. The cleanup step can also throw NotFound during teardown, which makes the test brittle.",
+        "evidence_refs": [
+          "source:new:testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java@sha256:6b1e194f5818f7847665bf1872a9586eb84b75fbd6bf4abaf3aa7b1561df0556"
+        ],
+        "explanation": "The hypothesis about unbounded work is not supported: the loops are fixed at 20 iterations in a test. However, the new test registers cleanup via `testRealm().identityProviders().get(\"alias\")::remove` at lines 381 and 425. The literal \"alias\" is not one of the created aliases (`idp-alias-N`). Cleanup therefore never removes the IDPs the test creates, and `remove` on a nonexistent IDP can fail. The same pattern was copied from line 303.",
+        "lines": {
+          "end_line": 381,
+          "start_line": 381
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:19aef75d1c483be2436f48c7"
+        ],
+        "title": "Cleanup registered with literal alias \"alias\" instead of the created IDP's alias"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 24360,
+        "cache_write_input_tokens": 17876,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 42240,
+        "output_tokens": 1060,
+        "provider_cost": 0.0862585,
+        "request_id": "",
+        "seconds": 18.555
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "782493f23dd8216682932a09d516f06655e75de7acbc2e978bf7da9f68a2ba21",
+      "model": "sonnet",
+      "prompt_digest": "b940f565199af885235480727fd39ca9569767154dccadde08b356e302c8b2be",
+      "response": {
+        "category": "correctness",
+        "consequence": "No stale login cache was found from a predicate mismatch.",
+        "evidence_refs": [
+          "source:new:server-spi/src/main/java/org/keycloak/models/IdentityProviderStorageProvider.java@sha256:be1c26d3c2984ec8c41c42b3831da89331df559f2ec4e14306fb51b67167633b"
+        ],
+        "explanation": "getLoginPredicate matches what getForLogin selects. Realm-level IDPs (organizationId null) must pass the enabled, linkOnly and hideOnLogin filters. Org-linked IDPs must also have broker.public set to true. The new BROKER_PUBLIC clause covers the org case. IdentityProviderModel.config is initialized to an empty HashMap, so the clause cannot hit a null config. In registerIDPLoginInvalidationOnUpdate, a change in broker.public flips the predicate result, which triggers invalidation. Unlinking an IDP from an org changes the organizationId, so that also triggers invalidation. The only difference found is that the predicate uses parseBoolean, which ignores case, while the DB query matches \"true\" exactly. That difference is negligible.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:4e294dfaa119d7782c1751a1"
+        ],
+        "title": "Login predicate matches getForLogin semantics"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 66887,
+        "cache_write_input_tokens": 16499,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 83396,
+        "output_tokens": 1975,
+        "provider_cost": 0.0931364,
+        "request_id": "",
+        "seconds": 32.332
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "95080ff0215976ebcaa96f9ffafe42d6e11ce4445de2991c99de3e6a5310feb2",
+      "model": "sonnet",
+      "prompt_digest": "b6755c64e3b985aed918078a24813194d69782c412899d940743f4670dc00a65",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect attributable to this change was found for the hypothesis.",
+        "evidence_refs": [
+          "source:new:model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java@sha256:7aa5c4bfa5eaf4554c0e7ec8f63ebad0ac58beba1ce387a5741de00c354cf654"
+        ],
+        "explanation": "The new call registerIDPLoginInvalidation(storedIdp) is null-safe. getLoginPredicate() starts with an Objects::nonNull check, so a missing alias returns false instead of throwing. The null risk in registerIDPInvalidation(storedIdp) on the invalidated-key branch already existed, because the old code called idpDelegate.getByAlias(alias) there directly. In the cached-miss branch, the id key is not invalidated when the alias entry is uncached. That behavior was not introduced by this change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:2e83f65d6b9469eec2bbfed8"
+        ],
+        "title": "No new NPE or missed login invalidation in remove(alias)"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 38219,
+        "cache_write_input_tokens": 15789,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54014,
+        "output_tokens": 1448,
+        "provider_cost": 0.08279159999999999,
+        "request_id": "",
+        "seconds": 22.908
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b29542c093aa156010ce5ae5241ac549de40bd70e3bdb13e1f671926d6940ece",
+      "model": "sonnet",
+      "prompt_digest": "d1b2059210fda4c94e605ca27a0bad8a1c22f7b05f144c15653e2b9f936699c6",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No concrete failing input or state was identified.",
+        "evidence_refs": [],
+        "explanation": "The change adds a new cache key (realmId.idp.login.<mode>) and caches only IDP internal ids, so no stored representation changes. The invalidation paths cover create, remove, and update. Remove and update tolerate a null model because getLoginPredicate starts with Objects::nonNull. Update skips invalidation only when the login-eligibility and organization link are both unchanged. In that case the per-IDP entries are still invalidated through registerIDPInvalidation. The bean re-checks isEnabled to handle wrapped IDPs. I did not read other files to confirm that the JPA getForLogin uses the same predicate; this conclusion rests on the supplied excerpts and diff.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:039d12e3345988d48d891f64",
+          "target:hun:05be0e8826d49ab56fc0d3cf",
+          "target:sym:25c1c8cfe3927c7d18739e04",
+          "target:sym:2e83f65d6b9469eec2bbfed8",
+          "target:sym:4e294dfaa119d7782c1751a1",
+          "target:sym:96e5db93595b5203513d104b"
+        ],
+        "title": "No persistence or cache incompatibility found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 27226,
+        "cache_write_input_tokens": 21595,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 48827,
+        "output_tokens": 2106,
+        "provider_cost": 0.1121759,
+        "request_id": "",
+        "seconds": 25.126
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "47519906726a5e0ad04e54bbd91113afc7b4a7c27479595f6e46e597f0de9eb7",
+      "model": "sonnet",
+      "prompt_digest": "b24cfbdc14aabddde749611d527c18bf7b3180c3fda9468e5058195d28ef1360",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Helper code showing no null check on idpById, or a code path where the old and new predicate comparison misses a change. A test case that updates a non-existent IDP, or changes the organization link or hideOnLogin, and leaves stale cache entries.",
+            "failure_mode": "update() calls getById(model.getInternalId()) and passes the result straight into registerIDPInvalidation and registerIDPLoginInvalidationOnUpdate. If the IDP does not exist, or the internal id is null or belongs to another realm, getById returns null. That would cause an NPE, or skip invalidation of the stale alias and login keys. The old model may also come from the cache and be compared with the new model in a way that misses a login-availability change.",
+            "investigation_rationale": "Read registerIDPInvalidation and registerIDPLoginInvalidationOnUpdate. Check whether they null-guard idpById. Check whether they compare the old and new login predicate results, including organizationId and the BROKER_PUBLIC config. Check whether getById returns a copy or a shared instance.",
+            "priority_rationale": "update() runs on every IDP change. A wrong or missing invalidation leaves stale login lists, and the test only covers the happy paths.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:25c1c8cfe3927c7d18739e04"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "The helper bodies show whether null is tolerated. A trace of remove with a missing alias, or with an alias that is uncached and valid, shows whether getById(internalId) is still served from cache after removal.",
+            "failure_mode": "remove(alias) fetches storedIdp via idpDelegate.getByAlias and uses it without a null check. For an unknown alias, registerIDPInvalidation(storedIdp) or registerIDPLoginInvalidation(storedIdp) may throw an NPE instead of returning false. In the else branch, invalidation relies on the cached entry. If that entry is missing, the internalId key is never invalidated.",
+            "investigation_rationale": "Read the helper methods and the rest of the class. Check null handling for storedIdp and cached. Check whether the id, alias, org and login keys are all invalidated for every remove path.",
+            "priority_rationale": "Removal is a cache-consistency-critical path. An NPE changes the API behavior for a missing alias, and a missed key leaves a deleted IDP being served from cache.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:2e83f65d6b9469eec2bbfed8"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "IdentityProviderListQuery code showing the merge and revision semantics. An interleaving where invalidation lands between getCurrentRevision and addRevisioned and the stale entry survives. The SPI ordering requirements for getByOrganization and getForLogin.",
+            "failure_mode": "getForLogin and getByOrganization cache IDs per searchKey inside one IdentityProviderListQuery stored under a shared key. This covers the per-org searchKey under cacheKeyForLogin(realm, mode) and the first/max searchKey under cacheKeyOrgId. The code invalidates the object and re-adds it with cache.getCurrentCounter() as the revision. A concurrent invalidation between reading the revision and addRevisioned can leave a stale list cached. Results are collected into a HashSet, so order is not stable.",
+            "investigation_rationale": "Compare the revision handling with the other Infinispan providers. Those use startupRevision or the loaded revision with addRevisioned. Look at how IdentityProviderListQuery merges the previous query, and at the ordering contract of the SPI.",
+            "priority_rationale": "Cluster-wide cache staleness for login IDP lists is hard to detect. The branch that uses getCurrentCounter() differs from the first-load branch.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:2e83f65d6b9469eec2bbfed8"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "The JPA getForLogin implementation and the LoginFilter filter definitions. A case such as an org-linked IDP with broker.public toggled, or a null config, where the predicate result differs from the DB query.",
+            "failure_mode": "getLoginPredicate composes nonNull, a public-broker check, and the AND of all LoginFilter filters. The cache invalidation logic uses this predicate to decide whether a create, update or remove affects login caches. If the predicate differs from the filtering the JPA getForLogin actually does, caches are not invalidated when they should be, or are invalidated needlessly. idp.getConfig() could also be null. The organization-linked and non-public case only matters when the org link changes.",
+            "investigation_rationale": "Compare getLoginPredicate with the JPA getForLogin query semantics for enabled, hideOnLogin and the organization/public config. Check the LoginFilter enum filters for null config handling.",
+            "priority_rationale": "The correctness of the new login cache invalidation depends on this predicate matching the storage query. A mismatch gives silent stale login pages.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:4e294dfaa119d7782c1751a1"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 21984,
+        "cache_write_input_tokens": 18922,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 40912,
+        "output_tokens": 4003,
+        "provider_cost": 0.1196905,
+        "request_id": "",
+        "seconds": 36.002
+      }
+    }
+  ],
+  "case_id": "keycloak-02",
+  "case_input_digest": "5c9085b58f943c2ec43000df8701d7f0b1df5332df233814a1e69e27b47ff970",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,117 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "4ae0d82385d6cd71ce20f789c4830bb8c99c9226c98763efd2b58d806c7b44d1",
+      "model": "sonnet",
+      "prompt_digest": "96e5473c066dddf83a0a28f8c7506e4c7decee00e1e47d04b61162bbc0e59544",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "Per-subtest setup and cleanup are consistent. Explicit IDs avoid collisions because the cleanup deletes both tables. The annotationTag struct maps to the annotation_tag table through xorm's default name mapping.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in test refactor"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 67110,
+        "cache_write_input_tokens": 3392,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 70508,
+        "output_tokens": 1203,
+        "provider_cost": 0.034193,
+        "request_id": "",
+        "seconds": 12.439
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "80bf2af8084491bc73ade589e1b27b34f5120a9ffb8fc988e0728d46dee74111",
+      "model": "sonnet",
+      "prompt_digest": "74c1c3f0b3cccb7a6719abe20206e47629614fbc4e4b192c1a8b3e3aeaaa66fd",
+      "response": {
+        "category": "performance",
+        "consequence": "Normal cleanup runs write ERROR-level lines containing thousands of IDs, which floods logs and triggers error-based alerting. Because untilDoneOrCancelled loops until no rows remain, a large backlog produces this output on every iteration.",
+        "evidence_refs": [
+          "source:new:pkg/services/annotations/annotationsimpl/xorm_store.go@sha256:f98585ffead9d7390c0cfd25e4ee3b4c3e355d927413da568d1cac9e8ff13440"
+        ],
+        "explanation": "CleanAnnotations and CleanOrphanedAnnotationTags call r.log.Error for every batch, both before and after the delete. Each call logs the full ids slice and the SQL condition, and logs err even when it is nil. The sites are the 'Annotations to clean by time' and 'cleaned annotations by time' calls, the 'by count' pair, and the 'Tags to clean' and 'cleaned tags' pair. These look like leftover debugging output. A routine, successful cleanup is reported as errors, and batches of up to AnnotationCleanupJobBatchSize IDs are written into the log each time.",
+        "lines": {
+          "end_line": 537,
+          "start_line": 534
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "All cleanup jobs run 10 times as often as before, which adds database load. They also run annotation cleanup repeatedly, with the new select-then-delete batches, against production databases.",
+            "evidence_refs": [
+              "source:new:pkg/services/cleanup/cleanup.go@sha256:5ec96529f8615840e79239160e0256ad79e98e6c99741a5f45adee0a7549ebd2"
+            ],
+            "explanation": "The Run loop's ticker now fires every minute instead of every 10 minutes. This change is unrelated to the annotation batching rewrite and looks like a debugging leftover. Each clean() call has a 9-minute timeout.",
+            "lines": {
+              "end_line": 77,
+              "start_line": 77
+            },
+            "replacement": {
+              "end_line": 77,
+              "original": "\tticker := time.NewTicker(time.Minute * 1)",
+              "start_line": 77,
+              "text": "\tticker := time.NewTicker(time.Minute * 10)"
+            },
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:450d037e51d320fbfb5bedfb"
+            ],
+            "title": "Cleanup ticker interval changed from 10 minutes to 1 minute"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:3ddca39ce2805f3162799b05",
+          "target:sym:579f30b080d62347f0c07ca1"
+        ],
+        "title": "Debug logging at Error level dumps every deleted ID on each cleanup batch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 48819,
+        "cache_write_input_tokens": 3009,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51834,
+        "output_tokens": 3176,
+        "provider_cost": 0.050805499999999996,
+        "request_id": "",
+        "seconds": 29.97
+      }
+    }
+  ],
+  "case_id": "grafana-07",
+  "case_input_digest": "d94343eeb1d27047326c457dda51c6b5a2e0d66a271aebcbea6fd8a3f064a448",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

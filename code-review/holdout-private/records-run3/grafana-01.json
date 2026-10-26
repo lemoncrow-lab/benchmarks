@@ -1,0 +1,405 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "d2932973950891e1b36ea4421595eb6b261dc2f77ba60eea02bb51baef39c2cf",
+      "model": "sonnet",
+      "prompt_digest": "f8743b6c851c552b57b36629f5ad826dac90a5c8ba5139fac2c180851e42336e",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-0d50a4ac9920b90662244145",
+              "finding-78a009d849e9d16fa46b76ba",
+              "finding-b35f6395702bd3c15b1ebeee"
+            ],
+            "keep_id": "finding-0d50a4ac9920b90662244145"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 9111,
+        "cache_write_input_tokens": 6238,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 15355,
+        "output_tokens": 255,
+        "provider_cost": 0.029102,
+        "request_id": "",
+        "seconds": 8.563
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3e7feefeb795e80b18057bdf0bd368da21c95c9c28c3895e6f63f27650f6ea61",
+      "model": "sonnet",
+      "prompt_digest": "d368722a3f9e308a81bdb9f6d3bd9cf7f205b02373fc62aec4f5904b16514907",
+      "response": {
+        "category": "correctness",
+        "consequence": "When the device limit is reached, a legitimate already-registered anonymous device that sends a repeat request with unchanged values can be rejected with a limit error. Authenticate then fails for a user who should be allowed. The window is narrow, so the impact is limited.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355",
+          "target:target:sym:a004087ef580df5966087ebf"
+        ],
+        "explanation": "updateDevice maps every result with rowsAffected == 0 to ErrDeviceLimitReached. A zero count does not mean the device is missing. go-sql-driver/mysql returns changed rows rather than matched rows unless clientFoundRows is set. An existing device in the window whose client_ip, user_agent and updated_at all equal the stored values therefore reports 0. That happens when a second request from the same device arrives in the same timestamp second (the column is second precision), or when the caller passes an identical UpdatedAt. The code cannot tell this case from a device that is absent or expired. I did not read the caller to check how it sets UpdatedAt. I also did not check the driver DSN configuration for clientFoundRows.",
+        "lines": {
+          "end_line": 96,
+          "start_line": 94
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:a004087ef580df5966087ebf"
+        ],
+        "title": "Zero affected rows is reported as device limit reached even for existing devices"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15144,
+        "cache_write_input_tokens": 9315,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 24465,
+        "output_tokens": 1990,
+        "provider_cost": 0.0594743,
+        "request_id": "",
+        "seconds": 21.955
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "58feebce9f9aba4eaccf070834ba026a103433a3efbaef79e20cdf98af226f2e",
+      "model": "sonnet",
+      "prompt_digest": "db73f0d7c8625fabfa7d6bac6e6cde2f9875a568ba2cbeb25d9c3a72cf06d7f9",
+      "response": {
+        "category": "correctness",
+        "consequence": "With the anonymous device limit reached, an over-limit device gets one failed request and then full anonymous access, so the limit is not enforced. Behaviour is also inconsistent: the same device alternates between rejected and allowed depending on cache state.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/client.go@sha256:8e21f0a419770be322540aec8030a21abcc83f4ec42c30680004200201e175fc",
+          "target:target:sym:30654008b1d28db0116b6bb4"
+        ],
+        "explanation": "Authenticate now returns ErrDeviceLimitReached to reject anonymous requests at the limit. TagDevice reaches tagDeviceUI in anonimpl/impl.go. That function calls localCache.SetDefault(key) at line 87, before CreateOrUpdateDevice runs. When the store returns ErrDeviceLimitReached (database.go:96), the cache entry has already been written. The next request from the same device hits the cache at line 83 and TagDevice returns nil. Authenticate then returns an anonymous identity, so the over-limit device is let in. The error is not wrapped, so errors.Is does match on the first call. The failure is that enforcement is not stable. A new device is rejected once, then admitted until the cache entry expires. Rejection also depends on whether the cache entry exists, not on the limit.",
+        "lines": {
+          "end_line": 48,
+          "start_line": 44
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:30654008b1d28db0116b6bb4"
+        ],
+        "title": "Device-limit rejection is only returned once per device; the local cache then lets repeat requests through"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 52814,
+        "cache_write_input_tokens": 12454,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 65278,
+        "output_tokens": 1882,
+        "provider_cost": 0.0746553,
+        "request_id": "",
+        "seconds": 26.374
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "90dd10ee8bf057d719887755ed09e9d7ffe5450594e967caf3f1413aba2a0414",
+      "model": "sonnet",
+      "prompt_digest": "ff8e65e0ca9686e02dbc5a96b9f2cf8301dce742c74758d87f9af869e5b5184e",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "Under concurrent traffic from new anonymous devices, the configured device limit can be exceeded. The limit is an enforcement control, so this lets it be bypassed.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355",
+          "target:target:sym:e175cc03675101cf7c8e1325"
+        ],
+        "explanation": "CreateOrUpdateDevice calls CountDevices and then runs a separate INSERT, or the Postgres/MySQL upsert, with no transaction, lock or conditional insert between the two. Suppose the count is limit-1 and N requests from distinct new device IDs arrive at once. Each reads count < limit, skips updateDevice, and inserts its own row. The Postgres and MySQL upserts only key on device_id, so they do not enforce the limit either. The table can end up with limit-1+N active devices.",
+        "lines": {
+          "end_line": 117,
+          "start_line": 109
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e175cc03675101cf7c8e1325"
+        ],
+        "title": "Device limit check is not atomic with the insert/upsert"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 14780,
+        "cache_write_input_tokens": 8581,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 23367,
+        "output_tokens": 1530,
+        "provider_cost": 0.0518695,
+        "request_id": "",
+        "seconds": 17.209
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a3082e29361d82939da0f8e0b2e82c08189eb08a8ddaf9cfe64e88e2fffeff30",
+      "model": "sonnet",
+      "prompt_digest": "a193736cc4ec15a67715ecc3254c6b6d1aa21949710cd52a940d80f05e78c151",
+      "response": {
+        "category": "correctness",
+        "consequence": "No failing input or state was found.",
+        "evidence_refs": [
+          "source:new:pkg/setting/setting.go@sha256:124f596d149749f0add641081c831db708c41aefbca44898f03565de6fc13e03"
+        ],
+        "explanation": "The wiring is correct. cfg.AnonymousDeviceLimit is read at setting.go:1655 and passed to ProvideAnonDBStore in impl.go:43. The store enforces the limit only when deviceLimit > 0 (database.go:109). The default of 0 already means unlimited, so a negative value behaving the same way is consistent and is not a misbehaviour. The limit is an operator-set integer that is also shown in the frontend settings DTO. I did not check whether that endpoint requires authentication. The value is non-sensitive configuration, and exposing it is not a concrete defect.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:c204e9d53d0f146bd337dd2d"
+        ],
+        "title": "Negative device_limit treated as unlimited is not a defect"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 14435,
+        "cache_write_input_tokens": 8431,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22870,
+        "output_tokens": 818,
+        "provider_cost": 0.044075199999999995,
+        "request_id": "",
+        "seconds": 16.216
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "dc2faabf120b9f3a60ebff68144d9c41ce7f7eba6c8394af3352076940fcf934",
+      "model": "sonnet",
+      "prompt_digest": "fbcf043a14e4d2e2eeb53f7aeddbdbaa2a82500a8a51a1ad5918b2552e3de951",
+      "response": {
+        "category": "security",
+        "consequence": "The anonymous device_limit can be bypassed. A client only has to repeat its request, and it then gets anonymous access beyond the configured limit.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/client.go@sha256:8e21f0a419770be322540aec8030a21abcc83f4ec42c30680004200201e175fc",
+          "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355"
+        ],
+        "explanation": "Authenticate now returns an error when TagDevice returns ErrDeviceLimitReached. TagDevice goes through AnonDeviceService.tagDeviceUI in impl.go:80-98. That function calls localCache.SetDefault(key) before it calls anonStore.CreateOrUpdateDevice. When the store rejects a new device because the limit is reached, the key stays in the cache (TTL 29 minutes). The same device's next request hits the cache, tagDeviceUI returns nil, and Authenticate returns an anonymous identity. The device gets anonymous access without being stored, so it is never counted. A device that was rejected once is therefore allowed from its second request on.",
+        "lines": {
+          "end_line": 47,
+          "start_line": 44
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:30654008b1d28db0116b6bb4"
+        ],
+        "title": "Device limit is bypassed on the second request because the tag cache is set before the store rejects the device"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 67000,
+        "cache_write_input_tokens": 30995,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 98001,
+        "output_tokens": 2099,
+        "provider_cost": 0.1544333,
+        "request_id": "",
+        "seconds": 23.633
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fcc0dfa0032e63be775ca0650127b797d0486faf9e50bc102a5a5251662ca4a9",
+      "model": "sonnet",
+      "prompt_digest": "4ca6e5e3266e3dfad1bd257d8b936e0b376d1345876bba70c9383bade1a67e38",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The diff only updates the test call sites to the new ProvideAnonDBStore(store, deviceLimit) signature and adds a device-limit test. That test is consistent with database.go. With a limit of 1, the first insert succeeds. The second device (\"keep\") then takes the update-only path, matches no row, and returns ErrDeviceLimitReached. No schema or persisted-format change and no unbounded work appears in these targets.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:922d133bb0801de94420141a"
+        ],
+        "title": "No defect found in test-only change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 43148,
+        "cache_write_input_tokens": 18480,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61634,
+        "output_tokens": 857,
+        "provider_cost": 0.08838719999999999,
+        "request_id": "",
+        "seconds": 13.948
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fde4099001c74fd8b17a15f8239f71f4e16b8a3d2ff05aca318d1f357e865f7e",
+      "model": "sonnet",
+      "prompt_digest": "20279ed7befc9dedacd072902d7534c2641756743616b27b4596f8181c40f8d4",
+      "response": {
+        "category": "correctness",
+        "consequence": "With the device limit reached, a rejected device is let in on its second request and keeps access until the cache entry expires. The new error return therefore does not enforce AnonymousDeviceLimit. A transient DB error also leaves the device untagged and uncounted for the cache TTL.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/impl.go@sha256:3a3dbc9a4464ba8f6cebffb8b3baac9961a97a1ca681e463faff16fe65f580f8",
+          "target:target:sym:545ae04436ff3cc05540a3c7"
+        ],
+        "explanation": "The change makes TagDevice return the error from tagDeviceUI, and Anonymous.Authenticate (client.go:44-47) rejects the request on ErrDeviceLimitReached. But tagDeviceUI (impl.go:87) calls localCache.SetDefault(key) before CreateOrUpdateDevice (impl.go:93). When the store returns ErrDeviceLimitReached, or any DB error, the key stays cached. The next request from the same device (same cache key) hits the cache at impl.go:83 and returns nil. That request is then authenticated as anonymous without being stored. The limit is only enforced on the first request per device for about 29 minutes.",
+        "lines": {
+          "end_line": 148,
+          "start_line": 144
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:545ae04436ff3cc05540a3c7"
+        ],
+        "title": "Device limit error is returned but the device is cached before the write, so the next request bypasses the limit"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 34892,
+        "cache_write_input_tokens": 16257,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51155,
+        "output_tokens": 1669,
+        "provider_cost": 0.0862705,
+        "request_id": "",
+        "seconds": 22.621
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9f20362fc52fd42843e69688f3f5dd7bc05d722ba27a5fdf08dc7b00128eb6bf",
+      "model": "sonnet",
+      "prompt_digest": "aeb0abd6226fa6f2e5ee927e36d37db92c439e3c4a0ea8bf45c3259c94e306a0",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "The full CreateOrUpdateDevice body and the callers' concurrency. Check for a transaction, lock, or conditional insert enforcing the limit. A test with concurrent distinct devices would confirm.",
+            "failure_mode": "The device-limit check (CountDevices, then insert) is not atomic. Concurrent requests from new devices can all read count < limit and all insert, so the limit is exceeded. The Postgres/MySQL upsert paths may also bypass the limit.",
+            "investigation_rationale": "CreateOrUpdateDevice counts devices and then performs a separate insert or upsert with no transaction or lock between them. Read the rest of the function and check for any serialization.",
+            "priority_rationale": "The device limit is a licensing or enforcement control. Races let it be exceeded under concurrent anonymous traffic.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:e175cc03675101cf7c8e1325"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Driver RowsAffected semantics on MySQL with an unchanged row. How the caller sets device.UpdatedAt. A test where an existing device is updated at the limit with identical values or an old updated_at.",
+            "failure_mode": "updateDevice returns ErrDeviceLimitReached whenever zero rows are affected. That includes a device that exists but whose updated_at falls outside the window, and a device whose update leaves values unchanged (MySQL reports 0 affected rows for identical values). Legitimate existing devices are then rejected as limit-reached. The update also uses the new UpdatedAt as the window centre, so the bounds depend on caller-supplied time.",
+            "investigation_rationale": "The WHERE clause bounds updated_at to [UpdatedAt-30d, UpdatedAt+1m] and treats any zero-row result as a limit error. Check how the DB driver reports RowsAffected and how UpdatedAt is set by the caller.",
+            "priority_rationale": "Wrongly rejecting an existing anonymous device makes Authenticate fail, blocking users who should be allowed.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:a004087ef580df5966087ebf"
+            ]
+          },
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "The TagDevice implementation in anonimpl/impl.go. Error handling in the authn service and contexthandler. Whether the error is wrapped with %w. HTTP status returned at the limit.",
+            "failure_mode": "Authenticate now returns the raw ErrDeviceLimitReached error when tagging fails. This may surface as a 500 or a generic auth failure rather than a clear 4xx. Other error paths, including wrapped errors from TagDevice, may not match errors.Is and so fail open.",
+            "investigation_rationale": "The previous code only logged tagging failures. The new behaviour makes authentication fail at the limit. Check how the authn service and context handler map this error, and whether TagDevice wraps or swallows it (for example via the local cache or async tagging).",
+            "priority_rationale": "This changes user-visible behaviour for every anonymous request once the limit is hit. A wrong status code or fail-open path is a functional and enforcement defect.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:30654008b1d28db0116b6bb4"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "The wiring that passes cfg.AnonymousDeviceLimit into ProvideAnonDBStore. Any validation of negative values. Whether getFrontendSettings is reachable without authentication.",
+            "failure_mode": "device_limit is parsed with MustInt64(0), so a negative value passes through. Combined with the `> 0` check it silently disables the limit. The value is also exposed unauthenticated in the frontend settings.",
+            "investigation_rationale": "Check validation of the config value and whether the DeviceLimit wiring from cfg reaches ProvideAnonDBStore. Check whether exposing anonymousDeviceLimit via the frontend settings leaks information to anonymous users.",
+            "priority_rationale": "A misconfiguration silently disables enforcement. The exposure is minor but sits on a public endpoint.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:c204e9d53d0f146bd337dd2d"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 20632,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 23290,
+        "output_tokens": 1492,
+        "provider_cost": 0.0997582,
+        "request_id": "",
+        "seconds": 18.367
+      }
+    }
+  ],
+  "case_id": "grafana-01",
+  "case_input_digest": "393d93ab9f4ada067ec3c0163d49f20ade02687209cfac484d90b2a8c0ced8ea",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

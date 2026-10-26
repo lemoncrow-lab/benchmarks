@@ -1,0 +1,285 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "a99dfd7e77ed89fbf33ee4d55d0fa8e8ab8950dee3db36e967cc576a9f7ecaae",
+      "model": "sonnet",
+      "prompt_digest": "a70bcf0b78aff22e5ba4c9c84f749c17d3f9d3fb5bfc95fa1474c692f05c4202",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-f2780cace5d8a80ba0328c77",
+              "finding-5861eb3d6828bba0aaa7abc9"
+            ],
+            "keep_id": "finding-f2780cace5d8a80ba0328c77"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 9384,
+        "cache_write_input_tokens": 6498,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 15888,
+        "output_tokens": 225,
+        "provider_cost": 0.0298901,
+        "request_id": "",
+        "seconds": 12.557
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2aad56904ff55513990f076ab197ed0210c27df1e2d5dbb69d5266338f9b9af8",
+      "model": "sonnet",
+      "prompt_digest": "4791b10326041547d9cab64386b93aa8a00d22f7b06f2a9e5a52747958452100",
+      "response": {
+        "category": "correctness",
+        "consequence": "Without team billing (self-hosted), organizations are created with no slug, which breaks org URLs and routing that depend on it. With billing enabled, the slug is claimed before the billing flow completes, which bypasses the requestedSlug mechanism and can collide with other organizations' slugs.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/organizations/create.handler.ts@sha256:95770550f5265267b9af0849ca77d1d262e85be0f646c84b4fb9b1c5dbbc16e5",
+          "target:target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "explanation": "The old code wrote `slug` on the organization when `!IS_TEAM_BILLING_ENABLED`. When billing is enabled it stored only `metadata.requestedSlug`, which is presumably so the slug is claimed after payment or verification. The change rewrote the guard as a ternary and dropped the `!`, so the condition is now `IS_TEAM_BILLING_ENABLED ? { slug } : {}`. With billing enabled, the slug is now written directly to the team row and also stored as requestedSlug. With billing disabled, the slug is never written, and requestedSlug is not written either. The change was meant to be a type cleanup of the spread, but it flipped the logic. I did not read the rest of the handler or its callers, so this is based on the diff alone.",
+        "lines": {
+          "end_line": 151,
+          "start_line": 151
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 151,
+          "original": "            ...(IS_TEAM_BILLING_ENABLED ? { slug } : {}),",
+          "start_line": 151,
+          "text": "            ...(!IS_TEAM_BILLING_ENABLED ? { slug } : {}),"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "title": "Organization slug condition inverted: slug is now set only when team billing is enabled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 29915,
+        "cache_write_input_tokens": 24163,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54084,
+        "output_tokens": 2198,
+        "provider_cost": 0.1238998,
+        "request_id": "",
+        "seconds": 26.964
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "31951e2bb2466b2430a886350cb862b610b90dd9087bcfbcb678bd30ac9d6794",
+      "model": "sonnet",
+      "prompt_digest": "fa59e266e6b28e3e0c20f871b2d4f7083cf658df722d173b625da0ede346b798",
+      "response": {
+        "category": "correctness",
+        "consequence": "Creating a Google Meet event for a host with no destination calendar crashes in EventManager.create instead of falling back to Cal Video. The booking flow fails. Before this change, it fell back to Cal Video.",
+        "evidence_refs": [
+          "source:new:packages/core/EventManager.ts@sha256:063d5bf52852bc2ba79909fb247301e3e9ecf1b5dc949f6c8192b6a8b12b75d2",
+          "source:new:packages/trpc/server/routers/viewer/bookings/confirm.handler.ts@sha256:8991f716c85771967485f8b95690398e6d6d17091cc30dc9fcb6f3a2152b17de"
+        ],
+        "explanation": "The old code used `evt.destinationCalendar?.integration`, which was safe when no destination calendar existed. The new code destructures `const [mainHostDestinationCalendar] = evt.destinationCalendar ?? [];`. When `destinationCalendar` is undefined or `[]`, `mainHostDestinationCalendar` is undefined. The next line reads `mainHostDestinationCalendar.integration` with no optional chaining. This is reachable. The callers in this change (confirm.handler, editLocation.handler and bookingReminder) now explicitly pass `[]` when neither the booking nor the user has a destination calendar. An event whose location is Google Meet then throws `TypeError: Cannot read properties of undefined` instead of falling back to Cal Video.",
+        "lines": {
+          "end_line": 119,
+          "start_line": 119
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 119,
+          "original": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar.integration !== \"google_calendar\") {",
+          "start_line": 119,
+          "text": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar?.integration !== \"google_calendar\") {"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:43aec7e61a37d222797251a0"
+        ],
+        "title": "Possible TypeError in Meet fallback when destinationCalendar is empty or undefined"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29231,
+        "cache_write_input_tokens": 23400,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 52637,
+        "output_tokens": 2161,
+        "provider_cost": 0.12034070000000001,
+        "request_id": "",
+        "seconds": 24.279
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3e30047ec889a0834d19ebefab5ed40de9d6edda8a13d5318c42497d1beadec7",
+      "model": "sonnet",
+      "prompt_digest": "b552218856dd77066a9600038655181a5864b9648c2e8ba0d15cdc3f3a2ac2bc",
+      "response": {
+        "category": "correctness",
+        "consequence": "A malformed dynamic-group booking request gets a 500 \"Unable to load users\" instead of a 4xx with an actionable message. That makes client errors look like server faults in monitoring and gives callers nothing to act on.",
+        "evidence_refs": [
+          "source:new:packages/features/bookings/lib/handleNewBooking.ts@sha256:71d7096a9d3acdb4e6a16c03def8692b26c1a4bf3cb7fc090d1ef501bdb6a3d2",
+          "target:target:sym:54cd21e56be2c9e208cd9c16"
+        ],
+        "explanation": "The new loadUsers throws a plain `Error` when `dynamicUserList` is empty (a booking request with no eventTypeId and no usernames). The catch block only maps HttpError and PrismaClientKnownRequestError to 400. Every other error becomes `HttpError(500, \"Unable to load users\")`, and the original message is lost. The same catch turns an unexpected non-array `eventType.hosts` into a 500. The old code ended with `eventType.users || []`. The new code returns `users.length ? users : eventType.users` with no fallback, so an undefined `eventType.users` would make `users.some(...)` throw an uncaught TypeError. I did not find a path where `eventType.users` is undefined: it appears to be selected by getEventTypesFromDB. The impact is therefore limited to the status code and message.",
+        "lines": {
+          "end_line": 770,
+          "start_line": 767
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:54cd21e56be2c9e208cd9c16"
+        ],
+        "title": "loadUsers turns client input errors into a generic 500 and drops the `|| []` fallback"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 113288,
+        "cache_write_input_tokens": 25174,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 138472,
+        "output_tokens": 2228,
+        "provider_cost": 0.1366257,
+        "request_id": "",
+        "seconds": 33.439
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "72434d1c1a84d330468fa9a7d6b8b7e854c303bb7235cceaf9ce8b08e6a0f27d",
+      "model": "sonnet",
+      "prompt_digest": "63e20f3bc6cc3f6ec97d87ef5cd46d8db7919bc364bb55ad608e6120e22e0040",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The class's destinationCalendar type now matches the CalendarEvent interface in packages/types/Calendar.d.ts:171, which already declares it as an array. The builder's setter takes the class's own type, so it follows the change. The optional externalId added to EventResult is backward compatible.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:348da717febd70a9b76c8558",
+          "target:sym:656a3299a3a95e22aba51da5"
+        ],
+        "title": "No defect found in type changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 25588,
+        "cache_write_input_tokens": 7999,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 33593,
+        "output_tokens": 749,
+        "provider_cost": 0.042776,
+        "request_id": "",
+        "seconds": 14.532
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8f3e219d789eb93940b7022e105b0312838b6ba250e5a013e679e2de7f79d3e8",
+      "model": "sonnet",
+      "prompt_digest": "dd89dbde874ad1514e5f2ebfcd4756ddf9ad69def335470734e4a0c9a1e6fd85",
+      "response": {
+        "category": "correctness",
+        "consequence": "Without an explicit `externalCalendarId`, `deleteEvent` removes the event from the user's primary calendar instead of the configured destination calendar. The event stays on the destination calendar, or the delete fails. `updateEvent` sends an undefined calendarId and the update request fails. Reschedules and cancellations then break for users whose destination calendar is not their primary one.",
+        "evidence_refs": [
+          "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+        ],
+        "explanation": "The old code fell back to `event.destinationCalendar?.externalId` when `externalCalendarId` was falsy. The change turned `destinationCalendar` into an array and rewrote the fallback as `event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId`. That branch only runs when `externalCalendarId` is falsy (undefined, null or empty). It then looks for a calendar whose `externalId` equals that falsy value, which finds nothing. The fallback is always undefined, so the destination calendar is never used. In `deleteEvent` the calendar id becomes undefined and the call falls through to \"primary\". In `updateEvent` `calendarId` is passed as undefined to `calendar.events.update`.",
+        "lines": {
+          "end_line": 317,
+          "start_line": 315
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Updating an event without an explicit external calendar id fails against the Google API.",
+            "evidence_refs": [
+              "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+            ],
+            "explanation": "This is the same broken fallback as in `deleteEvent`, in the `selectedCalendar` computation in `updateEvent`. When `externalCalendarId` is falsy, `find(cal => cal.externalId === externalCalendarId)` cannot return the destination calendar. `calendarId` is therefore undefined in `calendar.events.update`.",
+            "lines": {
+              "end_line": 256,
+              "start_line": 254
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:40ef326450483f4b93038e9f"
+            ],
+            "title": "updateEvent calendar id fallback is dead and can be undefined"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d4fbe2fe8cce3d6c1b324665",
+          "target:sym:40ef326450483f4b93038e9f"
+        ],
+        "title": "Google Calendar update/delete lose the destinationCalendar fallback when externalCalendarId is falsy"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 31313,
+        "cache_write_input_tokens": 26091,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 57410,
+        "output_tokens": 3011,
+        "provider_cost": 0.14002199999999998,
+        "request_id": "",
+        "seconds": 33.338
+      }
+    }
+  ],
+  "case_id": "calcom-04",
+  "case_input_digest": "caefb9f74d9d3d7b997fbed1a75e4cf2a3f61ec0207b1d76cd805b4f3446f908",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

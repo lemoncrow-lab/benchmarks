@@ -1,0 +1,129 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "35b9f60bcbe457ebb1a56979050b3681f0013e6208800dfedce900c6065e3a5a",
+      "model": "sonnet",
+      "prompt_digest": "dae5c2357276cf999f6cb6b0695e9b4ef3e409725bbd86381fd5d6220f415b48",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a hang, the old flusher process stays alive and keeps running next to its replacement. Both flush and produce the same shard segments, which duplicates segments in Kafka and leaks processes on every restart. On shutdown, stuck flusher processes are not terminated.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3",
+          "source:old:src/sentry/spans/consumers/process/flusher.py@sha256:d99fd4b72281ea6e59850fd5f5d1853d6c23e7bb427e1c6e6ad0af6d1e0a1acd"
+        ],
+        "explanation": "The flusher builds its processes with `multiprocessing.get_context(\"spawn\").Process`, which creates `SpawnProcess` objects. `SpawnProcess` subclasses `BaseProcess`, not `multiprocessing.context.Process`, which is what `multiprocessing.Process` refers to. So `isinstance(process, multiprocessing.Process)` is always False for real flusher processes. The old code called `self.process.kill()` unconditionally. Now, in `_ensure_processes_alive` (lines 253-257), a process whose healthy_since timestamp is stale (cause \"hang\") is not killed. `_create_process_for_shards` then starts a second process on the same shards. The same check in `join()` (line 346) means `process.terminate()` is never called, so a flusher process that is still running after join is not terminated.",
+        "lines": {
+          "end_line": 257,
+          "start_line": 253
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:0e6a3b84adb2381f7681c962"
+        ],
+        "title": "isinstance(process, multiprocessing.Process) is False for spawn processes, so hung flushers are never killed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 53351,
+        "cache_write_input_tokens": 4739,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58094,
+        "output_tokens": 1677,
+        "provider_cost": 0.0434129,
+        "request_id": "",
+        "seconds": 26.556
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5574c6fd39724133c8722d3e7f55d3c2a75aaf7f734fd6d699112b6209986e79",
+      "model": "sonnet",
+      "prompt_digest": "45015cd688bad8604c6b978bf99d2688e1b4edf40c131da437244dad889c8fda",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I read the SpanFlusher constructor, process creation, restart and health check, submit and join paths. Shards are partitioned across processes by modulo, and each process gets its own backpressure and healthy-since values. Restarting a process only reassigns an existing dict key, which is safe during iteration. The new --flusher-processes option is passed through the factory to SpanFlusher. I could not name a failing input or state.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete defect found in multi-process flusher change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 41750,
+        "cache_write_input_tokens": 3862,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 45616,
+        "output_tokens": 1144,
+        "provider_cost": 0.0328342,
+        "request_id": "",
+        "seconds": 15.359
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a9baefedb3c65cbe7fd9174986733f10065ee50e407dbd1e8f1a2117b9dade54",
+      "model": "sonnet",
+      "prompt_digest": "f252df75a865e7a76b59f4feb018439cf4f40ae4941e1fc2681cdd88e975159e",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The flusher attributes the tests use all exist (processes, max_processes, num_processes, process_to_shards_map, process_backpressure_since). The factory accepts flusher_processes and passes it to the flusher as max_processes. With 4 partitions and a limit of 2, the assertions hold.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:3426f748ad396dc435eb1542"
+        ],
+        "title": "No defect confirmed in test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 54010,
+        "cache_write_input_tokens": 2399,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56415,
+        "output_tokens": 783,
+        "provider_cost": 0.0242616,
+        "request_id": "",
+        "seconds": 12.789
+      }
+    }
+  ],
+  "case_id": "sentry-06",
+  "case_input_digest": "d47fc617dd98f176e551020d464ae5289c16cf90c5f8830c8952ee26e5596712",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

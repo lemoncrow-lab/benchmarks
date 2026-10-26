@@ -1,0 +1,337 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "007f791a1cff59f9cc471f21b926f49431e7f7029ed036ed26bb413d66878964",
+      "model": "sonnet",
+      "prompt_digest": "8659ad30f3c791aa733ddb7740148290abac7945f1179ec81d1695e8826b6da9",
+      "response": {
+        "category": "correctness",
+        "consequence": "No unauthorized path is introduced.",
+        "evidence_refs": [],
+        "explanation": "The change only touches tests. The new setupService wires permDenialCache, which service.go reads at line 117 and writes at line 154. The new cache tests use key helpers that exist in cache.go. The only removed case, the cache-hit case in getUserPermissions, is replaced by the new cache tests.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in test-only change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 25238,
+        "cache_write_input_tokens": 18793,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44035,
+        "output_tokens": 648,
+        "provider_cost": 0.0859781,
+        "request_id": "",
+        "seconds": 9.354
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "07123cbded5ea37ec3b31220dc3bf34cb38e223a5322781cb6d86dd392e65745",
+      "model": "sonnet",
+      "prompt_digest": "42d627f4f9420a22da06ff17fff0ca4b916633c2c9a68b5904101ccc3aef60b2",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user who is allowed to access resource X can be wrongly denied for up to the short cache TTL. This happens after a different resource Y, whose name and parent concatenate to the same string, was denied. The result is intermittent, hard-to-diagnose 403s.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/cache.go@sha256:6ef959dfc9f9ed777159bccae3582566917c6bf2db3f38adddecbf58f884dd7c",
+          "source:new:pkg/services/authz/rbac/service.go@sha256:cbfa3f2caf30a4ecde165c3d132988a4beff3c4439e14716d46421af3f4e1b8a"
+        ],
+        "explanation": "userPermDenialCacheKey builds the key as namespace + \".perm_\" + userUID + \"_\" + action + \"_\" + name + \"_\" + parent. The fields are joined with '_', which can appear in Grafana resource names, folder UIDs and user UIDs. Two different checks can therefore produce the same key. For example, name=\"a_b\" with parent=\"c\" and name=\"a\" with parent=\"b_c\" both give \"..._a_b_c\". When one check is denied, Check stores the key in permDenialCache. Check consults that cache first and returns Allowed=false for the other check without evaluating permissions. This is a fail-closed false denial, not an access grant. The key also shares the \".perm_<uid>_<action>\" prefix with the permission-map key, which makes collisions and confusion easier.",
+        "lines": {
+          "end_line": 32,
+          "start_line": 30
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "title": "Denial cache key is ambiguous because name and parent are joined with '_'"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 33894,
+        "cache_write_input_tokens": 28584,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62484,
+        "output_tokens": 2577,
+        "provider_cost": 0.14617,
+        "request_id": "",
+        "seconds": 28.345
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "0f5b71f0acbaabf3d6a9d56d852936d7b3c714569a958747fe0bdd9b92f6224c",
+      "model": "sonnet",
+      "prompt_digest": "e2940f938ff5d74c2e6a208121f90e4b921aff1b060b54b7879d18069187e091",
+      "response": {
+        "category": "correctness",
+        "consequence": "No regression confirmed.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/service.go@sha256:cbfa3f2caf30a4ecde165c3d132988a4beff3c4439e14716d46421af3f4e1b8a"
+        ],
+        "explanation": "GetUserIdentifiers checks idCache by uid key and by id key, and stores the result in idCache (service.go:452-476). The second call after a permCache miss is therefore cheap. If the cached lookup fails with an identifier error, getIdentityPermissions calls GetUserIdentifiers again and returns that error, so the error is not swallowed. In List and Check, permissionCacheUsage is emitted once per request. The singleflight closure still sets permCache (lines 406 and 430), so the cache is still populated after the removed checks.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:84b0067c8be99cfc011b5332",
+          "target:sym:890af25d1d02ca792b3c4388"
+        ],
+        "title": "No defect found in the split cached lookup"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 36799,
+        "cache_write_input_tokens": 15073,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51878,
+        "output_tokens": 1106,
+        "provider_cost": 0.0762786,
+        "request_id": "",
+        "seconds": 14.762
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "107cdc755c85718103f6d98be602aeff9a5df9bd7cd970f6084a84fb7ec249e0",
+      "model": "sonnet",
+      "prompt_digest": "9c91abb3256c3215df9b7e93500df4ebe8cd3e5ced1eda1ebcf00182701dbb6b",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user can be wrongly denied access to a resource they are allowed to see. This lasts until the cache TTL expires. The wrong result has no fallback and is hard to diagnose. Someone who can pick resource names or folder UIDs could also trigger denials for other resources.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/cache.go@sha256:6ef959dfc9f9ed777159bccae3582566917c6bf2db3f38adddecbf58f884dd7c",
+          "source:new:pkg/services/authz/rbac/service.go@sha256:cbfa3f2caf30a4ecde165c3d132988a4beff3c4439e14716d46421af3f4e1b8a"
+        ],
+        "explanation": "userPermDenialCacheKey builds namespace.perm_<uid>_<action>_<name>_<parent> with a plain '_' separator. A name or parent that contains '_' can produce the same key as a different pair. For example, name \"a_b\" with parent \"c\" and name \"a\" with parent \"b_c\" both give \"..._a_b_c\". Grafana UIDs and resource names can contain '_'. An empty name or parent shifts the fields in the same way. Check() returns Allowed=false straight from permDenialCache.Get on a key hit, before any permission evaluation. The wrapped caches share one underlying cache and the key has no type prefix. Because of that, a denial cached for one resource also denies a different resource that maps to the same key.",
+        "lines": {
+          "end_line": 31,
+          "start_line": 31
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 31,
+          "original": "\treturn namespace + \".perm_\" + userUID + \"_\" + action + \"_\" + name + \"_\" + parent",
+          "start_line": 31,
+          "text": "\treturn namespace + \".perm_denied_\" + userUID + \"|\" + action + \"|\" + strconv.Itoa(len(name)) + \":\" + name + \"|\" + parent"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:86788297b1ea7ffd27bbb9c4",
+          "target:sym:01df7dac91a17db305e175cd"
+        ],
+        "title": "Denial cache key is ambiguous because it joins fields with unescaped '_'"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 17939,
+        "cache_write_input_tokens": 13091,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 31034,
+        "output_tokens": 1578,
+        "provider_cost": 0.0710156,
+        "request_id": "",
+        "seconds": 16.082
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "94975b4d96c21c986174c91bc30dee703a7cc61275d78749d4c1ebde12063981",
+      "model": "sonnet",
+      "prompt_digest": "3d1dd773adaaf0ed50380a7de15f311961f7bfe6daba0240dcaf0199867f0d8b",
+      "response": {
+        "category": "verification",
+        "consequence": "No concrete failing input found.",
+        "evidence_refs": [],
+        "explanation": "The change adds a Check-level cache test (TestService_CacheCheck) that covers a permission cache hit, a miss, an outdated entry, and an explicit denial entry. The denial key that test sets uses userPermDenialCacheKey, the same function service.go uses at lines 117 and 154. setupService now includes permDenialCache, which the new denial test needs. setupService already used longCacheTTL for basicRoleCache, while NewService uses shortCacheTTL at service.go:87. That line is not part of this diff, and no new test depends on it. The missing tests for TTL expiry, cross-user isolation, anonymous or renderer identities, and NoopCache are coverage gaps, not defects in the changed code. The ProvideAuthZClient edit swaps newRBACClient for authzlib.NewClient with NoopCache and the tracer, and I found no failing input for it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:a01f15e84b866c3c085f1459"
+        ],
+        "title": "No reportable defect in the changed test code or the NoopCache client"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 42219,
+        "cache_write_input_tokens": 17078,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 59305,
+        "output_tokens": 1431,
+        "provider_cost": 0.0883564,
+        "request_id": "",
+        "seconds": 17.515
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e7ac0dc7fdb196cd252a141da57ac422681aeeefbcd1a375cee2bee584cad7f0",
+      "model": "sonnet",
+      "prompt_digest": "2f68e29048228cc0aeacbf3116063b5b194e6959be30a4bbab99eb83f382a136",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "No new defect confirmed. Freshness stays bounded by the existing 30s window.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/service.go@sha256:cbfa3f2caf30a4ecde165c3d132988a4beff3c4439e14716d46421af3f4e1b8a"
+        ],
+        "explanation": "shortCacheTTL is 30 seconds (service.go:32), and permDenialCache uses it. permCache already used the same TTL before this change. A grant, team change or role change was therefore already invisible to Check for up to 30s through the cached permission map. The denial cache adds no new staleness window beyond that. checkPermission returns allowed=false only after evaluating the full permission set, and an error is returned before the denial is cached. No partial-data denial is cached.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:01df7dac91a17db305e175cd",
+          "target:sym:0a5f72dca804d62a45b2709f",
+          "target:sym:e768a16a9407a53131bcb632"
+        ],
+        "title": "Denial cache staleness is bounded by a 30s TTL, the same as the existing permission cache"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 18389,
+        "cache_write_input_tokens": 12721,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 31114,
+        "output_tokens": 1001,
+        "provider_cost": 0.0638511,
+        "request_id": "",
+        "seconds": 11.971
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "08f7e6a3e7e1c67d49d625fddb42a65a7e92b7c81b407149e1973fcd2652a145",
+      "model": "sonnet",
+      "prompt_digest": "f520beea31b04b50d78d8b5649afd8175641b155401c4ece7d9dfb3a8fa48370",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "security",
+            "evidence_needed": "Whether names and folder UIDs may contain '_'. Whether cacheWrap adds a type or prefix namespace to keys. A concrete pair of requests that yields identical keys. Whether a bool entry under a key shared with userPermCacheKey can be read as map[string]bool, or the reverse.",
+            "failure_mode": "userPermDenialCacheKey joins namespace, uid, action, name and parent with unescaped '_' separators. Distinct requests can therefore produce the same key. Examples are name 'a_b' with parent 'c' versus name 'a' with parent 'b_c', and an empty name or parent. A cached denial for one resource can then wrongly deny a different resource. A key that shares the 'perm_<uid>_<action>' prefix with userPermCacheKey could also collide with it.",
+            "investigation_rationale": "Check() returns Allowed=false straight from permDenialCache.Get before any permission evaluation. A key collision therefore causes a false deny with no fallback. Resource names and folder UIDs are user-controlled and can contain '_'. All the wrapped caches share one underlying cache.Cache.",
+            "priority_rationale": "This is an authorization decision path. A collision gives wrong deny results that are hard to diagnose. A crafted name could also be used to poison another resource's decision.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:86788297b1ea7ffd27bbb9c4",
+              "target:hun:a744775ee385fde074e1f987",
+              "target:sym:01df7dac91a17db305e175cd"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "The value of shortCacheTTL. Any invalidation hooks for permission, team or role changes. Whether the denial path is reachable after a grant within the TTL. Whether checkPermission can return allowed=false for partial or incomplete data.",
+            "failure_mode": "Denials are cached for shortCacheTTL and are never invalidated. If a user is granted permission, added to a team, or has their role changed, Check keeps returning false until the TTL expires. The denial lookup runs before the permission cache and before the DB fallback, so the outdated-cache fallback does not apply to denials.",
+            "investigation_rationale": "Check the TTL value, what writes to or invalidates permDenialCache, and whether cached permissions are invalidated anywhere. Compare with the previous behaviour, which only had the permission cache.",
+            "priority_rationale": "It changes the freshness guarantee of authorization. Users who were just granted access get denied, and the staleness window is new.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:01df7dac91a17db305e175cd",
+              "target:sym:0a5f72dca804d62a45b2709f",
+              "target:sym:e768a16a9407a53131bcb632"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Whether GetUserIdentifiers is cached by idCache, so the repeat call is cheap. Whether errors from the cached lookup are swallowed. Whether the singleflight closure sets permCache. Whether the metrics are still emitted once per request.",
+            "failure_mode": "The cache lookup is split into getCachedIdentityPermissions, and getUserPermissions no longer checks permCache. getCachedIdentityPermissions calls GetUserIdentifiers, which may hit the DB. A cache miss followed by getIdentityPermissions then resolves identifiers twice. If the cached lookup fails with an identifier error, Check and List both fall through to the fallback path. The cache-usage metrics were removed from getUserPermissions, so hit and miss accounting may be wrong. Concurrent callers now skip the permCache re-check inside singleflight, so they may duplicate DB work.",
+            "investigation_rationale": "Compare the old and new flows of getUserPermissions and the new cached lookup. Look at GetUserIdentifiers' own caching and error behaviour, and at what the singleflight closure does after the cache check was removed.",
+            "priority_rationale": "It is a core request path on every Check and List. Regressions would show up as extra DB load or incorrect metrics, and could mask errors.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:84b0067c8be99cfc011b5332",
+              "target:hun:661f06a1675940f82246a2c5",
+              "target:hun:a19183eb238030f35cd749ad",
+              "target:sym:890af25d1d02ca792b3c4388"
+            ]
+          },
+          {
+            "category": "verification",
+            "evidence_needed": "The test list for denial-cache edge cases. The TTL constants. Any tests for NoopCache or ProvideAuthZClient.",
+            "failure_mode": "The old TestService_getUserPermissions cache-hit cases were removed and replaced with Check-level cache tests. These tests do not cover denial-cache key collisions, TTL expiry, cross-user isolation, or anonymous and renderer identity types. setupService builds basicRoleCache with longCacheTTL while NewService uses shortCacheTTL, so tests diverge from production configuration. ProvideAuthZClient now passes NoopCache to the in-proc client, and nothing tests that this has no effect on behaviour.",
+            "investigation_rationale": "Compare the removed and added tests against the changed production logic. Check whether setupService is meant to mirror NewService, and whether any test exercises NoopCache or the in-proc client.",
+            "priority_rationale": "The new authorization caching has gaps in negative and boundary tests. A config mismatch in the test fixture can hide TTL-related bugs.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:173c49dc7a022bc2bc7085ed",
+              "target:sym:969bebd478c18934303a7b9f",
+              "target:sym:a01f15e84b866c3c085f1459",
+              "target:sym:cea303eb2652208394c56a7b"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 30540,
+        "cache_write_input_tokens": 28107,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58653,
+        "output_tokens": 4828,
+        "provider_cost": 0.1662732,
+        "request_id": "",
+        "seconds": 38.999
+      }
+    }
+  ],
+  "case_id": "grafana-02",
+  "case_input_digest": "67dee79c385c414322759bfb10f191d68e23a1b5f604f488ffffb9f1951d89f0",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

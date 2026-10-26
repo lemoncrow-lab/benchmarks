@@ -1,0 +1,377 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "753b72ac7098e62f80f0712db710fcbf3fad74dae9e0e7cdb67c2e34c61b27eb",
+      "model": "sonnet",
+      "prompt_digest": "5c4c1e33459a76917e634423f804073f6c07369a23f73e12561bdc9eb0f7d4e8",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [
+          "source:new:packages/lib/payment/handlePayment.ts@sha256:e65cb386dd434229d989b3f998bc52cd72a29bae855944c7ad9330907992eea8"
+        ],
+        "explanation": "Each appStore entry is a dynamic import() promise (packages/app-store/index.ts). Without the await, the \"lib\" in paymentApp check would run on a Promise and always fail. The added await fixes that, and it introduces no defect.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7bbaeb1b99becf99da2cfdfa"
+        ],
+        "title": "Added await on appStore lookup is correct"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 24514,
+        "cache_write_input_tokens": 7950,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 32470,
+        "output_tokens": 880,
+        "provider_cost": 0.0437074,
+        "request_id": "",
+        "seconds": 11.205
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7c9e80e820dc38691f5b2183a3d61d463a4dd238e8b5aae5709b0fd06e50ae32",
+      "model": "sonnet",
+      "prompt_digest": "a751729b954410cec2624e23fc1544d3b185a9bfc297cec03cef4857ee3549e7",
+      "response": {
+        "category": "performance",
+        "consequence": "No broken synchronous consumer found.",
+        "evidence_refs": [
+          "source:new:packages/app-store/index.ts@sha256:efa143633873b85345635d5e5c03abfa1ef7e31a956379a81ac171c45d7c7437",
+          "source:old:packages/app-store/index.ts@sha256:fe46c793b3b22d389ee5eb9fc428697b31e11bd8fbaa4255160c97e96e79486a"
+        ],
+        "explanation": "Every importer of the app-store index (videoClient.ts, getCalendar.ts, deletePayment.ts, handlePayment.ts, viewer/bookings.tsx, handleCancelBooking.ts) reads entries as `await appStore[...]` before touching `.lib` or other properties. Metadata consumers use appStoreMetaData, not this index. The imports still run eagerly at module load, as the old static imports did, so there is no new unawaited synchronous access.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:201309f1edc6f46af5d207f9",
+          "target:hun:f60d0ce4c0475f3ba88484e5"
+        ],
+        "title": "All appStore consumers await the promise values"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32434,
+        "cache_write_input_tokens": 13639,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 46079,
+        "output_tokens": 1153,
+        "provider_cost": 0.0702743,
+        "request_id": "",
+        "seconds": 14.641
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "88cd4eb35a2579ade7368de1c1394586138dbc02757205c8ecf3ec5b9b5a080a",
+      "model": "sonnet",
+      "prompt_digest": "1253f4597dfe19f0ccbbcce69dbf57626ffb9ce1a62ec60fc280783735f639f5",
+      "response": {
+        "category": "correctness",
+        "consequence": "If a calendar service constructor throws, or deleteEvent fails, in the reschedule flow, the error is not logged and surfaces as an unhandled rejection. In serverless runtimes the deletion may also be cut off when the request returns, which leaves the old calendar event in place.",
+        "evidence_refs": [
+          "source:new:packages/app-store/vital/lib/reschedule.ts@sha256:e38508d7614d5295e4ebdca2b1aeabb21aeb92d4fb966d4bf0754129e4273aca",
+          "source:new:packages/app-store/wipemycalother/lib/reschedule.ts@sha256:1b9778c6748fee76741011db5ce900329eb1fcd94579d1855f572fa615a7c97d",
+          "source:new:packages/trpc/server/routers/viewer/bookings.tsx@sha256:d9aa8dfd68bde34fc084558df5f77e921b763a0671c7d9de5e3892bf0b25ead4"
+        ],
+        "explanation": "The change turned the forEach callbacks into async functions so they can await getCalendar. forEach ignores the returned promises. In vital/lib/reschedule.ts and wipemycalother/lib/reschedule.ts (lines 125-137), the surrounding try/catch no longer catches anything from getCalendar or deleteEvent. Before, a synchronous throw from getCalendar (for example the CalendarService constructor) was caught and logged. Now it becomes an unhandled promise rejection. The same pattern is in bookings.tsx requestReschedule (lines ~553-570). There the code proceeds to send the reschedule emails and webhooks without waiting for the calendar deletions to finish, and a failed deletion is never handled.",
+        "lines": {
+          "end_line": 128,
+          "start_line": 125
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:f73fad14dfb9f4fee2a05be3",
+          "target:sym:9a9a19d7a6c060c69e5adbed",
+          "target:sym:6ddb681578e9bb7ed6a8d5ec"
+        ],
+        "title": "Async forEach callbacks make calendar/video deletion unawaited, escaping try/catch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 31007,
+        "cache_write_input_tokens": 25255,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56266,
+        "output_tokens": 1534,
+        "provider_cost": 0.1218437,
+        "request_id": "",
+        "seconds": 20.356
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8cbf7a10bc8b76c37061f07d07f1f728e0fb3dcdab15c78a62013ffdd54e3fe5",
+      "model": "sonnet",
+      "prompt_digest": "f58554250bbbf98c4df8f5afc95e1bf561144db5c3566677758c8cb06b2273ab",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No concrete failing input found.",
+        "evidence_refs": [],
+        "explanation": "getVideoAdapters is used only inside videoClient.ts, and every call there is now awaited. Every getCalendar call site I found either awaits it or stores the promise and awaits it later. CalendarManager.ts:28 stores the promise and CalendarManager.ts:48 awaits it. The appStore lookups in deletePayment and handleCancelBooking are awaited. I found no caller that still assumes a synchronous return.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:f483a0813188cc96d4e0526f"
+        ],
+        "title": "No broken caller found for async getVideoAdapters/getCalendar"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 58522,
+        "cache_write_input_tokens": 26101,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 84629,
+        "output_tokens": 1134,
+        "provider_cost": 0.12391920000000001,
+        "request_id": "",
+        "seconds": 17.612
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9248632a85b70b3d47e6e519cf5dcd0431bbf4ad98638bae77c5b8b9d4ee0eb5",
+      "model": "sonnet",
+      "prompt_digest": "20bab01a3004eed4efe41522ba0a886cf6a62c7e31d80ff3886d1feca092ae52",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "If a calendar or video deletion fails, nothing logs the error and the caller is not told. The old calendar or video event can stay in place while the reschedule is reported as successful. An unhandled rejection can also crash the Node process, depending on the runtime configuration.",
+        "evidence_refs": [
+          "source:new:packages/app-store/wipemycalother/lib/reschedule.ts@sha256:1b9778c6748fee76741011db5ce900329eb1fcd94579d1855f572fa615a7c97d",
+          "source:new:packages/app-store/vital/lib/reschedule.ts@sha256:e38508d7614d5295e4ebdca2b1aeabb21aeb92d4fb966d4bf0754129e4273aca"
+        ],
+        "explanation": "The change makes the forEach callback async by adding `await getCalendar(...)`. `forEach` ignores the promises the callback returns. The enclosing try/catch therefore cannot catch a rejection from getCalendar, deleteEvent or deleteMeeting. Those rejections become unhandled promise rejections. Nothing awaits the deletions. After the forEach, the function sends the reschedule email and returns true without waiting for them. The same code appears in packages/app-store/wipemycalother/lib/reschedule.ts and packages/app-store/vital/lib/reschedule.ts. Before the change, getCalendar was called without await, and the code only returned the deleteEvent and deleteMeeting calls from the callback, which forEach also ignored. The change adds a new asynchronous failure path inside the callback, and the try/catch still does not cover it.",
+        "lines": {
+          "end_line": 134,
+          "start_line": 125
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 134,
+          "original": "      bookingRefsFiltered.forEach(async (bookingRef) => {\n        if (bookingRef.uid) {\n          if (bookingRef.type.endsWith(\"_calendar\")) {\n            const calendar = await getCalendar(credentialsMap.get(bookingRef.type));\n            return calendar?.deleteEvent(bookingRef.uid, builder.calendarEvent);\n          } else if (bookingRef.type.endsWith(\"_video\")) {\n            return deleteMeeting(credentialsMap.get(bookingRef.type), bookingRef.uid);\n          }\n        }\n      });",
+          "start_line": 125,
+          "text": "      await Promise.all(\n        bookingRefsFiltered.map(async (bookingRef) => {\n          if (bookingRef.uid) {\n            if (bookingRef.type.endsWith(\"_calendar\")) {\n              const calendar = await getCalendar(credentialsMap.get(bookingRef.type));\n              return calendar?.deleteEvent(bookingRef.uid, builder.calendarEvent);\n            } else if (bookingRef.type.endsWith(\"_video\")) {\n              return deleteMeeting(credentialsMap.get(bookingRef.type), bookingRef.uid);\n            }\n          }\n        })\n      );"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:9a9a19d7a6c060c69e5adbed",
+          "target:sym:f73fad14dfb9f4fee2a05be3"
+        ],
+        "title": "Async forEach callbacks are not awaited, so deletion errors escape the try/catch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 28474,
+        "cache_write_input_tokens": 10690,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 39172,
+        "output_tokens": 2732,
+        "provider_cost": 0.0737622,
+        "request_id": "",
+        "seconds": 24.985
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "aa1982233958cb18a197bf591f3536eedfd88ba327161ea5b101c95ce3837560",
+      "model": "sonnet",
+      "prompt_digest": "daa56e509fa7946e63a2bd3f5b24e3a8def732df828d30ec9ff323e131565cde",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No breakage from the signature change.",
+        "evidence_refs": [],
+        "explanation": "getVideoAdapters is not exported. Every use of it is inside videoClient.ts, and each one awaits it (lines 52, 111, 144, 162, 185, 206, 39). getBusyVideoTimes was already async and its only external caller, getBusyTimes.ts:137, awaits it. I found no synchronous use of either result.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:f483a0813188cc96d4e0526f"
+        ],
+        "title": "All getVideoAdapters callers await the result"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 16480,
+        "cache_write_input_tokens": 10046,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 26530,
+        "output_tokens": 603,
+        "provider_cost": 0.048791900000000006,
+        "request_id": "",
+        "seconds": 14.069
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ddccadd32db2d0becc4dbf4632cd50b9c62c459111d7b7681eef8564f273766c",
+      "model": "sonnet",
+      "prompt_digest": "cd4161c8330ad4281f500bb96a9f40d1fef3fb0a5a0d15cb34bb4345c044181c",
+      "response": {
+        "category": "correctness",
+        "consequence": "No breakage found from the sync-to-async change.",
+        "evidence_refs": [
+          "source:new:packages/core/CalendarManager.ts@sha256:fc7427acc5b4254efdb10ffb975e68e7bf151e82f7c5fb657478de2203ca16a6",
+          "source:new:packages/app-store/_utils/getCalendar.ts@sha256:81161db40b14a147a989490d41c7a2a1f02b0fceb2b71b902faeca4effef30a6"
+        ],
+        "explanation": "getCalendarCredentials stores a Promise in `calendar`. Its only consumer, getConnectedCalendars, does `await item.calendar` before use (CalendarManager.ts:48). The other callers pass the result to getConnectedCalendars: viewer.tsx lines 367 and 442, and apps/web/pages/api/availability/calendar.ts line 83. Every direct getCalendar call I found uses await.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:ef0bb81cc1e9252e37d5cff3",
+          "target:sym:611d889992515271ad403654"
+        ],
+        "title": "Promise stored in calendar field is awaited by consumers"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 56541,
+        "cache_write_input_tokens": 11611,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 68162,
+        "output_tokens": 1420,
+        "provider_cost": 0.067108,
+        "request_id": "",
+        "seconds": 17.085
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7423fef58de4ffd581ee31e5c5ffa999c26cae38ed3b6011977b7bcbcb1bd08e",
+      "model": "sonnet",
+      "prompt_digest": "2e5737cc13cef146345dc8aaa805691fe97a19b825d3c97ae983f8644dcc0eaf",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Usages of getCalendarCredentials(...).calendar in CalendarManager.ts, EventManager and the availability code. Confirm whether they await it or call methods on it directly. Check the declared types, since TypeScript would flag a misuse of the Promise.",
+            "failure_mode": "getCalendar is now async and returns Promise<Calendar|null>. getCalendarCredentials still calls it synchronously and stores `calendar: getCalendar(credential)`, so each entry holds a Promise. Callers that use `.calendar` directly (getConnectedCalendars, availability, event creation) would call methods like listCalendars or getAvailability on a Promise. That throws a TypeError or silently skips calendars.",
+            "investigation_rationale": "Check every consumer of getCalendarCredentials and of the `calendar` field. Look for any that await or resolve the Promise before use. Also check whether other direct callers of getCalendar omit await.",
+            "priority_rationale": "This is a sync-to-async contract change on a core path (calendar listing and availability). It could break booking and availability for all calendar integrations.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:ef0bb81cc1e9252e37d5cff3",
+              "target:sym:611d889992515271ad403654"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "Confirm the callbacks are not awaited, for example by Promise.all. Confirm a rejection in deleteEvent or deleteMeeting is not handled. Check whether the handler returns before the deletions finish.",
+            "failure_mode": "The reschedule code runs `bookingRefsFiltered.forEach(async ...)`, which awaits getCalendar and deleteMeeting inside the callback. forEach does not await the callbacks, so the surrounding try/catch cannot catch their rejections. These become unhandled promise rejections. The function can also return, and the request can finish, before the calendar and video deletions complete, which leaves stale events. Making getCalendar and getVideoAdapters async makes this worse because there are now real async gaps.",
+            "investigation_rationale": "Read the whole Reschedule function in both files. Check whether anything after the forEach depends on the deletions having finished. Check whether any error handling exists elsewhere.",
+            "priority_rationale": "Failures are silent and cause data inconsistency, such as old calendar or video events not removed on reschedule. The pattern is duplicated in two apps.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:9a9a19d7a6c060c69e5adbed",
+              "target:sym:f73fad14dfb9f4fee2a05be3"
+            ]
+          },
+          {
+            "category": "performance",
+            "evidence_needed": "List the consumers of appStore. Identify any that access `.lib`, `.metadata` or the default export without await. Confirm whether the dynamic imports run eagerly.",
+            "failure_mode": "appStore changed from static namespace imports to an object of `import(...)` promises. Every dynamic import is evaluated eagerly when the module loads, so all apps are still loaded at startup, but now as unawaited promises. Consumers that read properties synchronously, such as getApps or metadata lookups using `appStore[x].metadata` or `.lib`, get undefined or a Promise. A rejected import also becomes an unhandled rejection at module load. The change may give no lazy-loading benefit and may break sync consumers.",
+            "investigation_rationale": "Grep for all importers of the app-store index (`appStore[`, `from \"..\"`, `@calcom/app-store\"`). Check which ones use the values synchronously without await.",
+            "priority_rationale": "This is a central module used across many packages. A missed await would break app resolution for payments, CRM and webhooks, not only calendar and video.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:201309f1edc6f46af5d207f9",
+              "target:hun:f60d0ce4c0475f3ba88484e5"
+            ]
+          },
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "Call sites of getVideoAdapters and getBusyVideoTimes, and whether each awaits. Also check the test mocks of videoClient and appStore.",
+            "failure_mode": "getVideoAdapters changed from returning VideoApiAdapter[] to Promise<VideoApiAdapter[]>. Any caller or module that is not updated and uses the result synchronously, for example `.map` or indexing on the result, would break. Exported or mocked versions in tests may also now mismatch.",
+            "investigation_rationale": "Grep for getVideoAdapters, getBusyVideoTimes and the other videoClient exports outside videoClient.ts. Check that all callers await them.",
+            "priority_rationale": "This is a signature change to a shared factory used by booking, update, delete and recordings flows.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:f483a0813188cc96d4e0526f",
+              "target:sym:532bd8dbd1d7818c297fffd5",
+              "target:sym:ceee483abb3f6e01cfe3d623"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 19310,
+        "cache_write_input_tokens": 15836,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35152,
+        "output_tokens": 3523,
+        "provider_cost": 0.1021254,
+        "request_id": "",
+        "seconds": 31.258
+      }
+    }
+  ],
+  "case_id": "calcom-02",
+  "case_input_digest": "ea13442e2720523e73056de48455f95f5de30a3570a991ac76967bec746ba785",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

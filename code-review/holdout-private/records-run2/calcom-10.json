@@ -1,0 +1,111 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "18e85ffe6bc044f1bbab4fe0853974a4a5cb8b846f6b590e18c073aa24563f90",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The new email templates are registered in the templates index. The send logic mirrors the existing email flows. I could not name a failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 46808,
+        "cache_write_input_tokens": 2073,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 48885,
+        "output_tokens": 642,
+        "provider_cost": 0.021414,
+        "request_id": "",
+        "seconds": 15.176
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5a88e22939bbad8632290983cb9d396bfa6634c969e2893ed99e5b0d61944ee9",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user can add blacklisted guests by changing the case of the address. Duplicate attendee rows can be created. Existing attendees and blacklisted addresses receive 'guests added' emails.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+        ],
+        "explanation": "The blacklist is lowercased, but each `guest` is compared as typed. `Blocked@x.com` therefore passes `!blacklistedGuestEmails.includes(guest)` when `blocked@x.com` is blacklisted. The same applies to the existing-attendee check `guest === attendee.email`. Duplicates inside the input are also not removed on the server, because that check exists only in the client dialog. `createMany` would insert `a@x.com` twice if a client calls the API directly. Separately, `sendAddGuestsEmails(evt, guests)` receives the raw input rather than `uniqueGuests`. Blacklisted and already-present addresses that were filtered out are still emailed.",
+        "lines": {
+          "end_line": 78,
+          "start_line": 74
+        },
+        "other_findings": [
+          {
+            "category": "performance",
+            "consequence": "One authenticated request with thousands of emails causes heavy DB, CPU and email work. It can also be used to send mass email.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts@sha256:ad2175fdb978d53d9618415853298db9b67223294a0a930f7987a55f4bf89214"
+            ],
+            "explanation": "`guests: z.array(z.string().email())` has no `.max()`. The handler runs a translation lookup per attendee, an `attendees.some` scan per guest, a `createMany`, and email sending for the whole list. All of this scales with the array size.",
+            "lines": {
+              "end_line": 6,
+              "start_line": 3
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:hun:b314cced4e70c58a13fbaad7"
+            ],
+            "title": "Unbounded guests array in input schema"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Guest blacklist and duplicate checks are case-sensitive, and emails go to the unfiltered `guests` list"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 57854,
+        "cache_write_input_tokens": 2929,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60789,
+        "output_tokens": 3019,
+        "provider_cost": 0.0502684,
+        "request_id": "",
+        "seconds": 32.704
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,95 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "7841e26f0104ec3de41e552c8fa92cf6b34955c68447eff4bbb7636a839d9813",
+      "model": "sonnet",
+      "prompt_digest": "31f6eb5003d03daf5aec1572b056e48683f806b31c87ec2fb601d5be5e0da08b",
+      "response": {
+        "category": "performance",
+        "consequence": "No performance defect found in the changed code.",
+        "evidence_refs": [],
+        "explanation": "The diff makes three changes. GroupAdapter.getSubGroupsCount now calls modelSupplier.get() once and returns null if the model is missing, where it used to call getGroupModel(). That is still one delegate call. CachedGroup only gains an @Override annotation. GroupUtils loses the private groupMatchesSearchOrIsPathElement method, which was a per-group subGroups findAny check. Removing it removes work and adds none. I did not read the rest of the repository, so I did not check whether anything else calls the removed method. I found no input-dependent work multiplier on the changed path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:2ead4a36ba964c0288220453",
+          "target:sym:8cd563f86d418806c9501e5a",
+          "target:hun:34035d0a1de3c74e3669f8d9"
+        ],
+        "title": "No unbounded or multiplicative work introduced"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 16440,
+        "cache_write_input_tokens": 9898,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 26344,
+        "output_tokens": 1094,
+        "provider_cost": 0.053105,
+        "request_id": "",
+        "seconds": 14.668
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a6abeac499b1fddb63b542de428bf78249f4ee25b1e6d0d2d5897da3abd4695a",
+      "model": "sonnet",
+      "prompt_digest": "592bd2cadaa3fe1eab0af6b729736533758027d133cdae40a154f9202019bb8b",
+      "response": {
+        "category": "verification",
+        "consequence": "The regression test for concurrent group deletion and reading can pass while the race it targets still occurs, and it can leave a runaway thread if a delete fails.",
+        "evidence_refs": [
+          "source:new:tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java@sha256:2a3e324dbdb6ae8b384a99ddf27f0d9727d0c39cff20860a20981ae22abfdea6"
+        ],
+        "explanation": "createMultiDeleteMultiReadMulti starts a background thread that loops on groups().groups(...). The test then sets deletedAll to true and immediately asserts that caughtExceptions is empty. It never joins the thread. A read that is in flight when the flag flips can still throw after the assertion has run. That is likely here, because the last deletions are the ones most likely to race with the read. The exception goes into the list after it was checked, so the test passes. The thread is also non-daemon and is not stopped in a finally block. If a delete throws, deletedAll is never set and the loop runs forever.",
+        "lines": {
+          "end_line": 157,
+          "start_line": 155
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:3c4577676713fc700809d13b"
+        ],
+        "title": "Concurrent reader thread is never joined, so the test can miss failures"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 18339,
+        "cache_write_input_tokens": 12517,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 30862,
+        "output_tokens": 1908,
+        "provider_cost": 0.0721008,
+        "request_id": "",
+        "seconds": 20.929
+      }
+    }
+  ],
+  "case_id": "keycloak-10",
+  "case_input_digest": "2bcf7c012bf81f392e790afa43e9a5ba78704a1b33a6c9cbf75e56ce20870690",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

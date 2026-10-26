@@ -1,0 +1,193 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "21ee3e0ee01c204a7c18d8f8e3ca44544d231b7b58438515539a2b39423fe333",
+      "model": "sonnet",
+      "prompt_digest": "2df4567f28066d5f1f60573c80e339357785dc419c91c0694685d371df024ea4",
+      "response": {
+        "category": "correctness",
+        "consequence": "Any query of type SQL fails at parse time, whether or not the sqlExpressions feature is enabled. The error message is also misleading, because it blames the implementation rather than the flag. If the stubs are later replaced with a real DB, the reader would still reject every SQL expression until this function is fixed.",
+        "evidence_refs": [
+          "source:new:pkg/expr/reader.go@sha256:b7f88f205baaacdab7262acb1d821c78954342dab888ac83e62f341668c061ba",
+          "target:target:sym:1403ec713a271de5e0abc4c4"
+        ],
+        "explanation": "enableSqlExpressions in pkg/expr/reader.go (lines 194-200) negates the feature flag, so `enabled` is true when the flag is off. It returns false in that case, and it also returns false at the end, so the function returns false for every input. ReadQuery's QueryTypeSQL case therefore always returns the error \"sqlExpressions is not implemented\", even when FlagSqlExpressions is enabled. The negation and the unconditional `return false` look like a mistake. The code behind the flag is also a stub: every method on `DB` in pkg/expr/sql/db.go returns \"not implemented\". The flag therefore controls nothing. The performance concern in the hypothesis is not supported. The changed path does constant work and has no input-dependent multiplier.",
+        "lines": {
+          "end_line": 199,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 199,
+          "original": "\tenabled := !h.features.IsEnabledGlobally(featuremgmt.FlagSqlExpressions)\n\tif enabled {\n\t\treturn false\n\t}\n\treturn false",
+          "start_line": 195,
+          "text": "\treturn h.features.IsEnabledGlobally(featuremgmt.FlagSqlExpressions)"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:1403ec713a271de5e0abc4c4"
+        ],
+        "title": "enableSqlExpressions always returns false, so SQL expressions can never be read"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32037,
+        "cache_write_input_tokens": 26171,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58214,
+        "output_tokens": 2103,
+        "provider_cost": 0.1314081,
+        "request_id": "",
+        "seconds": 32.289
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "625f297d9882367bbe31bfeb4595c564d457a9e83a7a35a31299cfc1c0508d2d",
+      "model": "sonnet",
+      "prompt_digest": "bc03a67cb477ad3ad979c31dadba15054ec7c92a597bcbe120343e6b27c2c7a2",
+      "response": {
+        "category": "correctness",
+        "consequence": "The SQL expression type is unreachable. Any request with a \"sql\" expression query fails with a misleading \"not implemented\" error, even when the sqlExpressions feature toggle is enabled. The SQLExpression and NewSQLCommand code is dead.",
+        "evidence_refs": [
+          "source:new:pkg/expr/reader.go@sha256:b7f88f205baaacdab7262acb1d821c78954342dab888ac83e62f341668c061ba",
+          "target:target:sym:5f5693fdbe8479f66d4bf1a9"
+        ],
+        "explanation": "The new gate in the QueryTypeSQL branch calls enableSqlExpressions(h). That function (pkg/expr/reader.go:194-200) sets `enabled := !IsEnabledGlobally(FlagSqlExpressions)`. It returns false when `enabled` is true, and it also returns false otherwise. Both paths return false, so the flag has no effect. With FlagSqlExpressions on, the gate still returns the error \"sqlExpressions is not implemented\". The negated condition is also inverted, but the function cannot return true anyway. The early return does not leave a bad iterator state. Both callers (parser.go:102-105 and nodes.go:137) abort on the error, and the iterator is discarded. A nil h or nil h.features would panic at line 195, but I did not check whether any caller can pass one.",
+        "lines": {
+          "end_line": 132,
+          "start_line": 129
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:5f5693fdbe8479f66d4bf1a9"
+        ],
+        "title": "enableSqlExpressions always returns false, so SQL queries are always rejected even with the feature flag on"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 24635,
+        "cache_write_input_tokens": 8328,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 32969,
+        "output_tokens": 1320,
+        "provider_cost": 0.049647899999999995,
+        "request_id": "",
+        "seconds": 19.64
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e5ff9141c661e16c4ac9168e260309e6e778bfa5942de013e2b998560e571f7a",
+      "model": "sonnet",
+      "prompt_digest": "92ca32c01f70e10a2826381242f24dcb6a2697f61bf8f59c2434a01d1b7037ad",
+      "response": {
+        "category": "correctness",
+        "consequence": "No panic, internal error or partial result follows from the stub.",
+        "evidence_refs": [
+          "source:new:pkg/expr/reader.go@sha256:b7f88f205baaacdab7262acb1d821c78954342dab888ac83e62f341668c061ba",
+          "source:new:pkg/expr/sql/db.go@sha256:20b57e42fc99842ab870f855809dfa1454917ef73e7d6a7173b306d5c685956c"
+        ],
+        "explanation": "SQLCommand.Execute (pkg/expr/sql_command.go:100-105) checks the error from QueryFramesInto. It logs the error, sets rsp.Error and returns, so the unpopulated frame is never used. Separately, ReadQuery rejects QueryTypeSQL unless enableSqlExpressions returns true. That function (reader.go:194-200) returns false on every path, so NewSQLCommand is never reached from the reader and the stub is unreachable there. The 'not implemented' result is deliberate placeholder behavior and is handled gracefully.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:98ffa40d52a1ee6ced1bda04",
+          "target:sym:5f5693fdbe8479f66d4bf1a9"
+        ],
+        "title": "SQL stub failure is handled and the path is gated off"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 25979,
+        "cache_write_input_tokens": 9261,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35246,
+        "output_tokens": 1193,
+        "provider_cost": 0.0523122,
+        "request_id": "",
+        "seconds": 13.637
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "26db4a12234bd7cfa2af6c807766fbf1f7784459b40fd37491eebe8fd4696db8",
+      "model": "sonnet",
+      "prompt_digest": "32b74b6d4ab71151ac90121f1345393519fc13236087e3cd1c8fe6e4bcd036af",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "The definition of enableSqlExpressions, including nil handling of h. How callers of ReadQuery react to the returned error. Whether other branches consume the iterator on error. Tests covering SQL query parsing with the flag on and off.",
+            "failure_mode": "In the QueryTypeSQL branch of ReadQuery, enableSqlExpressions(h) gates parsing. When the flag is off, ReadQuery returns an error without consuming the JSON value from iter. This could leave the iterator in a bad state for later queries in the same request, or surface a misleading 'not implemented' error instead of a feature-disabled error. When the flag is on, NewSQLCommand is built on a DB whose methods all return 'not implemented', so SQL queries would fail at execution time.",
+            "investigation_rationale": "Check how enableSqlExpressions derives its value, including whether h can be nil. Check whether callers of ReadQuery handle the early return consistently with other error paths. Check whether the error is wrapped or classified for the user.",
+            "priority_rationale": "This is the only entry point that decides whether the stub SQL path is reachable. A mistake here could cause a panic or user-visible failures.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:5f5693fdbe8479f66d4bf1a9"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "SQLCommand.Execute code showing how errors from the DB are handled. Whether the output frame f is used after an error. Tests or flag defaults showing the path is unreachable in production.",
+            "failure_mode": "DB.QueryFramesInto, TablesList and RunCommands are stubs that always return 'not implemented'. If the SQL command's Execute path calls them when the feature flag is enabled, every SQL expression fails at runtime. If the error is not handled gracefully, it could be reported as an internal error or panic, or a partial result could be returned.",
+            "investigation_rationale": "Trace NewSQLCommand and SQLCommand.Execute to see whether they call QueryFramesInto and how they handle its error. Confirm no caller ignores the error and uses the output frame f, which stays unpopulated.",
+            "priority_rationale": "The stub is wired to a user-facing query type, so enabling the flag exposes a guaranteed failure path.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:98ffa40d52a1ee6ced1bda04",
+              "target:sym:5f5693fdbe8479f66d4bf1a9"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 9093,
+        "cache_write_input_tokens": 4756,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 13855,
+        "output_tokens": 1822,
+        "provider_cost": 0.038633799999999996,
+        "request_id": "",
+        "seconds": 19.279
+      }
+    }
+  ],
+  "case_id": "grafana-09",
+  "case_input_digest": "bb2cf3b25ef5d0cb13e209ed0d01c2aaf491bf51d8adf77b15d12d97bb7802be",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

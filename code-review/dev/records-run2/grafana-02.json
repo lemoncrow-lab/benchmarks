@@ -1,0 +1,99 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "2cbc700b1c32ea2b6de1cc9804318479899518918c38d8f2910853b41b0abbdd",
+      "model": "sonnet",
+      "prompt_digest": "8659ad30f3c791aa733ddb7740148290abac7945f1179ec81d1695e8826b6da9",
+      "response": {
+        "category": "security",
+        "consequence": "No concrete failing input or state was identified.",
+        "evidence_refs": [],
+        "explanation": "The change only edits tests. It adds TestService_CacheCheck and TestService_CacheList, wires permDenialCache into setupService, and removes one cache-hit case from TestService_getUserPermissions. It changes no production authorization code, so no untrusted input crosses a changed trust boundary. The new tests use a fake store with no permissions, so the allow and deny results come from the cache or the fallback store as intended. I did not read the production Service code, so I did not check these tests against it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:173c49dc7a022bc2bc7085ed",
+          "target:hun:1bb547f5e6746ed491a8525d",
+          "target:hun:f40f1c17851b33295e84779a",
+          "target:sym:969bebd478c18934303a7b9f",
+          "target:sym:a01f15e84b866c3c085f1459",
+          "target:sym:d4fbe8c653bcdc30ea796639"
+        ],
+        "title": "Test-only change; no exploitable authorization defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 25173,
+        "cache_write_input_tokens": 18756,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 43935,
+        "output_tokens": 1248,
+        "provider_cost": 0.0918213,
+        "request_id": "",
+        "seconds": 12.977
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9fd9d7f2e7dbcaf9125423ada60d3eb82c02f652a52006f8fe1821507a8c957e",
+      "model": "sonnet",
+      "prompt_digest": "42d627f4f9420a22da06ff17fff0ca4b916633c2c9a68b5904101ccc3aef60b2",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user can get spurious denials for resources whose name and folder concatenate to the same string as a previously denied pair. Entries live for the short cache TTL.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/cache.go@sha256:6ef959dfc9f9ed777159bccae3582566917c6bf2db3f38adddecbf58f884dd7c",
+          "source:new:pkg/services/authz/rbac/service.go@sha256:cbfa3f2caf30a4ecde165c3d132988a4beff3c4439e14716d46421af3f4e1b8a"
+        ],
+        "explanation": "userPermDenialCacheKey builds the key as namespace.perm_uid_action_name_parent. Name and parent are joined with \"_\" and are not escaped. Resource names and folder UIDs can contain underscores. A denial cached for (name \"a_b\", parent \"c\") produces the same key as one for (name \"a\", parent \"b_c\"). Check short-circuits to Allowed:false on any hit in permDenialCache, before it looks at permissions. A user who was denied one resource can therefore be wrongly denied a different resource they are allowed to access, until the cache entry expires. The key also shares the \"perm_<uid>_<action>\" prefix with the permission-map key, though the trailing fields keep the two apart. The failure direction is deny, not allow, so this is not an authorization bypass.",
+        "lines": {
+          "end_line": 32,
+          "start_line": 30
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "title": "Denial cache key joins variable fields with \"_\", so keys can collide"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 26775,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 30304,
+        "output_tokens": 1647,
+        "provider_cost": 0.1265805,
+        "request_id": "",
+        "seconds": 15.213
+      }
+    }
+  ],
+  "case_id": "grafana-02",
+  "case_input_digest": "67dee79c385c414322759bfb10f191d68e23a1b5f604f488ffffb9f1951d89f0",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

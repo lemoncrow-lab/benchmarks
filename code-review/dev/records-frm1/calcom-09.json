@@ -1,0 +1,296 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "c8ae935c89eb1d546dc90e9e22838adba56aa9643a87b9529ab8d7de1d6cc0a5",
+      "model": "sonnet",
+      "prompt_digest": "d50437ddf1f861580a6339323e2eeb7c5f39a305f50cff651202732bf519161e",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-98abaad018062b0b933b4ade",
+              "finding-421979d79614e7f7abd9f1df"
+            ],
+            "keep_id": "finding-421979d79614e7f7abd9f1df"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "fe5351671e634c9026a7fdb1522f3c397be59a058a66b886a0cede688663e814",
+      "usage": {
+        "cache_read_input_tokens": 7644,
+        "cache_write_input_tokens": 4748,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 12398,
+        "output_tokens": 213,
+        "provider_cost": 0.022335599999999997,
+        "request_id": "",
+        "seconds": 8.016
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2e87cd8f27ed221d41fa0dd022f5e5537e16b355febfae0a724c128a005b6aca",
+      "model": "sonnet",
+      "prompt_digest": "1745af4d354d74d79128ec1d35b84f659185dbfece8c7c9997b49eb469bdf749",
+      "response": {
+        "category": "correctness",
+        "consequence": "One failing reminder, or a failing bookkeeping write, stops SMS scheduling for every later reminder in the batch on that cron run. Reminders with no message or recipient are re-processed on every run without being counted.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08",
+          "target:target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "explanation": "The new retryCount update inside the catch block (lines 190-197) is not wrapped in its own try/catch. If it throws, for example on a DB error or a reminder row deleted concurrently (Prisma P2025), the exception escapes the for-loop and the handler. The remaining reminders are not processed and no response is sent normally. Separately, reminders with an empty message or missing sendTo skip both the schedule and the retryCount update (line 163 condition has no else). They are re-fetched on every cron run until scheduledDate passes, so the retry accounting is inconsistent.",
+        "lines": {
+          "end_line": 197,
+          "start_line": 190
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Non-SMS reminders with retryCount > 1 are deleted by the SMS cron and are never sent. This is data loss. It is latent if only the SMS path increments retryCount, but it is not enforced.",
+            "evidence_refs": [
+              "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08",
+              "target:target:sym:7684294b4ccb67c1adbdcbd2"
+            ],
+            "explanation": "The second OR branch of the deleteMany (lines 38-42) filters only on retryCount > 1 and has no method: SMS condition. It therefore matches WorkflowReminder rows of any method, such as EMAIL or WHATSAPP, whose retryCount exceeds 1. The previous query was restricted to SMS. The SMS cron should only remove its own reminders.",
+            "lines": {
+              "end_line": 42,
+              "start_line": 38
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2"
+            ],
+            "title": "retryCount cleanup deletes reminders of every method"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "Unguarded prisma update in catch aborts the whole batch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 17385,
+        "cache_write_input_tokens": 11276,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 28665,
+        "output_tokens": 1994,
+        "provider_cost": 0.0678013,
+        "request_id": "",
+        "seconds": 19.809
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5f638be37639edee15a4cc43a42d2e659e68e7a94a0e56a2628586c3c0f75fa8",
+      "model": "sonnet",
+      "prompt_digest": "90bb0c00e4173fc3d3d89d8fd5a5b84a0ec1805f1e8c9cbcc172d7b136870a24",
+      "response": {
+        "category": "correctness",
+        "consequence": "Today only the SMS path writes retryCount, so the impact is limited. If another reminder method starts using the column, this SMS endpoint will silently delete its reminders, including ones that are already scheduled.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08",
+          "source:new:packages/prisma/schema.prisma@sha256:d4d7d4d629588fbf5bd8786b486a4f7a05e93658ce0782479da277b06bc02264"
+        ],
+        "explanation": "The new second OR branch in the deleteMany, `{ retryCount: { gt: 1 } }`, has no `method: WorkflowMethods.SMS` condition. The first branch is scoped to SMS. This is the SMS cron handler, and it only increments retryCount for SMS reminders. But the column is on the shared WorkflowReminder table, so the branch matches any reminder with retryCount > 1, whatever its method. Any email or WhatsApp reminder that later gets a retryCount above 1 would be deleted by this SMS cron endpoint.",
+        "lines": {
+          "end_line": 42,
+          "start_line": 38
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 42,
+          "original": "        {\n          retryCount: {\n            gt: 1,\n          },\n        },",
+          "start_line": 38,
+          "text": "        {\n          method: WorkflowMethods.SMS,\n          retryCount: {\n            gt: 1,\n          },\n        },"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "retryCount cleanup delete is not limited to SMS reminders"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 20209,
+        "cache_write_input_tokens": 14476,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 34691,
+        "output_tokens": 2166,
+        "provider_cost": 0.0828946,
+        "request_id": "",
+        "seconds": 24.479
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "adfc6570090c5e01aa5b3c8de40b2afba8da2a5c0187b89d0b79461ee78be340",
+      "model": "sonnet",
+      "prompt_digest": "a29f25f7e538e2f9d01c50ec2525d95ac8b9ba22ad83400b8bc55bd62124f196",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No defect confirmed.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql@sha256:836d64055efea69586df812385de3f1f0a4a35e8ea2877ac1734d69d3b5d5e3e",
+          "source:new:packages/prisma/schema.prisma@sha256:d4d7d4d629588fbf5bd8786b486a4f7a05e93658ce0782479da277b06bc02264"
+        ],
+        "explanation": "The migration adds \"retryCount\" INTEGER NOT NULL DEFAULT 0, which matches the Prisma field `retryCount Int @default(0)`. On PostgreSQL 11 and later, adding a column with a constant default is a metadata-only change, so it does not rewrite the table. Prisma migrations normally run before the new code is deployed. I found no defect in the supplied snapshot.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:7e3446f5a656f5ed3bb402b0",
+          "target:hun:4c78e431b2cbf6002f2464d4"
+        ],
+        "title": "Migration matches schema field"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 7391,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10920,
+        "output_tokens": 691,
+        "provider_cost": 0.037548200000000004,
+        "request_id": "",
+        "seconds": 7.512
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fe1c45a9925955d07184c6e1f6391de6884dbaf6fe8815fa4923b7fa3545ff8b",
+      "model": "sonnet",
+      "prompt_digest": "f43afd7f6471b0b707e789e23d3cc5d683ee4ef5899c180837aaaf8b1a293f2a",
+      "response": {
+        "category": "correctness",
+        "consequence": "No data loss of non-SMS reminders is currently reachable. The missing method filter would only matter if another handler later starts incrementing retryCount.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08"
+        ],
+        "explanation": "The second OR branch has no method filter. However, a grep for retryCount shows that the only writer to WorkflowReminder.retryCount is this SMS handler. Email and WhatsApp reminders keep the schema default of 0 and never satisfy retryCount > 1. The first branch still has the same SMS-only scope as before the change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "retryCount delete branch does not reach non-SMS reminders in practice"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 16702,
+        "cache_write_input_tokens": 10361,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 27067,
+        "output_tokens": 935,
+        "provider_cost": 0.0534191,
+        "request_id": "",
+        "seconds": 12.786
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "30c4e034e761460f29c8ba7a408ae6ba5d1571fa4830f9c64478c278584fb89e",
+      "model": "sonnet",
+      "prompt_digest": "9b32ca6c8dac0458b1bb33c48114143fb713603d795647f314fe32d3b931ee5a",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "The deleteMany where clause shows retryCount branch has no method filter; other reminder types may reach retryCount>1 or hold the default 0 only. Confirm whether the intent was SMS-only.",
+            "failure_mode": "The deleteMany OR clause deletes reminders with retryCount > 1 across all methods (email, WhatsApp), not just SMS, because retryCount is not scoped to method SMS. Failed or pending non-SMS reminders could be silently deleted. It also deletes SMS reminders whose scheduledDate is past, including unscheduled ones that were never sent.",
+            "investigation_rationale": "Check whether the second OR branch lacks a method filter and whether other reminder handlers (email/whatsapp) use retryCount or would be affected by this deletion.",
+            "priority_rationale": "Data loss of unrelated reminders by a cron job is high impact and irreversible.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Code paths showing no retryCount increment when message or sendTo is empty; the catch update is not wrapped in try/catch.",
+            "failure_mode": "Retry accounting is inconsistent: retryCount is incremented in the catch block and when twilio.scheduleSMS returns falsy, but is not incremented when message is empty or sendTo is missing, so those reminders retry forever. Also the deletion threshold gt:1 means only 2 failed attempts are allowed before deletion, and the catch's update could itself throw and abort the whole loop.",
+            "investigation_rationale": "Trace the paths in the loop where no scheduling occurs and no retryCount update happens, and the unguarded prisma update in the catch.",
+            "priority_rationale": "Affects reliability of SMS delivery for all reminders in the cron batch.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2",
+              "target:sym:435a26bb9b8379e3fa210a42"
+            ]
+          },
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Migration SQL matches schema; other WorkflowReminder creation paths or raw queries not impacted; table size/lock concerns.",
+            "failure_mode": "Adding a NOT NULL column with default to the WorkflowReminder table may take a lock or rewrite on a large table during deploy; also code deployed before the migration would fail selecting retryCount. Schema and migration must match.",
+            "investigation_rationale": "Verify the migration SQL matches the Prisma schema field (Int, default 0) and that deployment order handles the select of retryCount.",
+            "priority_rationale": "Schema mismatch or ordering would break the cron handler with a Prisma error on every run.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:7e3446f5a656f5ed3bb402b0",
+              "target:hun:4c78e431b2cbf6002f2464d4"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 9483,
+        "cache_write_input_tokens": 968,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10453,
+        "output_tokens": 1048,
+        "provider_cost": 0.016184200000000003,
+        "request_id": "",
+        "seconds": 10.304
+      }
+    }
+  ],
+  "case_id": "calcom-09",
+  "case_input_digest": "84f3b9669001dc464f6265e0185a38f8c5a2ab8db88c888e790f164d3b39ecb3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:43:36+00:00"
+  },
+  "version": 1
+}

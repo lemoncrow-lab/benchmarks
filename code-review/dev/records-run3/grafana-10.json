@@ -1,0 +1,97 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "137522ceebf3ffbd343341808205573524ffdc3e9e4271673bb020aad6b2a955",
+      "model": "sonnet",
+      "prompt_digest": "fb4b71b0cf27aaba8f7b01249f22e08cdfbfd4a667b0d224805293437229a1b1",
+      "response": {
+        "category": "correctness",
+        "consequence": "None beyond reduced Postgres coverage for this test, which is intentional and documented.",
+        "evidence_refs": [
+          "source:new:pkg/server/module_server_test.go@sha256:39967df8305c244c1646758d3ffa118d5940df6a6cdc7d766fddf03bfe6c786e"
+        ],
+        "explanation": "The change only adds an early t.Skip for dbType == \"postgres\", with a TODO and reason. It is placed after the sqlite skip and before DB initialization, so no resource is leaked and the remaining flow is unchanged. No concrete failing input or state was found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:73d5005980ba38704671ad8a"
+        ],
+        "title": "Postgres skip added to integration test is not a defect"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 12913,
+        "cache_write_input_tokens": 8143,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 21062,
+        "output_tokens": 863,
+        "provider_cost": 0.043163900000000005,
+        "request_id": "",
+        "seconds": 14.217
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "585fc1783819ec0b429e4e9c707d51cbc41789347323594dda620a97c722a054",
+      "model": "sonnet",
+      "prompt_digest": "8b89a0b7e9cbcd2b0ebca093bca748d9126ff917daa3d6a2e103f486fcddf23b",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "Go can abort the whole process with \"fatal error: concurrent map iteration and map write\" during startup if a write event arrives while init logs. This is unrecoverable.",
+        "evidence_refs": [
+          "source:new:pkg/storage/unified/search/bleve.go@sha256:ad6d159f6ac0aa1f3d26b7d0d6f230a97a42fe171b6bb96375f7a8e719a5d35d",
+          "source:new:pkg/storage/unified/resource/search.go@sha256:13a29251614ed223b36bf814ce299ca205c6cc61677095febd9333895c4f7969"
+        ],
+        "explanation": "The change adds `s.search.TotalDocs()` to the log line in searchSupport.init. That call runs right after the goroutine that consumes WatchWriteEvents is started. handleEvent can reach getOrCreateIndex and then BuildIndex, which writes `b.cache[key]` under cacheMu. `bleveBackend.TotalDocs` ranges over `b.cache` without taking cacheMu (bleve.go:146). The change also removed the function-wide lock from BuildIndex, so the only synchronisation left is the short write lock. A write that lands during the unlocked range is a concurrent map read and write.",
+        "lines": {
+          "end_line": 147,
+          "start_line": 145
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:564e7851c60ac95b302f97e0",
+          "target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "title": "TotalDocs iterates the bleve cache map without cacheMu while the new init log call and event goroutine can write it"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 34916,
+        "cache_write_input_tokens": 28781,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 63701,
+        "output_tokens": 1586,
+        "provider_cost": 0.13724920000000002,
+        "request_id": "",
+        "seconds": 25.238
+      }
+    }
+  ],
+  "case_id": "grafana-10",
+  "case_input_digest": "897220768459cddae55e956f88c037f694036cacc8973421f9c1547e60d30ec4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

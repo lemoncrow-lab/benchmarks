@@ -1,0 +1,101 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "80cef4720a9b58a9355967d530d64227dd5567df4e2127ed01f786895d897925",
+      "model": "sonnet",
+      "prompt_digest": "8659ad30f3c791aa733ddb7740148290abac7945f1179ec81d1695e8826b6da9",
+      "response": {
+        "category": "security",
+        "consequence": "No exploitable or incorrect behavior is introduced by this diff.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/service_test.go@sha256:de6ef505295680d26caf1130f9dc6ad1f6135bfb25fb285d4c4ad65de7f487aa"
+        ],
+        "explanation": "The change only touches service_test.go. It removes one cache-hit case from TestService_getUserPermissions, adds TestService_CacheCheck and TestService_CacheList, and adds permDenialCache to setupService. No production authorization code changes, so no untrusted input can cross a weakened check. The new tests check the intended behavior: allow from cache, fall back to the store on a miss or stale entry, and deny on an explicit denial entry. I did not read the production Check/List code, so I did not confirm that those tests match it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:173c49dc7a022bc2bc7085ed",
+          "target:hun:1bb547f5e6746ed491a8525d",
+          "target:hun:f40f1c17851b33295e84779a",
+          "target:sym:969bebd478c18934303a7b9f",
+          "target:sym:a01f15e84b866c3c085f1459",
+          "target:sym:d4fbe8c653bcdc30ea796639"
+        ],
+        "title": "Test-only change; no authorization bypass found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 25322,
+        "cache_write_input_tokens": 18977,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44305,
+        "output_tokens": 1411,
+        "provider_cost": 0.0943649,
+        "request_id": "",
+        "seconds": 15.303
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e4f8f46eae42fd8728d024fb18d0e05230fee1683cb5275a732916900dbc7ec9",
+      "model": "sonnet",
+      "prompt_digest": "42d627f4f9420a22da06ff17fff0ca4b916633c2c9a68b5904101ccc3aef60b2",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user can be wrongly denied access to a resource they are allowed to see for the cache TTL, after a different resource with an ambiguous name/parent split was denied. This is a fail-closed error, not an authorization bypass.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/cache.go@sha256:6ef959dfc9f9ed777159bccae3582566917c6bf2db3f38adddecbf58f884dd7c",
+          "target:target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "explanation": "userPermDenialCacheKey builds its key as namespace.perm_uid_action_name_parent. Name and parent are request-controlled and can contain \"_\". Check(name=\"a_b\", parent=\"c\") and Check(name=\"a\", parent=\"b_c\") therefore produce the same key. A denial cached for one request makes Check return Allowed:false for the other without evaluating permissions. The key also shares the \"<ns>.perm_<uid>_<action>\" prefix with userPermCacheKey. I did not verify whether cacheWrap shares one keyspace across its caches. If it does, a name/parent that collides with the shape of a permission key could mix stored types.",
+        "lines": {
+          "end_line": 31,
+          "start_line": 31
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "title": "Denial cache key is ambiguous because it joins request-controlled fields with \"_\""
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "d43938f1280ba46eefc6c0c51661abbb11703418a8faf69b642aff60cbaaa68a",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 26926,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 30455,
+        "output_tokens": 1857,
+        "provider_cost": 0.12929919999999998,
+        "request_id": "",
+        "seconds": 17.985
+      }
+    }
+  ],
+  "case_id": "grafana-02",
+  "case_input_digest": "67dee79c385c414322759bfb10f191d68e23a1b5f604f488ffffb9f1951d89f0",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:43:36+00:00"
+  },
+  "version": 1
+}

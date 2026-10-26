@@ -1,0 +1,1647 @@
+{
+  "aggregate": {
+    "auto": {
+      "catch": {
+        "by_rule": {
+          "location": 0,
+          "symbol": 0
+        },
+        "caught": 0,
+        "ci95": null,
+        "expected": 0,
+        "labelled_prs": 0,
+        "missed": [],
+        "missed_by_cause": {
+          "asked_not_reported": 0,
+          "no_risk_candidate": 0,
+          "not_asked": 0
+        },
+        "rate": null
+      },
+      "complete": 14,
+      "context_tokens": {
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "n": 14,
+        "p90": 0.0,
+        "total": 0.0
+      },
+      "cost_per_catch_usd": null,
+      "errored": 0,
+      "findings": {
+        "p0": 0,
+        "p1": 1,
+        "p2": 26,
+        "per_review": {
+          "p0": 0.0,
+          "p1": 0.071,
+          "p2": 1.857,
+          "total": 1.929
+        },
+        "total": 27
+      },
+      "incomplete": 0,
+      "input_tokens": {
+        "max": 570807.0,
+        "mean": 218263.5,
+        "median": 221027.0,
+        "n": 14,
+        "p90": 302172.6,
+        "total": 3055689.0
+      },
+      "model_calls": {
+        "max": 13.0,
+        "mean": 5.214286,
+        "median": 5.0,
+        "n": 14,
+        "p90": 7.0,
+        "total": 73.0
+      },
+      "model_seconds": {
+        "max": 222.375,
+        "mean": 80.719286,
+        "median": 75.7115,
+        "n": 14,
+        "p90": 109.9692,
+        "total": 1130.07
+      },
+      "noise": {
+        "ci95": null,
+        "duplicates": 0,
+        "findings": 0,
+        "rate": null,
+        "rate_excluding_duplicates": null,
+        "rate_p0_p1": null,
+        "unmatched": 0,
+        "unmatched_p0_p1": 0
+      },
+      "output_tokens": {
+        "max": 21307.0,
+        "mean": 7021.5,
+        "median": 5963.0,
+        "n": 14,
+        "p90": 9345.7,
+        "total": 98301.0
+      },
+      "provider_usd": {
+        "max": 0.904931,
+        "mean": 0.353229,
+        "median": 0.357507,
+        "n": 14,
+        "p90": 0.459457,
+        "total": 4.945206
+      },
+      "prs": 14,
+      "ran": 14,
+      "skipped": 0,
+      "tokens_unreported_reviews": 0,
+      "usd_unreported_reviews": 0,
+      "wall_seconds": {
+        "max": 92.875333,
+        "mean": 49.377012,
+        "median": 50.199455,
+        "n": 14,
+        "p90": 65.112686,
+        "total": 691.278174
+      },
+      "zero_call_reviews": 0
+    }
+  },
+  "baseline": {
+    "against_labels": {
+      "caught": 0,
+      "ci95": null,
+      "comments": 0,
+      "expected": 0,
+      "labelled_prs_with_comments": 0,
+      "noise_rate": null,
+      "rate": null,
+      "unmatched": 0
+    },
+    "by_depth": {
+      "auto": {
+        "agreed": 0,
+        "near_misses": 0,
+        "ours_only": 0,
+        "share_of_theirs_we_also_raised": null,
+        "theirs_only": 0
+      }
+    },
+    "inline_comments": 0,
+    "judged": {
+      "invalid": 0,
+      "valid": 0
+    },
+    "prs_with_comments": 0,
+    "summary_comments": 0
+  },
+  "corpus": {
+    "digest": "05eabef282c6b38bb997ff0fbabf06655e9bec0b4f53b865453770a09d47eb68",
+    "id": "golden-comment-prs",
+    "labelled_prs": 0,
+    "labels": 0,
+    "line_tolerance": 3,
+    "match": "either",
+    "organization": null,
+    "path": "golden_comment_prs.yaml",
+    "prs": 14,
+    "visibility": "private"
+  },
+  "generated_at": "2026-10-26T05:53:53+00:00",
+  "kind": "review-benchmark",
+  "name": "b7k-dev-auto",
+  "prs": [
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.408,
+          "changed_lines": 138,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "An admin-supplied cursor with a negative offset makes the optimized audit-log endpoint return an unhandled 500. The \"advanced pagination\" feature never works. The misleading comments claim it is safe, and the base paginator's offset handling now differs between prev and next cursors.",
+              "explanation": "OptimizedCursorPaginator.get_result, when enable_advanced_features is set and cursor.offset < 0, slices queryset[cursor.offset:stop] with the negative start. The comment claims Django handles this, but Django QuerySets reject negative indexing with an AssertionError (\"Negative indexing is not supported\"). Cursor.from_string parses the offset with int(bits[1]) and does no sign check. organization_auditlogs.py enables this paginator when a superuser or global-access member passes ?optimized_pagination=true. A request with a cursor such as `0:-5:0` therefore fails. The BasePaginator.get_result change has the same problem for is_prev cursors, where the negative offset is kept (`start_offset = ... else offset`). For non-prev cursors it now silently clamps to 0 instead of failing. The comments in both places describe a feature that does not work.",
+              "id": "finding-c507a3e27981732109d0aa3d",
+              "lines": [
+                818,
+                912
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative cursor offsets are passed to Django slicing, causing a 500 on the new optimized audit-log path"
+            },
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "An administrator who sends `optimized_pagination=true` with a negative-offset cursor gets an unhandled exception and an HTTP 500 from the audit log endpoint. The advertised negative-offset pagination feature does not work.",
+              "explanation": "When `enable_advanced_features` is true and `cursor.offset < 0`, `get_result` runs `queryset[cursor.offset:stop]` with a negative start. Django querysets do not support negative indexing or slicing, so this raises `AssertionError: Negative indexing is not supported.` The code comment says the ORM handles negative slicing, which is wrong. The offset comes from the client-supplied `cursor` query parameter, which parses to an integer offset that can be negative. A request with `optimized_pagination=true` and a cursor such as `0:-5:1` hits this branch. I did not open the cursor parser, and I have not run the code. The endpoint only takes this path for superusers or members with global access. If a backend did accept the slice, it would be a way to read outside the intended page window. The `stop` calculation (`start_offset + limit + extra`) would also be meaningless for a negative start.",
+              "id": "finding-75747bdf376d4146d222ed80",
+              "lines": [
+                845,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative cursor offset is sliced directly on a Django queryset, which raises an error"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 87406,
+          "investigated": 9,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 2,
+          "model_seconds": 47.353,
+          "output_tokens": 4492,
+          "pr": "sentry-01",
+          "provider_usd": 0.172307,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 10,
+          "risk_candidates": 9,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 10,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 64.581
+        }
+      },
+      "id": "sentry-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Enhanced Pagination Performance for High-Volume Audit Logs",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.35,
+          "changed_lines": 212,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/api/endpoints/organization_auditlogs.py",
+            "src/sentry/api/paginator.py",
+            "src/sentry/scripts/spans/add-buffer.lua",
+            "src/sentry/spans/buffer.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py",
+            "tests/sentry/spans/test_buffer.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "A request to the audit-log endpoint with a negative cursor offset and `optimized_pagination=true` returns a 500 error. The new feature does not work as documented.",
+              "explanation": "OptimizedCursorPaginator.get_result takes a branch when enable_advanced_features is set and cursor.offset < 0. That branch slices the queryset with a negative start (`queryset[start_offset:stop]`). Django QuerySets do not support negative indexing or slicing and raise an AssertionError ('Negative indexing is not supported'). The code comment says the ORM handles this, which is wrong. The cursor offset comes from the client's `cursor` query parameter. An admin or superuser who sends `optimized_pagination=true` and a cursor with a negative offset, such as `0:-5:0`, gets an unhandled exception. I did not open the Cursor parsing code to confirm that it accepts negative offsets. If the ORM did accept them, this branch would also let a client read rows before the cursor's start, which the standard paginator's `max(0, offset)` clamp prevents. Either way the branch has no valid behavior. I did…",
+              "id": "finding-ed9806871e4b4a566017704f",
+              "lines": [
+                68,
+                911
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "Negative cursor offset is passed to Django queryset slicing, which raises instead of paginating"
+            },
+            {
+              "anchor_line": 877,
+              "category": "correctness",
+              "consequence": "A request with a crafted cursor, for example offset=-5, to any endpoint using OptimizedCursorPaginator(enable_advanced_features=True) fails with a 500 instead of a 4xx or a valid page. The prev-cursor trimming check `len(results) == offset + limit + extra` also uses the negative offset and is wrong.",
+              "explanation": "When enable_advanced_features is set and cursor.offset < 0, get_result slices the queryset with start_offset = cursor.offset. The offset comes from the client-supplied cursor string. Django querysets do not support negative indexing and raise an AssertionError on queryset[-n:stop]. The code comment claiming that the ORM handles negative slicing is wrong. Where the slice does not raise, for example when stop is 0 or positive after the sum, the semantics are undefined and not a valid page window. The 'safe because permissions are checked at the queryset level' reasoning does not hold. The same negative-offset path remains reachable in BasePaginator.get_result for is_prev cursors, where the change keeps the raw offset. The new OptimizedCursorPaginator also duplicates the whole get_result method.",
+              "id": "finding-147d5b6fdb85e487f3400422",
+              "lines": [
+                818,
+                912
+              ],
+              "path": "src/sentry/api/paginator.py",
+              "severity": "p2",
+              "title": "OptimizedCursorPaginator passes client-controlled negative offsets to queryset slicing"
+            },
+            {
+              "anchor_line": 47,
+              "category": "correctness",
+              "consequence": "On oversized segments (more than 1000 spans) that contain duplicate members, the wrong spans can be dropped. The effect is limited to those segments.",
+              "explanation": "Both merges use `zunionstore set_key 2 set_key <other>` with no AGGREGATE option. Redis then defaults to SUM. If a member (span payload) is in both sets, for example when a span is re-delivered or merged twice, its score is added to itself. The new `zpopmin` cap at 1000 evicts the lowest scores first, so it relies on those scores keeping their original meaning. I did not check where the scores are set, so I am assuming they carry ordering information such as a timestamp. After summing, duplicated members get inflated scores and are kept, while distinct older members are evicted instead. Using `AGGREGATE MIN` or `MAX` would keep the scores meaningful.",
+              "id": "finding-c80a7da2dc4b98f8ec56f278",
+              "lines": [
+                43,
+                65
+              ],
+              "path": "src/sentry/scripts/spans/add-buffer.lua",
+              "severity": "p2",
+              "title": "zunionstore defaults to SUM aggregation, which corrupts the scores used by zpopmin eviction"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+          "input_tokens": 278977,
+          "investigated": 10,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 7,
+          "model_seconds": 116.994,
+          "other_changed_code": 31,
+          "output_tokens": 9766,
+          "pr": "sentry-02",
+          "provider_usd": 0.436063,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 10,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 65.34
+        }
+      },
+      "id": "sentry-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Optimize spans buffer insertion with eviction during insert",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.257,
+          "changed_lines": 297,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/github/integration.py",
+            "src/sentry/web/frontend/pipeline_advancer.py",
+            "tests/sentry/integrations/github/test_integration.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 412,
+              "category": "security",
+              "consequence": "The \"authenticated GitHub user must be the app installer\" check can be bypassed. The attacker can have the victim's organization adopt a GitHub installation the victim does not own. This links the attacker-controlled installation, with its repositories and webhooks, to the victim's Sentry organization.",
+              "explanation": "OAuthLoginView uses pipeline.signature as the OAuth `state` and accepts any callback whose state equals it. In pipeline/base.py the signature is md5_text(*pipe_ids), computed from the pipeline's step class names. It is not random and not tied to the session, so every pipeline of this type has the same value, and an attacker can compute it. An attacker can send a victim, who has started a GitHub install in Sentry, a link to the setup callback with state=<known signature>&code=<attacker's own GitHub OAuth code>. The pipeline then stores the attacker's login as github_authenticated_user. GitHubInstallation.dispatch only compares that stored login to integration.metadata[\"sender\"][\"login\"] for an Integration that already exists, so it passes when the attacker is the original installer.",
+              "id": "finding-904aeb0062a61f31a27ec216",
+              "lines": [
+                448,
+                506
+              ],
+              "path": "src/sentry/integrations/github/integration.py",
+              "severity": "p2",
+              "title": "OAuth state is a static md5 of pipeline class names, so the login-CSRF check does not bind the GitHub identity to the user"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "843d7c71926b03f0c5847a0740ac3f7fb3c5fbad",
+          "input_tokens": 228384,
+          "investigated": 2,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 93.139,
+          "other_changed_code": 23,
+          "output_tokens": 7792,
+          "pr": "sentry-04",
+          "provider_usd": 0.404756,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 25,
+          "risk_candidates": 2,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 25,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 54.68
+        }
+      },
+      "id": "sentry-04",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "GitHub OAuth Security Enhancement",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.274,
+          "changed_lines": 249,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/consumers/__init__.py",
+            "src/sentry/spans/consumers/process/factory.py",
+            "src/sentry/spans/consumers/process/flusher.py",
+            "tests/sentry/spans/consumers/process/test_consumer.py",
+            "tests/sentry/spans/consumers/process/test_flusher.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 31,
+              "category": "correctness",
+              "consequence": "Dashboards and alerts that group by the `shard` tag will miss `wait_produce` data. This is a minor observability inconsistency and does not affect flushing.",
+              "explanation": "In SpanFlusher.main, the `spans.buffer.flusher.produce` timer and the `segment_size_bytes` timing use the tag key `shard`. The `spans.buffer.flusher.wait_produce` timer uses `shards`. The same comma-joined `shard_tag` value is used for all three, so the produce and wait_produce metrics cannot be grouped or filtered by the same tag key.",
+              "id": "finding-0b3db522cc56b7df0159bf34",
+              "lines": [
+                31,
+                126
+              ],
+              "path": "src/sentry/spans/consumers/process/flusher.py",
+              "severity": "p2",
+              "title": "Inconsistent metric tag key (\"shards\" vs \"shard\") in flusher timers"
+            },
+            {
+              "anchor_line": 338,
+              "category": "correctness",
+              "consequence": "On timeout, join() can leave flusher processes running instead of terminating them. This is a regression from single-process behavior, where terminate() always ran. It can leave orphaned processes holding Redis and Kafka resources during shutdown or rebalance.",
+              "explanation": "The old join() always called terminate() on the single process after the wait loop. The new code iterates over several processes. When the deadline has already passed at the start of an iteration, it executes `break`. That skips the `process.terminate()` call for the current process and for every process after it. Example: with 2 flusher processes and a short timeout, the first process consumes the whole timeout. The second process is then never terminated and keeps running.",
+              "id": "finding-f52c0709ff7bfda65d5d9b0b",
+              "lines": [
+                329,
+                347
+              ],
+              "path": "src/sentry/spans/consumers/process/flusher.py",
+              "severity": "p2",
+              "title": "join() breaks out of loop on timeout and skips terminate() for remaining flusher processes"
+            },
+            {
+              "anchor_line": 62,
+              "category": "verification",
+              "consequence": "The test may stay flaky, since the flusher process may not flush before join. The added sleep misleads readers into thinking the race is handled.",
+              "explanation": "test_basic patches \"time.sleep\" to a no-op lambda at its start. The added `time.sleep(0.1)`, commented \"Give flusher threads time to process after drift change\", calls that same patched function and returns immediately. No wait occurs, so the intended synchronization does not exist. The test still depends on step.join() and the flusher's timing.",
+              "id": "finding-7fa3e9a3021f7a890aca38ef",
+              "lines": [
+                60,
+                63
+              ],
+              "path": "tests/sentry/spans/consumers/process/test_consumer.py",
+              "severity": "p2",
+              "title": "Added time.sleep(0.1) in test_basic is a no-op because time.sleep is monkeypatched"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "9bf83b05423beff6dcc542f93e903c562e97469b",
+          "input_tokens": 293641,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 5,
+          "model_seconds": 76.176,
+          "other_changed_code": 23,
+          "output_tokens": 7147,
+          "pr": "sentry-06",
+          "provider_usd": 0.432582,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 24,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 24,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 62.405
+        }
+      },
+      "id": "sentry-06",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "Span Buffer Multiprocess Enhancement with Health Monitoring",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.27,
+          "changed_lines": 227,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "src/sentry/integrations/mixins/issues.py",
+            "src/sentry/integrations/services/assignment_source.py",
+            "src/sentry/integrations/tasks/sync_assignee_outbound.py",
+            "src/sentry/integrations/utils/sync.py",
+            "src/sentry/models/groupassignee.py",
+            "tests/sentry/integrations/services/test_assignment_source.py",
+            "tests/sentry/models/test_groupassignee.py"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 18,
+              "category": "correctness",
+              "consequence": "The `queued` value is wrong for every assignment source. It records the process start time, not when the assignment was queued. Any logic that uses it will misbehave.",
+              "explanation": "The field `queued: datetime = timezone.now()` calls `timezone.now()` once, when the class body runs at module import. Every AssignmentSource built through `from_integration` gets that same stale timestamp instead of its creation time. The field should use `field(default_factory=timezone.now)`. The datetime also reaches `asdict` in `to_dict` and is then passed as a Celery task kwarg (`assignment_source_dict`), where a raw datetime may fail JSON serialization. That second point is a risk I did not verify.",
+              "id": "finding-dd768b970ef0647bfaf9e7c4",
+              "lines": [
+                15,
+                30
+              ],
+              "path": "src/sentry/integrations/services/assignment_source.py",
+              "severity": "p2",
+              "title": "`queued` default is evaluated once at import time"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "f9919d789416dd32549d7bb9e238d5df55d5265a",
+          "input_tokens": 245512,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 72.511,
+          "other_changed_code": 34,
+          "output_tokens": 5673,
+          "pr": "sentry-07",
+          "provider_usd": 0.351214,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 34,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 34,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 53.348
+        }
+      },
+      "id": "sentry-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "getsentry/sentry",
+      "skipped": "",
+      "title": "feat(ecosystem): Implement cross-system issue synchronization",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.602,
+          "changed_lines": 316,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/components/auth/BackupCode.tsx",
+            "apps/web/components/auth/TwoFactor.tsx",
+            "apps/web/components/settings/DisableTwoFactorModal.tsx",
+            "apps/web/components/settings/EnableTwoFactorModal.tsx",
+            "apps/web/components/settings/TwoFactorAuthAPI.ts",
+            "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+            "apps/web/pages/api/auth/two-factor/totp/setup.ts",
+            "apps/web/pages/auth/login.tsx",
+            "apps/web/playwright/login.2fa.e2e.ts",
+            "packages/features/auth/lib/ErrorCode.ts",
+            "packages/features/auth/lib/next-auth-options.ts",
+            "packages/lib/test/builder.ts",
+            "packages/prisma/migrations/20230804153419_add_backup_codes/migration.sql",
+            "packages/prisma/schema.prisma",
+            "packages/ui/components/form/inputs/Input.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 166,
+              "category": "correctness",
+              "consequence": "The user closes the dialog with Escape or the X and the settings page still shows 2FA as disabled, because the cached user is stale, even though it is enabled. The switch then offers to enable it again. Reopening the dialog shows the previous backup codes instead of the password step.",
+              "explanation": "After the TOTP code succeeds, 2FA is already enabled on the server and the modal moves to DisplayBackupCodes. The cancel button is hidden on this step, but the dialog still passes the parent's onOpenChange to Dialog (line 166), so Escape, the overlay or the X button can close it. The parent's onOpenChange only toggles open (two-factor-auth.tsx:64). It does not call onEnable, so viewer.me is never invalidated. This modal's resetState is not called either, so step stays at DisplayBackupCodes and the backup codes and password stay in component state.",
+              "id": "finding-2673d9880809e4a166f66e4f",
+              "lines": [
+                58,
+                289
+              ],
+              "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+              "severity": "p2",
+              "title": "Dismissing the dialog on the backup-codes step skips onEnable and leaves stale state"
+            },
+            {
+              "anchor_line": 166,
+              "category": "correctness",
+              "consequence": "2FA is already enabled on the server, but the page still shows the switch as unchecked and the badge as disabled until a refetch. Reopening the modal shows the old backup-codes screen instead of the password step. A user who dismisses the dialog before copying the codes cannot get them again.",
+              "explanation": "After a successful enable, handleEnable no longer calls onEnable(). It only moves to the DisplayBackupCodes step (line 135). onEnable(), which closes the modal and invalidates viewer.me, is now called only from the \"Close\" button (lines 266-270). The Dialog's onOpenChange (Escape, overlay click or the X button) goes straight to the parent's toggle, which only flips enableModalOpen (two-factor-auth.tsx:64). On that path, resetState() is not run and viewer.me is not invalidated. The step also stays at DisplayBackupCodes.",
+              "id": "finding-e4d31ae2e4d68ab8c227c39d",
+              "lines": [
+                135,
+                135
+              ],
+              "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+              "severity": "p2",
+              "title": "Dismissing the modal on the backup-codes step skips onEnable and leaves stale state"
+            },
+            {
+              "anchor_line": 61,
+              "category": "security",
+              "consequence": "An attacker with a hijacked session, or a non-CAL account with no password, can brute-force backup codes or TOTP codes. A correct guess disables 2FA and wipes the codes.",
+              "explanation": "The change adds a second guessable credential to the disable endpoint, `req.body.backupCode`. It is compared against the stored codes at lines 61-64. A wrong code returns 400 and nothing is counted, throttled or locked. The handler (lines 11-34) only checks the method and the session, and the TOTP branch has the same gap. A session holder who has no password (non-CAL identity provider) is not asked for a password at line 40. For that user the second factor is the only check, so they can submit unlimited backup-code or TOTP guesses.",
+              "id": "finding-51b3dd87a0e61b12844adb3e",
+              "lines": [
+                46,
+                107
+              ],
+              "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+              "severity": "p2",
+              "title": "New backup-code path in 2FA disable has no rate limiting or attempt lockout"
+            },
+            {
+              "anchor_line": 61,
+              "category": "correctness",
+              "consequence": "A malformed request returns an unstructured 500 instead of a 400 with IncorrectBackupCode.",
+              "explanation": "`req.body.backupCode.replaceAll(...)` at line 61 assumes the value is a string. A truthy non-string value, such as a number, object or array in the JSON body, enters the backup-code branch and throws a TypeError. This also affects the `throw new Error(ErrorCode.InternalServerError)` branches, which return a generic 500 instead of a structured JSON error like the other paths do.",
+              "id": "finding-7bacaa89526935aa414fbbf3",
+              "lines": [
+                46,
+                107
+              ],
+              "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+              "severity": "p2",
+              "title": "Non-string backupCode causes an unhandled TypeError (500)"
+            },
+            {
+              "anchor_line": 65,
+              "category": "security",
+              "consequence": "An unauthenticated attacker who knows an email address can log in as any user with 2FA disabled by sending any non-empty totpCode. For 2FA-enabled users, a leaked backup code replaces both the password and the TOTP factor. This is a full authentication bypass on the main login path.",
+              "explanation": "In `authorize`, the third-party provider checks and the password check at lines 113-129 are all guarded by `!credentials.totpCode`. Nothing server-side proves that the password or an external identity was already verified. The `totpEmail` flow in login.tsx only reads a JWT in getServerSideProps and changes the UI. `authorize` never checks that JWT, and the credentials endpoint accepts any posted fields. So a request with an arbitrary `totpCode` such as \"1\" and a victim's email skips the password check. If 2FA is disabled, no TOTP branch runs either, and the function returns the user. The change makes this worse. With 2FA enabled, a request that sends `totpCode=\"x\"` plus a valid `backupCode` goes into the new backup-code branch (line 131), which never validates `totpCode`. The password was skipped, so a backup code alone is enough to log in. Before the change, the 2FA branch checked the…",
+              "id": "finding-8b6a9eea8a23b104df5a7196",
+              "lines": [
+                65,
+                157
+              ],
+              "path": "packages/features/auth/lib/next-auth-options.ts",
+              "severity": "p1",
+              "title": "Any non-empty totpCode skips password verification in authorize"
+            },
+            {
+              "anchor_line": 148,
+              "category": "concurrency_state",
+              "consequence": "An attacker who has one leaked backup code can use it more than once by sending parallel requests. A code the user has already used can also come back to life after a concurrent write. This weakens the single-use guarantee of an account-recovery credential.",
+              "explanation": "The backup-code branch uses `user.backupCodes`, which was read at the start of `authorize`. It decrypts that value, finds the code's index, sets that slot to null, and calls `prisma.user.update` filtered only by `id`. There is no transaction, row lock, or compare-and-set against the ciphertext that was read. Two concurrent logins with the same valid code both read the unconsumed list, both pass the `indexOf` check, and both succeed. Two concurrent logins using different codes each write back a list with only their own code nulled, so the later write restores the code the earlier one consumed. I did not check the rate-limit configuration, so I cannot say how much brute-forcing of the codes it prevents.",
+              "id": "finding-ed31cfb4d9a96428b83de9d7",
+              "lines": [
+                65,
+                157
+              ],
+              "path": "packages/features/auth/lib/next-auth-options.ts",
+              "severity": "p2",
+              "title": "Backup code consumption is a non-atomic read-modify-write, so a single-use code can be replayed"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 1,
+            "p2": 5,
+            "total": 6
+          },
+          "head_sha": "a308075bc39b77ed7059b0cae9d443d669a7bf98",
+          "input_tokens": 570807,
+          "investigated": 21,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 13,
+          "model_seconds": 222.375,
+          "other_changed_code": 19,
+          "output_tokens": 21307,
+          "pr": "calcom-03",
+          "provider_usd": 0.904931,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 42,
+          "risk_candidates": 21,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 42,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 92.875
+        }
+      },
+      "id": "calcom-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: 2fa backup codes",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.205,
+          "changed_lines": 345,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts",
+            "packages/lib/server/service/insightsBooking.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "56ff75f07b92ba8ef499ff28a2f98c25f339fdae",
+          "input_tokens": 129969,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 40.5,
+          "other_changed_code": 18,
+          "output_tokens": 4091,
+          "pr": "calcom-05",
+          "provider_usd": 0.270192,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 18,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 18,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 22.608
+        }
+      },
+      "id": "calcom-05",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "feat: convert InsightsBookingService to use Prisma.sql raw queries",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.279,
+          "changed_lines": 121,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/test/lib/getSchedule.test.ts",
+            "packages/lib/slots.ts",
+            "packages/trpc/server/routers/viewer/slots.ts",
+            "packages/types/schedule.d.ts"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 142,
+              "category": "correctness",
+              "consequence": "Slots that start inside working hours but end after them are treated as available and offered to invitees, so bookings can run past the organizer's working hours.",
+              "explanation": "In `checkIfIsAvailable`, `end` is computed with the same expression as `start` (`slotStartTime.hour() * 60 + slotStartTime.minute()`). The `end > workingHour.endTime` test therefore never uses the slot's end time. It should use `slotEndTime`. Take working hours of 09:00–17:00 and a 60-minute event. A slot starting at 16:30 has start=990, which is not below the 540 start and not above the 1020 end, so it counts as inside working hours. It actually ends at 17:30. A related defect is at line 114. It compares two dayjs objects with `===`, which compares references and is always false, so the zero-length-override branch never fires.",
+              "id": "finding-674117fbdc96f9f44c817cd1",
+              "lines": [
+                79,
+                152
+              ],
+              "path": "packages/trpc/server/routers/viewer/slots.ts",
+              "severity": "p2",
+              "title": "Working-hours check computes `end` from the slot start, so slots running past closing time pass"
+            },
+            {
+              "anchor_line": 114,
+              "category": "correctness",
+              "consequence": "A zero-length date override (blocked day) may not block slots as intended.",
+              "explanation": "`dayjs(date.start).add(...) === dayjs(date.end).add(...)` compares two distinct object references, so it is always false. The branch meant to reject an override whose start equals its end (a day off) never runs. For such an override, a slot only falls through to the later start/end checks.",
+              "id": "finding-a86f32292157faea9b713f61",
+              "lines": [
+                79,
+                152
+              ],
+              "path": "packages/trpc/server/routers/viewer/slots.ts",
+              "severity": "p2",
+              "title": "Dayjs objects compared with === in date override check"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "3ef328421f60cd096b7676ef7ee7c32b71593049",
+          "input_tokens": 107106,
+          "investigated": 0,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 3,
+          "model_seconds": 47.337,
+          "other_changed_code": 9,
+          "output_tokens": 4723,
+          "pr": "calcom-07",
+          "provider_usd": 0.184214,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 9,
+          "risk_candidates": 0,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 9,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 31.08
+        }
+      },
+      "id": "calcom-07",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Advanced date override handling and timezone compatibility improvements",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.184,
+          "changed_lines": 44,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+            "packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql",
+            "packages/prisma/schema.prisma"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 38,
+              "category": "correctness",
+              "consequence": "The cleanup can delete non-SMS or already-scheduled reminder rows in the future, which would lose state.",
+              "explanation": "The second `OR` branch, `retryCount > 1`, is not limited to `WorkflowMethods.SMS`. Only the SMS cron increments `retryCount` today. If any other reminder method later uses the column, this SMS cron would delete those rows as well. The branch also matches reminders that are already `scheduled: true`.",
+              "id": "finding-02cf1dacce85e2874dc0592c",
+              "lines": [
+                31,
+                197
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+              "severity": "p2",
+              "title": "retryCount cleanup clause has no method filter"
+            },
+            {
+              "anchor_line": 31,
+              "category": "correctness",
+              "consequence": "Unschedulable reminders are never given up on and are reprocessed every cron run. The SMS cleanup job can also delete rows outside its own method or scheduling state.",
+              "explanation": "The new retry logic only increments retryCount when scheduleSMS returns falsy or throws. The enclosing `if (message?.length && message.length > 0 && sendTo)` has no else branch. A reminder with an empty message (no reminderBody and a non-REMINDER template) or no sendTo (e.g. a booking with no smsReminderNumber) is skipped without any increment. It stays scheduled=false and is re-fetched on every cron run, so the new retry cap never applies to it. Separately, the second OR branch of the deleteMany, `retryCount > 1`, has no `method: SMS` filter. Today only this SMS handler writes WorkflowReminder.retryCount, so other methods stay at 0. The unscoped clause would still delete email or WhatsApp reminders if they ever use the column. It would also delete SMS rows that are already scheduled=true, losing the referenceId needed to cancel the Twilio message.",
+              "id": "finding-0f4619e79541a73158626180",
+              "lines": [
+                31,
+                197
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+              "severity": "p2",
+              "title": "Retry count not incremented when message is empty or sendTo is missing; cleanup delete is unscoped by method"
+            },
+            {
+              "anchor_line": 190,
+              "category": "correctness",
+              "consequence": "A single failing or concurrently deleted reminder can stop the cron run before it schedules the remaining unscheduled SMS reminders. Those reminders are delayed until a later run and can be dropped if their scheduledDate passes first.",
+              "explanation": "The new `prisma.workflowReminder.update` runs inside the `catch` block with no guard of its own. If that update throws, the error escapes the per-reminder `try/catch` and leaves `handler`. Two cases can trigger it. The reminder row may have been removed concurrently, for example by a cancellation, so Prisma raises a record-not-found error. The database may also be unavailable or may fail the write. The `for` loop then stops. Every later reminder in `unscheduledReminders` is skipped, and the cron request fails with a 500. Before this change the catch block only logged, so one bad reminder could not stop the others.",
+              "id": "finding-5809f23cf83e21d17e15de3e",
+              "lines": [
+                31,
+                197
+              ],
+              "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+              "severity": "p2",
+              "title": "Unguarded retryCount update inside catch can abort the whole reminder batch"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "2dae0bfb8c72b51aa49260dc1f7f215a6290f3a6",
+          "input_tokens": 121444,
+          "investigated": 5,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 6,
+          "model_seconds": 89.936,
+          "output_tokens": 8365,
+          "pr": "calcom-09",
+          "provider_usd": 0.243562,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 5,
+          "risk_candidates": 5,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 5,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 62.603
+        }
+      },
+      "id": "calcom-09",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "SMS workflow reminder retry count tracking",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.525,
+          "changed_lines": 555,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "apps/web/components/booking/BookingListItem.tsx",
+            "apps/web/components/dialog/AddGuestsDialog.tsx",
+            "packages/emails/email-manager.ts",
+            "packages/emails/src/templates/AttendeeAddGuestsEmail.tsx",
+            "packages/emails/src/templates/OrganizerAddGuestsEmail.tsx",
+            "packages/emails/src/templates/index.ts",
+            "packages/emails/templates/attendee-add-guests-email.ts",
+            "packages/emails/templates/organizer-add-guests-email.ts",
+            "packages/trpc/server/routers/viewer/bookings/_router.tsx",
+            "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+            "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+            "packages/ui/form/MultiEmail.tsx",
+            "packages/ui/form/MultiEmailLazy.tsx",
+            "packages/ui/index.tsx"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 46,
+              "category": "correctness",
+              "consequence": "Team admins or owners who are not the organizer or an attendee cannot add guests to team bookings, although the handler intends to allow them. The permission model is wrong, and the authorization gate is stricter than designed.",
+              "explanation": "isTeamAdminOrOwner is computed as isTeamAdmin(...) && isTeamOwner(...). The name and intent say \"admin or owner\", but && requires the user to pass both checks. A team admin who isn't an owner fails the owner check. If isTeamAdmin only matches the ADMIN role, an owner fails the admin check. If it matches both roles, the owner check is redundant and admins are still excluded. Either way, a team admin who is not the organizer or an attendee gets FORBIDDEN when adding guests to a team event booking. I did not open the isTeamAdmin or isTeamOwner definitions, so the second case is unconfirmed.",
+              "id": "finding-3d421882bc95278deb6b628f",
+              "lines": [
+                22,
+                174
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+              "severity": "p2",
+              "title": "Team admin/owner permission check uses && instead of ||"
+            },
+            {
+              "anchor_line": 71,
+              "category": "correctness",
+              "consequence": "Blacklisted addresses can be added as guests by changing their case, and existing attendees can be added again as duplicates.",
+              "explanation": "The blacklist is lowercased, but the guest email is compared as submitted. A guest entered as \"Bad@X.com\" bypasses a blacklisted \"bad@x.com\". The same applies to the duplicate check against existing attendee emails, where \"A@x.com\" passes against an attendee stored as \"a@x.com\".",
+              "id": "finding-60a059dc00612f29358c5355",
+              "lines": [
+                22,
+                174
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+              "severity": "p2",
+              "title": "Blacklist and duplicate checks are case-sensitive on guest emails"
+            },
+            {
+              "anchor_line": 5,
+              "category": "performance",
+              "consequence": "An authenticated attendee can send one request with a very large guest list. That bloats the booking's attendee rows and triggers a large number of outgoing emails and calendar updates. Those emails go from the platform's sender, so this can be used for spam and puts heavy load on the server.",
+              "explanation": "ZAddGuestsInputSchema validates `guests` as `z.array(z.string().email())` with no `.min(1)` or `.max(n)`. The handler (addGuests.handler.ts) does a createMany with one attendee row per guest. It then builds a translation for every attendee, calls updateCalendarAttendees, and sends emails. The email step goes through sendAddGuestsEmails in email-manager.ts, which sends one email per attendee plus the organizer emails. Nothing in the handler caps the count either. It filters duplicates only against existing attendees, not within the input, so the same address repeated N times produces N attendee rows. Any attendee, who need not be the organizer, can call this procedure, so a single request can carry thousands of addresses.",
+              "id": "finding-ee8f456ec86cb332143aaf56",
+              "lines": [
+                1,
+                7
+              ],
+              "path": "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+              "severity": "p2",
+              "title": "addGuests input accepts an unbounded guests array"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 3,
+            "total": 3
+          },
+          "head_sha": "baa9045af7711ea0b86390cb0bf0fdce5430228c",
+          "input_tokens": 213670,
+          "investigated": 5,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 68.089,
+          "other_changed_code": 26,
+          "output_tokens": 6415,
+          "pr": "calcom-10",
+          "provider_usd": 0.365336,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 34,
+          "risk_candidates": 5,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 34,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 35.348
+        }
+      },
+      "id": "calcom-10",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "calcom/cal.com",
+      "skipped": "",
+      "title": "Add guest management functionality to existing bookings",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.62,
+          "changed_lines": 142,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "packages/grafana-data/src/types/config.ts",
+            "packages/grafana-runtime/src/config.ts",
+            "pkg/api/dtos/frontend_settings.go",
+            "pkg/api/frontendsettings.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database.go",
+            "pkg/services/anonymous/anonimpl/anonstore/database_test.go",
+            "pkg/services/anonymous/anonimpl/api/api.go",
+            "pkg/services/anonymous/anonimpl/client.go",
+            "pkg/services/anonymous/anonimpl/impl.go",
+            "pkg/services/anonymous/anonimpl/impl_test.go",
+            "pkg/setting/setting.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 44,
+              "category": "security",
+              "consequence": "The device_limit setting does not actually block anonymous access beyond the limit. A client that retries the same device ID gets in on the second request, and the rejected device is never recorded.",
+              "explanation": "Authenticate now returns ErrDeviceLimitReached to reject an anonymous request. TagDevice reaches the store through tagDeviceUI in impl.go, and that function calls localCache.SetDefault(key) (impl.go:87) before CreateOrUpdateDevice (impl.go:93). When the limit is reached and the device is new, the store returns ErrDeviceLimitReached, but the cache entry is already set. Every later request from that device ID within the cache TTL (29 minutes) hits the cache at impl.go:83 and returns nil. Authenticate then treats it as success and issues an anonymous identity. The same device ID can therefore be refused once and admitted on the retry. Any client can also rotate X-Grafana-Device-Id values. The first request with each new ID is rejected, and a second request with the same ID is allowed without ever being stored.",
+              "id": "finding-7cb13a1cbebb511c8dd9bc62",
+              "lines": [
+                44,
+                50
+              ],
+              "path": "pkg/services/anonymous/anonimpl/client.go",
+              "severity": "p2",
+              "title": "Anonymous device limit rejection is only enforced once per device because the cache is set before the DB write"
+            },
+            {
+              "anchor_line": 144,
+              "category": "correctness",
+              "consequence": "The anonymous device limit is only enforced on the first request from a new device. Retrying the same device ID within the cache TTL gets through, and any transient DB error also leaves the device marked as tagged without a stored row.",
+              "explanation": "The change makes TagDevice return the error from tagDeviceUI, so Anonymous.Authenticate rejects the request with ErrDeviceLimitReached. tagDeviceUI (impl.go:87) calls localCache.SetDefault(key) before CreateOrUpdateDevice runs and never removes the key when the write fails. A rejected device is therefore cached. Its next request within the 29-minute cache TTL hits the cache at line 83 and returns nil, so TagDevice succeeds and the device is authenticated even though it was never stored and the limit is still reached.",
+              "id": "finding-d352300a96a5bc1db646c11f",
+              "lines": [
+                147,
+                147
+              ],
+              "path": "pkg/services/anonymous/anonimpl/impl.go",
+              "severity": "p2",
+              "title": "Device limit rejection is bypassed on retry because cache is set before the DB write"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 2,
+            "total": 2
+          },
+          "head_sha": "3647ba7360b8d157e4a294a650a365b6aca070d8",
+          "input_tokens": 245563,
+          "investigated": 20,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 4,
+          "model_seconds": 75.247,
+          "other_changed_code": 9,
+          "output_tokens": 5767,
+          "pr": "grafana-01",
+          "provider_usd": 0.32566,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 29,
+          "risk_candidates": 20,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 29,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 47.05
+        }
+      },
+      "id": "grafana-01",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Anonymous: Add configurable device limit",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.409,
+          "changed_lines": 273,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/services/authz/rbac.go",
+            "pkg/services/authz/rbac/cache.go",
+            "pkg/services/authz/rbac/service.go",
+            "pkg/services/authz/rbac/service_test.go"
+          ],
+          "failed_calls": 0,
+          "findings": [
+            {
+              "anchor_line": 30,
+              "category": "correctness",
+              "consequence": "A user who is legitimately allowed to access resource \"a\" in folder \"b_c\" can be wrongly denied. This happens after a denied check on resource \"a_b\" in folder \"c\" and lasts until the cache entry expires.",
+              "explanation": "userPermDenialCacheKey joins userUID, action, name and parent with \"_\" and no escaping. Resource UIDs and folder UIDs can contain underscores. (name=\"a_b\", parent=\"c\") and (name=\"a\", parent=\"b_c\") both produce \"<ns>.perm_<uid>_<action>_a_b_c\". The same applies to underscores in userUID and action. service.go:116-121 returns Allowed:false on a hit, and service.go:153-155 stores a denial for every disallowed check. A cached denial for one resource is therefore served for a different resource that happens to produce the same key. The collision fails closed, so it does not grant access.",
+              "id": "finding-dc34ea147ac19441f7ec7cbe",
+              "lines": [
+                30,
+                33
+              ],
+              "path": "pkg/services/authz/rbac/cache.go",
+              "severity": "p2",
+              "title": "Denial cache key is ambiguous because \"_\" joins variable-length fields"
+            }
+          ],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 1,
+            "total": 1
+          },
+          "head_sha": "d9dc93c4a6c88ef850dbe526cb3226ae99cafa20",
+          "input_tokens": 201380,
+          "investigated": 23,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 5,
+          "model_seconds": 76.212,
+          "output_tokens": 5742,
+          "pr": "grafana-02",
+          "provider_usd": 0.363799,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 23,
+          "risk_candidates": 23,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 23,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 34.847
+        }
+      },
+      "id": "grafana-02",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "AuthZService: improve authz caching",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.308,
+          "changed_lines": 215,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/plugins/log/fake.go",
+            "pkg/plugins/log/ifaces.go",
+            "pkg/plugins/log/logger.go",
+            "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/logger_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/metrics_middleware.go",
+            "pkg/services/pluginsintegration/clientmiddleware/metrics_middleware_test.go",
+            "pkg/services/pluginsintegration/pluginsintegration.go"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "00393c2ac9103072bc2194118e455f9248a37816",
+          "input_tokens": 305829,
+          "investigated": 3,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 7,
+          "model_seconds": 93.578,
+          "other_changed_code": 43,
+          "output_tokens": 6159,
+          "pr": "grafana-03",
+          "provider_usd": 0.469483,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 55,
+          "risk_candidates": 3,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 55,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 37.398
+        }
+      },
+      "id": "grafana-03",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Plugins: Chore: Renamed instrumentation middleware to metrics middleware",
+      "url": ""
+    },
+    {
+      "baseline": {
+        "comments": [],
+        "inline_comments": 0,
+        "note": "",
+        "summary_comments": 0
+      },
+      "depths": {
+        "auto": {
+          "capture_seconds": 0.179,
+          "changed_lines": 16,
+          "complete": true,
+          "context_tokens": 0,
+          "depth": "auto",
+          "errors": [],
+          "examined_files": [
+            "pkg/api/webassets/webassets.go"
+          ],
+          "failed_calls": 0,
+          "findings": [],
+          "findings_by_severity": {
+            "p0": 0,
+            "p1": 0,
+            "p2": 0,
+            "total": 0
+          },
+          "head_sha": "95000f9fc8049d47f837b6e8603c230c2a073ae5",
+          "input_tokens": 26001,
+          "investigated": 3,
+          "kind": "review",
+          "model": "claude/sonnet",
+          "model_calls": 1,
+          "model_seconds": 10.623,
+          "output_tokens": 862,
+          "pr": "grafana-08",
+          "provider_usd": 0.021107,
+          "push": "",
+          "pushes": {},
+          "reason": "",
+          "rereviewed_targets": 3,
+          "risk_candidates": 3,
+          "states": {},
+          "status": "ran",
+          "stopped_by_budget": false,
+          "targets": 3,
+          "unchanged_targets": 0,
+          "usd_sources": [
+            "provider"
+          ],
+          "wall_seconds": 27.113
+        }
+      },
+      "id": "grafana-08",
+      "labelled": false,
+      "labels": [],
+      "pull": 0,
+      "repository": "grafana/grafana",
+      "skipped": "",
+      "title": "Frontend Asset Optimization",
+      "url": ""
+    }
+  ],
+  "publication": {
+    "always": [
+      "name the model and its price list date; the figure is for that model only",
+      "state that it is the mean over this corpus, which is not the reader's code",
+      "do not publish another reviewer's price from this report: it holds only what you supplied"
+    ],
+    "cost_per_review": {
+      "figures": {
+        "auto": {
+          "mean_tokens": 225285.0,
+          "mean_usd": 0.353229,
+          "median_usd": 0.357507,
+          "p90_usd": 0.459457,
+          "reviews": 14
+        }
+      },
+      "missing": [],
+      "ready": true
+    },
+    "head_to_head": {
+      "missing": [
+        "0 pull requests carry the other reviewer's comments; at least 8 are needed",
+        "no baseline comment has a verdict, so its precision is unknown"
+      ],
+      "ready": false
+    },
+    "quality": {
+      "missing": [
+        "auto: 0 labelled pull requests scored; at least 8 are needed",
+        "catch and noise are rates over a handful of pull requests; quote them with their intervals"
+      ],
+      "ready": false
+    }
+  },
+  "pushes": {
+    "auto": {
+      "carry_forward": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "complete_pairs": 0,
+      "findings_after_push": {
+        "carried": 0,
+        "fixed": 0,
+        "new": 0,
+        "stale": 0,
+        "unreported": 0
+      },
+      "full": {
+        "input_tokens": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "model_calls": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "provider_usd": {
+          "max": null,
+          "mean": null,
+          "median": null,
+          "n": 0,
+          "p90": null,
+          "total": null
+        },
+        "rereviewed_targets_mean": null
+      },
+      "pushes": 0,
+      "saved": {
+        "calls_fraction": null,
+        "usd_fraction": null,
+        "usd_mean": null
+      },
+      "unavailable": {}
+    }
+  },
+  "reference_team": {
+    "basis": "a projection from this report's mean cost per review and per push, not a quote and not a price",
+    "by_depth": {
+      "auto": {
+        "first_review_usd": 0.353229,
+        "monthly_usd_with_carry_forward": null,
+        "monthly_usd_without": null,
+        "push_usd_carry_forward": null,
+        "push_usd_full": null
+      }
+    },
+    "developers": 10,
+    "prs_per_month": 300,
+    "reviews_per_pr": 1.2
+  },
+  "run": {
+    "basis": "a live provider run",
+    "code": {
+      "git_head": "b69f844e8252ab78b7df2d2d89a0399c03ecfa6e",
+      "prompt_version": 4,
+      "repo_context": {
+        "enabled": true,
+        "version": 1
+      },
+      "schema_version": 3
+    },
+    "command": "lemoncrow dev eval review benchmark --corpus evals/review/golden_comment_prs.yaml --depth auto --max-usd 20.0 --max-calls 250 --pr sentry-01 --pr sentry-02 --pr sentry-04 --pr sentry-06 --pr sentry-07 --pr calcom-03 --pr calcom-05 --pr calcom-07 --pr calcom-09 --pr calcom-10 --pr grafana-01 --pr grafana-02 --pr grafana-03 --pr grafana-08 --no-pushes --workdir /home/user/bench-data/workdir --out-dir /home/user/bench-data/dev/reports --name b7k-dev-auto --record-dir /home/user/bench-data/dev/records-b7k",
+    "driver": "claude",
+    "ledger": {
+      "calls": 73,
+      "max_calls": 250,
+      "max_usd": 20.0,
+      "spent_usd": 4.945206,
+      "stopped": "",
+      "unpriced_calls": 0
+    },
+    "mode": "live",
+    "model": "sonnet",
+    "notes": [],
+    "options": {
+      "depths": [
+        "auto"
+      ],
+      "input_usd_per_mtok": null,
+      "line_window": 8,
+      "max_calls": 250,
+      "max_usd": 20.0,
+      "mode": "live",
+      "output_usd_per_mtok": null,
+      "pushes": false,
+      "recording": true,
+      "similarity": 0.2,
+      "with_impact": true
+    },
+    "overshoot_note": "the spending ceiling is checked before each call, so a run can pass it by the calls in flight (at most the investigators of the deepest depth)",
+    "wall_time_note": "wall_seconds is the elapsed time of the AI stage; model_seconds sums each call's latency"
+  },
+  "schema": 1
+}

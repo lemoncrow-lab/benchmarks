@@ -1,0 +1,173 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "11d46a16553cf6e606c9b6ac19c653e167a64b46b9da7b126bf33f32c3629d76",
+      "model": "sonnet",
+      "prompt_digest": "75edd356552eb17f258b3f2e2fd85418ebdf706f7769dc1f9317bfb7ce5da4cb",
+      "response": {
+        "category": "correctness",
+        "consequence": "The anonymous device limit is only enforced on the first request from a new device. Retrying the same device ID within the cache TTL gets through, and any transient DB error also leaves the device marked as tagged without a stored row.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/impl.go@sha256:3a3dbc9a4464ba8f6cebffb8b3baac9961a97a1ca681e463faff16fe65f580f8"
+        ],
+        "explanation": "The change makes TagDevice return the error from tagDeviceUI, so Anonymous.Authenticate rejects the request with ErrDeviceLimitReached. tagDeviceUI (impl.go:87) calls localCache.SetDefault(key) before CreateOrUpdateDevice runs and never removes the key when the write fails. A rejected device is therefore cached. Its next request within the 29-minute cache TTL hits the cache at line 83 and returns nil, so TagDevice succeeds and the device is authenticated even though it was never stored and the limit is still reached.",
+        "lines": {
+          "end_line": 148,
+          "start_line": 144
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:545ae04436ff3cc05540a3c7"
+        ],
+        "title": "Device limit rejection is bypassed on retry because cache is set before the DB write"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 36623,
+        "cache_write_input_tokens": 15683,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 52312,
+        "output_tokens": 1447,
+        "provider_cost": 0.0820387,
+        "request_id": "",
+        "seconds": 15.742
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "308de958060f3560cb5760445d0b2bc4e7966ea684650f1d79c01548d9cd28ba",
+      "model": "sonnet",
+      "prompt_digest": "84c56b9604146df5dc05d115e2a8a7f08fa9fc8d441f111ce3262680f9a63471",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No incompatible read/write path or caller break was found.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355",
+          "source:new:pkg/api/frontendsettings.go@sha256:f1875d1888cfc55517ceafd30e931396616ad035a32e7c1b6361919449ebcbb0"
+        ],
+        "explanation": "The anon_device schema is unchanged. The only persisted-state change is that updateDevice now runs an UPDATE with a time-window filter. The new ProvideAnonDBStore(sqlStore, deviceLimit) signature has one production caller, pkg/services/anonymous/anonimpl/impl.go:43, which passes cfg.AnonymousDeviceLimit. The tests were updated to the new signature. wire.go:375 lists the provider in a set, but nothing else in pkg/server constructs or injects AnonDBStore, so the new int64 parameter doesn't break wire. AnonymousDeviceLimit already exists in setting.go and in the frontend settings DTO (`json:\"anonymousDeviceLimit\"`), so the added field in frontendsettings.go matches both. The count-then-insert sequence is not atomic, so concurrent requests can exceed the limit slightly. That is a soft-limit imprecision, not a compatibility defect.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:35ce058489645c87aefd7368"
+        ],
+        "title": "No persistence or API contract break found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 66179,
+        "cache_write_input_tokens": 19172,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 85361,
+        "output_tokens": 2230,
+        "provider_cost": 0.10726500000000001,
+        "request_id": "",
+        "seconds": 29.195
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4bf8d0d8d4c721b9238adb6449fe3ba5a28f1bfde4ed1a33ba2d9085469603e2",
+      "model": "sonnet",
+      "prompt_digest": "a0c79d444c3a765d9e88f845c72bd5cd36b437ced6259de33121064a9e447f27",
+      "response": {
+        "category": "security",
+        "consequence": "The device_limit setting does not actually block anonymous access beyond the limit. A client that retries the same device ID gets in on the second request, and the rejected device is never recorded.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/client.go@sha256:8e21f0a419770be322540aec8030a21abcc83f4ec42c30680004200201e175fc"
+        ],
+        "explanation": "Authenticate now returns ErrDeviceLimitReached to reject an anonymous request. TagDevice reaches the store through tagDeviceUI in impl.go, and that function calls localCache.SetDefault(key) (impl.go:87) before CreateOrUpdateDevice (impl.go:93). When the limit is reached and the device is new, the store returns ErrDeviceLimitReached, but the cache entry is already set. Every later request from that device ID within the cache TTL (29 minutes) hits the cache at impl.go:83 and returns nil. Authenticate then treats it as success and issues an anonymous identity. The same device ID can therefore be refused once and admitted on the retry. Any client can also rotate X-Grafana-Device-Id values. The first request with each new ID is rejected, and a second request with the same ID is allowed without ever being stored.",
+        "lines": {
+          "end_line": 47,
+          "start_line": 44
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:30654008b1d28db0116b6bb4"
+        ],
+        "title": "Anonymous device limit rejection is only enforced once per device because the cache is set before the DB write"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 44021,
+        "cache_write_input_tokens": 24065,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 68092,
+        "output_tokens": 1448,
+        "provider_cost": 0.1167012,
+        "request_id": "",
+        "seconds": 21.029
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cb3fcc3468380033f546623edee5b31458ab57ad24b2e72096761990dbe591bd",
+      "model": "sonnet",
+      "prompt_digest": "4ca6e5e3266e3dfad1bd257d8b936e0b376d1345876bba70c9383bade1a67e38",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The changes are test updates only. They match the new ProvideAnonDBStore(sqlStore, deviceLimit) signature and the service's anonStore field. They add no persisted-format change or unbounded work.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "Test-only changes consistent with production signatures"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 37824,
+        "cache_write_input_tokens": 1970,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 39798,
+        "output_tokens": 642,
+        "provider_cost": 0.019655000000000002,
+        "request_id": "",
+        "seconds": 9.278
+      }
+    }
+  ],
+  "case_id": "grafana-01",
+  "case_input_digest": "393d93ab9f4ada067ec3c0163d49f20ade02687209cfac484d90b2a8c0ced8ea",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:05:30+00:00"
+  },
+  "version": 1
+}

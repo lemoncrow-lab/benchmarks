@@ -1,0 +1,215 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "4f48611138f474c57b207516dddfeb2eb448bcb7e67d330c346954c27d081b40",
+      "model": "sonnet",
+      "prompt_digest": "1362bed38e334666c63aa0edbbe55c0f460a5744b0c14df1cfaaaf6c3fd02c4a",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No concrete failure identified.",
+        "evidence_refs": [
+          "source:new:pkg/tests/apis/playlist/playlist_test.go@sha256:26b74803e367da4c5ca90890f3887b64afafd266355f68b0358846f9f5fa3ebd"
+        ],
+        "explanation": "The change only adds test subtests that use grafanarest.Mode3, which exists in the dual writer (pkg/apiserver/rest/dualwriter.go). The new cases match the structure of the existing mode 0-2 cases. No changed public or wire contract was found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:ba2e14412814dc9a660b2061"
+        ],
+        "title": "Mode 3 test cases added; no contract break found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 19367,
+        "cache_write_input_tokens": 13323,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 32694,
+        "output_tokens": 725,
+        "provider_cost": 0.0636983,
+        "request_id": "",
+        "seconds": 8.944
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5e137bbe831949fbf0cae15098d51159d3f50ca95bad2e5a1985b8c9d902212e",
+      "model": "sonnet",
+      "prompt_digest": "0a80bed17f012f8611dd05802b77859718add434079b74b6636e3850ff19de52",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The legacy and storage mocks share one mock.Mock. Expectations set for storage calls therefore also satisfy the background legacy goroutines in DualWriterMode3. Those goroutines cannot panic on a missing expectation. The test assertions match the Mode3 implementation, which reads from Storage and writes to Storage first.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:727d1acf31fa331fc5fcff7f"
+        ],
+        "title": "No defect found in new Mode3 tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 81804,
+        "cache_write_input_tokens": 42755,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 124565,
+        "output_tokens": 1342,
+        "provider_cost": 0.19563650000000002,
+        "request_id": "",
+        "seconds": 14.955
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5e9e89c8ef66b1f7d2f5308adac9f5cfc14d63c4e964023aedbaf1aebef70d94",
+      "model": "sonnet",
+      "prompt_digest": "af3f1a71367f3d584e09a12a09625dc72717a9b7564953db4f5b4e8f5775ebe3",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "Legacy storage writes can fail with `context canceled`, or can be skipped. Legacy storage then silently diverges from unified storage, even though Mode 3 is meant to keep writing to both. The failures are recorded only as legacy error metrics.",
+        "evidence_refs": [
+          "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4",
+          "target:target:sym:84c90975cb9a803f269e0e14"
+        ],
+        "explanation": "Create, Delete, Update and DeleteCollection now run the legacy write in a goroutine. Each goroutine derives its timeout context from the request `ctx` with `context.WithTimeoutCause(ctx, ...)`. The handler returns right after starting the goroutine, so the request context is cancelled and the derived context is cancelled with it. The legacy call then runs with an already-cancelled or soon-cancelled context. The goroutine also uses `obj`, `objInfo` and `options` after the handler has returned, so the caller may still be mutating them.",
+        "lines": {
+          "end_line": 51,
+          "start_line": 50
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Metric label cardinality grows with every deleted object name, and delete metrics are split across labels that don't match the other methods. Logs from lower layers lack the request fields.",
+            "evidence_refs": [
+              "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4",
+              "target:target:sym:9325e2b6a90b7c96983ba6b0"
+            ],
+            "explanation": "The success path calls `recordStorageDuration(false, mode3Str, name, ...)`. Every other call passes `options.Kind` for that argument. Delete also calls `klog.NewContext(ctx, d.Log)` instead of the enriched `log`, so the downstream logger loses the name, kind and method values.",
+            "lines": {
+              "end_line": 106,
+              "start_line": 106
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:9325e2b6a90b7c96983ba6b0"
+            ],
+            "title": "Delete records the object name as the metric kind label"
+          },
+          {
+            "category": "correctness",
+            "consequence": "Storage failures are counted as legacy errors. Legacy DeleteCollection results are counted as storage results. Dashboards and alerts built on these metrics are wrong.",
+            "evidence_refs": [
+              "source:new:pkg/apiserver/rest/dualwriter_mode3.go@sha256:09c211457dc4227e55f9e8acba075964a4f425c037affdfaf5aba122830616e4"
+            ],
+            "explanation": "When Storage.Create or Storage.Update fails, the code calls `recordLegacyDuration(true, ...)`, which is the legacy metric. The DeleteCollection goroutine times the legacy call but reports it with `recordStorageDuration`.",
+            "lines": {
+              "end_line": 45,
+              "start_line": 45
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:84c90975cb9a803f269e0e14",
+              "target:sym:651fe4ca3dce531bce07ea27",
+              "target:sym:356a6bd728e82f9e25f678c2"
+            ],
+            "title": "Storage and legacy duration metrics are mixed up"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:84c90975cb9a803f269e0e14",
+          "target:sym:9325e2b6a90b7c96983ba6b0",
+          "target:sym:651fe4ca3dce531bce07ea27",
+          "target:sym:356a6bd728e82f9e25f678c2"
+        ],
+        "title": "Async legacy writes inherit the request context, which is cancelled when the handler returns"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 28891,
+        "cache_write_input_tokens": 24200,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53097,
+        "output_tokens": 3891,
+        "provider_cost": 0.1407739,
+        "request_id": "",
+        "seconds": 32.724
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ea338b150c698039cb6a179d451e62841190bfdd5ed924f179218e66bf234411",
+      "model": "sonnet",
+      "prompt_digest": "2d3094631b71eeb34f9b15c9b086f309bfd1fbeb0e7db387e03abb314044d855",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect.",
+        "evidence_refs": [],
+        "explanation": "The deleted local `p` shadowed a package-level `var p = prometheus.NewRegistry()` at line 27 of the same file, so the test still compiles. Metrics registration tolerates duplicate registration, because errors are only logged, so sharing the registry across subtests is harmless.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:3b84e27b32f235ae240bcb4a"
+        ],
+        "title": "Removed local registry falls back to package-level p"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 34190,
+        "cache_write_input_tokens": 7962,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 42160,
+        "output_tokens": 956,
+        "provider_cost": 0.0454539,
+        "request_id": "",
+        "seconds": 13.509
+      }
+    }
+  ],
+  "case_id": "grafana-06",
+  "case_input_digest": "a4fd49bdaf40c0da8e2194ccf1b77b69c17b4c4c9fd2db7b35ccb59c88d240c3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

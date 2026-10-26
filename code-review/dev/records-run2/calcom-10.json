@@ -1,0 +1,118 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1afcf3d68a3bdc799d54284b30153836ca1d3150f97018eafda44a1244773de4",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "Blacklisted addresses are emailed even though the blacklist exists to prevent that. Existing attendees get a duplicate 'added as guest' email. Mixed-case blacklisted addresses are saved as attendees.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+        ],
+        "explanation": "The handler builds `uniqueGuests` by dropping existing attendees and blacklisted emails. Only `uniqueGuests` is saved to the booking (`guestsFullDetails`). Line 168 then calls `sendAddGuestsEmails(evt, guests)` with the raw input `guests`. If the input contains an address in BLACKLISTED_GUEST_EMAILS, or one that is already an attendee, that address is not added to the booking but still gets the 'guests added' email. The blacklist check at line 77 also compares the guest as typed against lowercased blacklist entries, so `Bad@X.com` passes the filter and is added.",
+        "lines": {
+          "end_line": 168,
+          "start_line": 168
+        },
+        "other_findings": [
+          {
+            "category": "security",
+            "consequence": "Team admins who are not organizers or attendees are likely refused with FORBIDDEN when adding guests to team bookings. Only users who are both admin and owner pass.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+            ],
+            "explanation": "`isTeamAdminOrOwner` is `isTeamAdmin(...) && isTeamOwner(...)`. The name and intent call for OR. Whether `isTeamAdmin` already counts owners is not shown here, so a plain admin who is not an owner is probably denied. The team query helpers were not checked. When the booking has no team, the check runs against team id 0.",
+            "lines": {
+              "end_line": 48,
+              "start_line": 46
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Team admin/owner check uses AND instead of OR"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 168,
+          "original": "    await sendAddGuestsEmails(evt, guests);",
+          "start_line": 168,
+          "text": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Notification emails are sent to the unfiltered guest list, including blacklisted and duplicate guests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 57730,
+        "cache_write_input_tokens": 3594,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61330,
+        "output_tokens": 3803,
+        "provider_cost": 0.0607492,
+        "request_id": "",
+        "seconds": 31.488
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2a66932ae5a190e0b0e8c1789fda712276e0bb9a868eea34dc6407b475adcc59",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I read the diff and the target source and did not open any other files. sendAddGuestsEmails sends new guests a scheduled email and sends existing attendees an add-guests email. It also sends the organizer and each team member an organizer email. The BookingListItem changes only add an action and a dialog with matching state. The new template classes are consistent with their sibling templates. I could not name a concrete failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:d4c3b539aedcb8c02399dc4e"
+        ],
+        "title": "No supportable defect found in add-guests change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 46684,
+        "cache_write_input_tokens": 1560,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 48250,
+        "output_tokens": 1058,
+        "provider_cost": 0.023507300000000002,
+        "request_id": "",
+        "seconds": 12.712
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

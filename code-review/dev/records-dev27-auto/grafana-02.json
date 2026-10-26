@@ -1,0 +1,92 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "007f791a1cff59f9cc471f21b926f49431e7f7029ed036ed26bb413d66878964",
+      "model": "sonnet",
+      "prompt_digest": "8659ad30f3c791aa733ddb7740148290abac7945f1179ec81d1695e8826b6da9",
+      "response": {
+        "category": "security",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only adds tests (CacheCheck, CacheList) and a permDenialCache field in setupService, and removes one cache-hit case from the getUserPermissions table. Service.Check consults permDenialCache first, then the cached permissions, then the store, which matches what the tests assert. The key helpers userPermDenialCacheKey and userPermCacheKey exist with matching signatures. No untrusted input crosses an authorization path in these tests, and no wrong assertion was found.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in added cache tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 47629,
+        "cache_write_input_tokens": 20712,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 68347,
+        "output_tokens": 868,
+        "provider_cost": 0.09809720000000001,
+        "request_id": "",
+        "seconds": 12.824
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "07123cbded5ea37ec3b31220dc3bf34cb38e223a5322781cb6d86dd392e65745",
+      "model": "sonnet",
+      "prompt_digest": "42d627f4f9420a22da06ff17fff0ca4b916633c2c9a68b5904101ccc3aef60b2",
+      "response": {
+        "category": "correctness",
+        "consequence": "If a user is denied on one resource, a different resource whose name and parent concatenate to the same string is wrongly denied for the cache TTL. This is a false denial, not a bypass. It is hard to debug and is limited to colliding UIDs that contain underscores.",
+        "evidence_refs": [
+          "source:new:pkg/services/authz/rbac/cache.go@sha256:6ef959dfc9f9ed777159bccae3582566917c6bf2db3f38adddecbf58f884dd7c",
+          "target:target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "explanation": "userPermDenialCacheKey joins userUID, action, name and parent with '_', and none of the fields are escaped. Name and parent are request-supplied, and Grafana UIDs can contain underscores. Name \"a_b\" with parent \"c\" and name \"a\" with parent \"b_c\" both produce the key \"<ns>.perm_<uid>_<action>_a_b_c\". Check() reads this key from permDenialCache and returns Allowed=false immediately, before any permission lookup. The key also leaves out the identity type. I only inspected the key-building code and the Check() lookup, not the callers or cacheWrap.",
+        "lines": {
+          "end_line": 32,
+          "start_line": 30
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:86788297b1ea7ffd27bbb9c4"
+        ],
+        "title": "Denial cache key is built with an ambiguous '_' separator, so different resources can share a cached denial"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 33894,
+        "cache_write_input_tokens": 28209,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62109,
+        "output_tokens": 2113,
+        "provider_cost": 0.1400285,
+        "request_id": "",
+        "seconds": 26.872
+      }
+    }
+  ],
+  "case_id": "grafana-02",
+  "case_input_digest": "67dee79c385c414322759bfb10f191d68e23a1b5f604f488ffffb9f1951d89f0",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

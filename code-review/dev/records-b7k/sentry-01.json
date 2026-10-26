@@ -1,0 +1,100 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "4f39f02c8868dde07cf07e62ebd285096dd977b3565bd78b2182d4a063cb8d37",
+      "model": "sonnet",
+      "prompt_digest": "1ce29b54573443ac6d40cca0154cc5ca736133a773b9e84df1349e87d74756ee",
+      "response": {
+        "category": "correctness",
+        "consequence": "An administrator who sends `optimized_pagination=true` with a negative-offset cursor gets an unhandled exception and an HTTP 500 from the audit log endpoint. The advertised negative-offset pagination feature does not work.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "target:target:sym:77f04ab50bcd074002cfd4ed"
+        ],
+        "explanation": "When `enable_advanced_features` is true and `cursor.offset < 0`, `get_result` runs `queryset[cursor.offset:stop]` with a negative start. Django querysets do not support negative indexing or slicing, so this raises `AssertionError: Negative indexing is not supported.` The code comment says the ORM handles negative slicing, which is wrong. The offset comes from the client-supplied `cursor` query parameter, which parses to an integer offset that can be negative. A request with `optimized_pagination=true` and a cursor such as `0:-5:1` hits this branch. I did not open the cursor parser, and I have not run the code. The endpoint only takes this path for superusers or members with global access. If a backend did accept the slice, it would be a way to read outside the intended page window. The `stop` calculation (`start_offset + limit + extra`) would also be meaningless for a negative start.",
+        "lines": {
+          "end_line": 882,
+          "start_line": 877
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:77f04ab50bcd074002cfd4ed"
+        ],
+        "title": "Negative cursor offset is sliced directly on a Django queryset, which raises an error"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 21001,
+        "cache_write_input_tokens": 15356,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 36363,
+        "output_tokens": 2226,
+        "provider_cost": 0.0871717,
+        "request_id": "",
+        "seconds": 23.436
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9697ff95c7013b6b9c327b937ff04ab223dc826f57d347cbf466e9ed12821b6b",
+      "model": "sonnet",
+      "prompt_digest": "578ce62f4988db77d6c466d72b013600f6ccbb5a5c2dec543f1d26d673f80a28",
+      "response": {
+        "category": "correctness",
+        "consequence": "An admin-supplied cursor with a negative offset makes the optimized audit-log endpoint return an unhandled 500. The \"advanced pagination\" feature never works. The misleading comments claim it is safe, and the base paginator's offset handling now differs between prev and next cursors.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "target:target:hun:5f8d57a90ebc4ccf430cce64"
+        ],
+        "explanation": "OptimizedCursorPaginator.get_result, when enable_advanced_features is set and cursor.offset < 0, slices queryset[cursor.offset:stop] with the negative start. The comment claims Django handles this, but Django QuerySets reject negative indexing with an AssertionError (\"Negative indexing is not supported\"). Cursor.from_string parses the offset with int(bits[1]) and does no sign check. organization_auditlogs.py enables this paginator when a superuser or global-access member passes ?optimized_pagination=true. A request with a cursor such as `0:-5:0` therefore fails. The BasePaginator.get_result change has the same problem for is_prev cursors, where the negative offset is kept (`start_offset = ... else offset`). For non-prev cursors it now silently clamps to 0 instead of failing. The comments in both places describe a feature that does not work.",
+        "lines": {
+          "end_line": 882,
+          "start_line": 877
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:5f8d57a90ebc4ccf430cce64"
+        ],
+        "title": "Negative cursor offsets are passed to Django slicing, causing a 500 on the new optimized audit-log path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 36643,
+        "cache_write_input_tokens": 14394,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51043,
+        "output_tokens": 2266,
+        "provider_cost": 0.0851349,
+        "request_id": "",
+        "seconds": 23.916
+      }
+    }
+  ],
+  "case_id": "sentry-01",
+  "case_input_digest": "1be05f7e7de639b15900d16368c58df01a43ba949ac0e9795ac33900a6be7d54",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:05:30+00:00"
+  },
+  "version": 1
+}

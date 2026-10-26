@@ -1,0 +1,446 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "d911200a82a80952a74ad218028594af5f8786f03a1841408844b3050d712293",
+      "model": "sonnet",
+      "prompt_digest": "8f3f70e9ad380c0f05cfd8c9c45cec34b20cd5279d932ec0d575737f9a11ee8d",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-333596e87c3f723719a399a0",
+              "finding-f3cd8c5c016ff73d00149961",
+              "finding-41be452fbfa3be0e55345654"
+            ],
+            "keep_id": "finding-333596e87c3f723719a399a0"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 2472,
+        "cache_write_input_tokens": 5563,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 8037,
+        "output_tokens": 285,
+        "provider_cost": 0.0263142,
+        "request_id": "",
+        "seconds": 8.824
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "05349d622d5bdb9d76266c7134782fca379a0f198872aa8221361295c784e30d",
+      "model": "sonnet",
+      "prompt_digest": "985c6266fcb4fa0576e1a653ce9282d97684c327f0c599ea3d19d132f5056895",
+      "response": {
+        "category": "correctness",
+        "consequence": "Reminders marked `cancelled` for cancelled or rescheduled bookings, or edited workflows, are never cancelled at SendGrid. The attendee still receives the emails for those bookings. The `cancelled` rows stay in the DB and the cron retries and fails on every run.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453",
+          "source:new:packages/features/ee/workflows/lib/reminders/emailReminderManager.ts@sha256:8d8a6b7d23ce18cdccea9fcc8e28ab30b241b6221dfb41b65030f7f8825eb201"
+        ],
+        "explanation": "The new cancel loop in scheduleEmailReminders.ts calls `client.request` from `@sendgrid/client`. The file only calls `sgMail.setApiKey`, which configures the mail service's own client. It never calls `client.setApiKey`. In the code I could see, the only `client.setApiKey` is inside emailReminderManager.ts (line 26), which this cron file doesn't import. The first `client.request` for a cancelled reminder therefore fails with an auth error. The surrounding try/catch swallows the error and only logs it. This also aborts the whole loop, so no later reminder is processed. No cancelled reminder is deleted from the DB or cancelled at SendGrid.",
+        "lines": {
+          "end_line": 63,
+          "start_line": 55
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:c594d227e8fc25052800e584"
+        ],
+        "title": "Cron cancel loop uses SendGrid client without an API key"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 31937,
+        "cache_write_input_tokens": 26356,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58297,
+        "output_tokens": 2186,
+        "provider_cost": 0.1329535,
+        "request_id": "",
+        "seconds": 23.131
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "121ed736d99fb7168989338093c2abf065a6d24e7e3dfba03158bf1b4093743c",
+      "model": "sonnet",
+      "prompt_digest": "4c595e9291a7f7e03a651ad50eb44eaf17c69451115d086da2c48419779e6a95",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "Cancelled or rescheduled bookings can still send workflow reminders, or leave orphaned reminder rows, when the process stops before the unawaited promises finish. Failures are silent.",
+        "evidence_refs": [
+          "source:new:packages/features/bookings/lib/handleCancelBooking.ts@sha256:1623b1be3f30c80509860b8f4d3f9dbdd35b35bacb853f3e8f1b008b23cf62a7",
+          "source:old:packages/features/bookings/lib/handleCancelBooking.ts@sha256:410a9a4b9c04acfcdf5c6e555adc3c5210591ed53577e997813d39aca1616069"
+        ],
+        "explanation": "The old handler awaited the workflowReminder deleteMany calls inside Promise.all. The new code calls the async deleteScheduledEmailReminder and deleteScheduledSMSReminder without await or collecting their promises (handleCancelBooking.ts 485-491). The handler therefore returns after sendCancelledEmails without waiting for the Twilio cancel or the DB delete/update. Errors are swallowed inside those helpers with console.log. In a serverless runtime the response can end before the work finishes, which leaves SMS reminders scheduled at Twilio or reminder rows not updated, so a cancelled booking can still send reminders. The same pattern is in handleNewBooking.ts 964-976 for reschedules. The try/catch there cannot catch rejections from unawaited async calls, so it is ineffective. For reschedules, the email path with immediateDelete=true only cancels at SendGrid. It neither deletes nor marks the DB row, so the stale reminder row stays.",
+        "lines": {
+          "end_line": 491,
+          "start_line": 485
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:06230b45603dc0393d7302be"
+        ],
+        "title": "Reminder cancellation is fire-and-forget and no longer part of the awaited cancel flow"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 52355,
+        "cache_write_input_tokens": 22027,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 74388,
+        "output_tokens": 2115,
+        "provider_cost": 0.1165573,
+        "request_id": "",
+        "seconds": 24.144
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "217dad3a33f72e173ea7a2ce9868cd1b0d11877177f5c0eb73a9a4ac315ed4cd",
+      "model": "sonnet",
+      "prompt_digest": "b87af4f652faff656f8b5ed3a33739cbfce38432eb71db896beaa3e81a9a228b",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect found.",
+        "evidence_refs": [],
+        "explanation": "The new calls pass (reminder.id, reminder.referenceId), which matches deleteScheduledEmailReminder(reminderId, referenceId, immediateDelete?) and deleteScheduledSMSReminder(reminderId, referenceId). Both helpers now delete or mark cancelled the workflowReminder row themselves, so the removed deleteMany calls are covered. Both helpers also catch their own errors.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:6ddb681578e9bb7ed6a8d5ec"
+        ],
+        "title": "Reminder cancellation refactor is consistent with new helper signatures"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 28891,
+        "cache_write_input_tokens": 10280,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 39177,
+        "output_tokens": 1007,
+        "provider_cost": 0.0549721,
+        "request_id": "",
+        "seconds": 19.061
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5ce0bbdb3e96d3e9989420c54c14e795e154149a8770165720e602c40f8753e2",
+      "model": "sonnet",
+      "prompt_digest": "0ada3fefbafc51e0e475eb00bc1a379c825f3f652ce0ca83bc23bec6831f710b",
+      "response": {
+        "category": "correctness",
+        "consequence": "No confirmed user-visible failure from the ordering.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453"
+        ],
+        "explanation": "The deleteMany only removes reminders whose scheduledDate has already passed. Those batches were scheduled in SendGrid for that time and have already been sent, so there is nothing left to cancel. Reminders due within the next hour are still cancelled by the new block. Only emailReminderManager sets cancelled: true, so the missing method filter on the cancel query has no practical effect.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:c594d227e8fc25052800e584"
+        ],
+        "title": "Past-due cancelled reminders deleted before cancel step is not a defect"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 14587,
+        "cache_write_input_tokens": 8578,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 23169,
+        "output_tokens": 1449,
+        "provider_cost": 0.0510057,
+        "request_id": "",
+        "seconds": 17.066
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "81ff0292aa08356c388a8696ece18ac4a8b6442c0b5af1188cfe572925fe24d0",
+      "model": "sonnet",
+      "prompt_digest": "dd42c24e434fc0aebc99ebf6042fd6534c0e381df9a11649ff4e06083cf69f0d",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No defect found from NULL handling or from the migration and schema differing.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20230217230604_add_cancelled_to_workflow_reminder/migration.sql@sha256:23659f84fe82cdac4236eb14eb48e35cac5910be6c5b26c2caf985178c8bcd17",
+          "source:new:packages/prisma/schema.prisma@sha256:c91efb52bce6334bb23c6df53ab6f18c2b7ed5c54b37c9c98f09f07d83550ef5"
+        ],
+        "explanation": "The migration adds a nullable BOOLEAN column, which matches Boolean? in schema.prisma. The only writer sets cancelled: true (emailReminderManager.ts:230). The only reader filters cancelled: true (scheduleEmailReminders.ts:46). NULL rows are treated as not cancelled, as intended. The migration timestamp 20230217230604 was not compared against the other migration directories.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:15d37d0ff5e6e417bda5e18f",
+          "target:hun:4c78e431b2cbf6002f2464d4"
+        ],
+        "title": "Nullable cancelled column is consistent between migration and schema"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 27214,
+        "cache_write_input_tokens": 11065,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 38285,
+        "output_tokens": 1260,
+        "provider_cost": 0.060295,
+        "request_id": "",
+        "seconds": 15.288
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "910e8d16e2a3fc73c8efd10318fe601a29dbd6f1efa0f5ea9e189c640280eced",
+      "model": "sonnet",
+      "prompt_digest": "22e976a00898bed969026b3239398dd875d65b725903ad9766a0f46053a6d09a",
+      "response": {
+        "category": "correctness",
+        "consequence": "One bad reminder blocks cancellation cleanup for all the others. Cancelled rows pile up and get re-sent to SendGrid on every run. The only trace is a console.log.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453"
+        ],
+        "explanation": "The loop awaits client.request for each reminder inside a single try. The Prisma delete calls are lazy and only run when awaited, and they are only awaited in Promise.all after the loop. If any request throws, for example on a SendGrid error, a rate limit or a null referenceId, control jumps to the catch. The remaining reminders are never cancelled. The deletes already queued for earlier reminders never execute either, even though their SendGrid sends were cancelled. Those rows stay cancelled:true and are retried on every cron run.",
+        "lines": {
+          "end_line": 73,
+          "start_line": 55
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "If the 401 is real, the first cancel request throws. The catch swallows the error and no cancelled reminder is ever deleted or cancelled at SendGrid, so cancelled bookings still get their emails sent.",
+            "evidence_refs": [
+              "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453"
+            ],
+            "explanation": "The file only calls sgMail.setApiKey (line 19). The default export of @sendgrid/client is a separate instance that never receives the key, and client.setApiKey is not called anywhere in the file. The new client.request to /v3/user/scheduled_sends is therefore sent without an Authorization header, so SendGrid should reject it with a 401. This is inferred from how the two SendGrid packages hold their keys. I did not run it.",
+            "lines": {
+              "end_line": 64,
+              "start_line": 57
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:c594d227e8fc25052800e584"
+            ],
+            "title": "@sendgrid/client is never given an API key, so cancel requests are unauthenticated"
+          },
+          {
+            "category": "correctness",
+            "consequence": "A single cancelled SMS reminder can stop cancellation of every email reminder. This email cron also deletes SMS rows or hits SendGrid with invalid batch ids.",
+            "evidence_refs": [
+              "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453"
+            ],
+            "explanation": "The findMany for cancelled reminders filters only on cancelled and scheduledDate, with no method: WorkflowMethods.EMAIL. Cancelled SMS reminders therefore match, and they may have a null or non-SendGrid referenceId. Sending batch_id null to SendGrid is likely to fail, and a failure aborts the whole loop (see the main finding).",
+            "lines": {
+              "end_line": 51,
+              "start_line": 44
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:c594d227e8fc25052800e584"
+            ],
+            "title": "Cancelled-reminder query has no method filter, so non-email reminders are sent to SendGrid"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:c594d227e8fc25052800e584"
+        ],
+        "title": "One failed SendGrid cancel aborts the whole loop and no reminder rows are deleted"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 26682,
+        "cache_write_input_tokens": 8833,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35521,
+        "output_tokens": 2123,
+        "provider_cost": 0.0599752,
+        "request_id": "",
+        "seconds": 21.268
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a4226fa2894354e3f78b7b41d28e449e6ec826981a487fc97e217e03268f2988",
+      "model": "sonnet",
+      "prompt_digest": "c2b9f5b69e92855a5424c1d61b397ed78502d7ed475cd433a78708f4fea6e0ba",
+      "response": {
+        "category": "correctness",
+        "consequence": "If the singleton has no key in the process, the SendGrid requests are sent without an Authorization header and get 401 responses. Cancelling reminders then throws on the first cancelled reminder, and the batch-id requests fail too. Reminders for cancelled bookings are not cancelled and may still be sent.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleEmailReminders.ts@sha256:4648e32d2a54a36937ea65d24680d06a54cd740ea5015d301eda7de2c4ab0453"
+        ],
+        "explanation": "scheduleEmailReminders.ts imports the default @sendgrid/client singleton and calls client.request() at lines 57 and 188 (POST /v3/user/scheduled_sends). The module only calls sgMail.setApiKey at line 19, and @sendgrid/mail keeps its own separate client instance, so this does not configure the @sendgrid/client singleton. No client.setApiKey appears in this file. The only other calls are in emailReminderManager.ts:26 and packages/lib/Sendgrid.ts:57. Those run inside their own functions, and nothing guarantees they ran earlier in this cron invocation.",
+        "lines": {
+          "end_line": 19,
+          "start_line": 19
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 19,
+          "original": "sgMail.setApiKey(sendgridAPIKey);",
+          "start_line": 19,
+          "text": "sgMail.setApiKey(sendgridAPIKey);\nclient.setApiKey(sendgridAPIKey);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:18f208c12086a959c5f51b82"
+        ],
+        "title": "@sendgrid/client used without setApiKey in cron handler"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 24603,
+        "cache_write_input_tokens": 9107,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 33716,
+        "output_tokens": 1481,
+        "provider_cost": 0.0543781,
+        "request_id": "",
+        "seconds": 15.535
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "42a86f34ffe5f80de5718bb353d774a97a9378461b34dfc274d55ee6150c48a6",
+      "model": "sonnet",
+      "prompt_digest": "bf39970490eb77176d9695b0887af3b75428e2f103a04163e52d0327b76a4e87",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Confirm no other path cancels the SendGrid batch before the deleteMany. Confirm the cron cadence leaves a window where scheduledDate has passed but the batch has not yet been sent or cancelled.",
+            "failure_mode": "The first deleteMany removes all EMAIL reminders with scheduledDate <= now, including cancelled=true reminders whose SendGrid batches were never cancelled. The cancellation query only covers scheduledDate <= now+1h, and past-due reminders are deleted before it runs. Cancelled reminders already scheduled in SendGrid and due within the past interval can lose their DB row without a cancel request, so the email is still sent.",
+            "investigation_rationale": "Check the order of operations: deleteMany runs before findMany(cancelled: true). Determine whether cancelled reminders with past scheduledDate and referenceId are removed without calling SendGrid cancel.",
+            "priority_rationale": "Cancelled or rescheduled bookings could still send emails to attendees, which is user-visible.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:c594d227e8fc25052800e584"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Check whether client.setApiKey is called anywhere in the file. Check for a null referenceId on cancelled reminders (e.g. SMS reminders matched by the unfiltered query). Check that a failed request leaves the remaining rows undeleted.",
+            "failure_mode": "The cancellation loop awaits client.request for each reminder inside one try block. A single SendGrid failure aborts the loop, and the pending Prisma delete promises are never awaited. The query objects are lazy and only execute when awaited via Promise.all. If the loop throws, none of the earlier reminders' deletes run, so they are retried indefinitely. The findMany also has no method filter, and the client may lack an API key (client.setApiKey is not shown).",
+            "investigation_rationale": "Inspect error handling and whether client.setApiKey is called on @sendgrid/client. Also check whether the cancelled query filters by method EMAIL and whether referenceId can be null.",
+            "priority_rationale": "Failures lead to repeated cancellation attempts and stuck rows. Missing auth would make every cancellation fail silently, since the error is only logged.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:c594d227e8fc25052800e584"
+            ]
+          },
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Grep for 'cancelled' usage on workflowReminder across the repo. Check that the migration's timestamp ordering is valid.",
+            "failure_mode": "The new nullable cancelled column has no default. Existing rows and new rows have NULL, and the handler filters on cancelled: true. Other code that creates reminders or sets cancelled must handle NULL. The migration and the schema must also stay consistent.",
+            "investigation_rationale": "Check that the migration SQL matches schema.prisma (Boolean?). Look for writers of cancelled in booking cancel and reschedule flows, and for readers that treat NULL differently from false.",
+            "priority_rationale": "Schema changes are hard to roll back, and a mismatch would break the cancellation feature.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:15d37d0ff5e6e417bda5e18f",
+              "target:hun:4c78e431b2cbf6002f2464d4"
+            ]
+          },
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "Grep for 'client.setApiKey' in scheduleEmailReminders.ts and related files.",
+            "failure_mode": "The handler gets the API key from req.query.apiKey as well as the authorization header, and the module sets the SendGrid key at import time. The new cancellation path uses @sendgrid/client without a visible setApiKey, so requests to /v3/user/scheduled_sends could be unauthenticated.",
+            "investigation_rationale": "Verify that client.setApiKey(sendgridAPIKey) is called for the @sendgrid/client import. The sgMail.setApiKey call does not configure the separate client.",
+            "priority_rationale": "If the client is unauthenticated, all email cancellations fail.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:18f208c12086a959c5f51b82"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 5349,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 8007,
+        "output_tokens": 1477,
+        "provider_cost": 0.03695,
+        "request_id": "",
+        "seconds": 13.457
+      }
+    }
+  ],
+  "case_id": "calcom-06",
+  "case_input_digest": "b645136a59e6da7ca0c175c549dcca90e5fc88b91f8dcacb243d862dbe2985b3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

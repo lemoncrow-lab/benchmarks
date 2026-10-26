@@ -1,0 +1,119 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "18e85ffe6bc044f1bbab4fe0853974a4a5cb8b846f6b590e18c073aa24563f90",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The new email templates, the sendAddGuestsEmails function and the BookingListItem wiring are consistent with each other. AddGuestsDialog exists, the template exports are registered, and the addGuests handler calls sendAddGuestsEmails. New guests get the scheduled email and existing attendees get the add-guests email, which looks intentional. I did not find a concrete failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:d4c3b539aedcb8c02399dc4e"
+        ],
+        "title": "No defect confirmed in add-guests change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 52699,
+        "cache_write_input_tokens": 23457,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 76162,
+        "output_tokens": 1332,
+        "provider_cost": 0.1144436,
+        "request_id": "",
+        "seconds": 16.043
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5a88e22939bbad8632290983cb9d396bfa6634c969e2893ed99e5b0d61944ee9",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "Addresses listed in BLACKLISTED_GUEST_EMAILS, which the handler is meant to exclude, still get emails. Existing attendees get a duplicate notification. This can be used to send unwanted mail to arbitrary addresses.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+        ],
+        "explanation": "The handler builds `uniqueGuests` by dropping existing attendees and blacklisted emails, and only those are saved. The notification call then uses `sendAddGuestsEmails(evt, guests)` with the unfiltered input. A blacklisted address, or an existing attendee, still receives an 'added to event' email even though it was not added. Duplicates inside the input are also emailed more than once.",
+        "lines": {
+          "end_line": 169,
+          "start_line": 169
+        },
+        "other_findings": [
+          {
+            "category": "security",
+            "consequence": "Team admins who are not owners are wrongly refused. Mixed-case blacklisted emails bypass the blacklist. Duplicate attendees can be created. A very large list causes unbounded work and mass emailing.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts@sha256:ad2175fdb978d53d9618415853298db9b67223294a0a930f7987a55f4bf89214"
+            ],
+            "explanation": "`isTeamAdminOrOwner` is `isTeamAdmin(...) && isTeamOwner(...)`, so it only passes for someone who is both. A team admin who is not an owner is denied unless they are also the organizer or an attendee. Separately, `ZAddGuestsInputSchema` is `z.array(z.string().email())` with no `.max()`. Server-side uniqueness is only checked against existing attendees, not within the input. The blacklist comparison is case-sensitive against the raw guest string, while the blacklist entries are lowercased. A large list triggers one translation lookup per attendee, a createMany, a calendar update and emails. Any attendee, or anyone matching the email, can submit such a list.",
+            "lines": {
+              "end_line": 48,
+              "start_line": 46
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Team admin/owner check requires both roles, and the guest list has no size bound or server-side dedupe"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 169,
+          "original": "    await sendAddGuestsEmails(evt, guests);",
+          "start_line": 169,
+          "text": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Add-guests emails are sent to the raw input list, not the filtered unique guests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32938,
+        "cache_write_input_tokens": 27967,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60911,
+        "output_tokens": 3401,
+        "provider_cost": 0.1517483,
+        "request_id": "",
+        "seconds": 33.163
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:15:49+00:00"
+  },
+  "version": 1
+}

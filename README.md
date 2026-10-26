@@ -17,6 +17,9 @@ codebench/
 harbor/
   results/         Terminal-Bench 2.1 run results (harbor harness)
 
+code-review/       Golden-comment code-review benchmark runs (reports, records, judge cache,
+                   the other reviewer's collected comments); see code-review/README.md
+
 embedding/
   corpus.jsonl     Semantic search training corpus
   queries.jsonl    Evaluation query set

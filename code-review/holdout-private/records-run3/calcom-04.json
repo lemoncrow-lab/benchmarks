@@ -1,0 +1,532 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "08a7f129bba8fed060abebe8e5ec219e6e87d638c9bb3a3442e8b00919759c69",
+      "model": "sonnet",
+      "prompt_digest": "8c02b3876ab0b2160081b0e71b5651282a44a400d4054cf11a4170922cb3ce24",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-934ab389e190f829998c32dd",
+              "finding-5af17c10bd9d06f598f97995",
+              "finding-2dcb14bccf38e947761578a5"
+            ],
+            "keep_id": "finding-934ab389e190f829998c32dd"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 10571,
+        "cache_write_input_tokens": 7699,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 18276,
+        "output_tokens": 245,
+        "provider_cost": 0.035121,
+        "request_id": "",
+        "seconds": 11.256
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2aad56904ff55513990f076ab197ed0210c27df1e2d5dbb69d5266338f9b9af8",
+      "model": "sonnet",
+      "prompt_digest": "4791b10326041547d9cab64386b93aa8a00d22f7b06f2a9e5a52747958452100",
+      "response": {
+        "category": "correctness",
+        "consequence": "On instances without team billing, newly created organizations have a null slug. Org URL and subdomain routing break, and later slug-collision checks cannot match the org. On billing-enabled instances, the slug is claimed before payment or verification.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/organizations/create.handler.ts@sha256:95770550f5265267b9af0849ca77d1d262e85be0f646c84b4fb9b1c5dbbc16e5",
+          "target:target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "explanation": "The old code set `slug` when `!IS_TEAM_BILLING_ENABLED` and set `metadata.requestedSlug` only when billing was enabled. The change rewrote the first spread as `IS_TEAM_BILLING_ENABLED ? { slug } : {}`, which drops the negation. With billing disabled, which is the self-hosted default, the organization is now created with neither `slug` nor `requestedSlug`. With billing enabled, `slug` is set immediately and `requestedSlug` is also set, so the organization is no longer pending approval of the requested slug. This is a behavior change inside a diff that otherwise only changes destinationCalendar to an array.",
+        "lines": {
+          "end_line": 151,
+          "start_line": 151
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 151,
+          "original": "            ...(IS_TEAM_BILLING_ENABLED ? { slug } : {}),",
+          "start_line": 151,
+          "text": "            ...(!IS_TEAM_BILLING_ENABLED ? { slug } : {}),"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:bee7199f07c8e0a3fef788f6"
+        ],
+        "title": "Organization slug condition inverted: no slug is stored when team billing is disabled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 29914,
+        "cache_write_input_tokens": 25526,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 55444,
+        "output_tokens": 1734,
+        "provider_cost": 0.12470819999999999,
+        "request_id": "",
+        "seconds": 20.009
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "31951e2bb2466b2430a886350cb862b610b90dd9087bcfbcb678bd30ac9d6794",
+      "model": "sonnet",
+      "prompt_digest": "fa59e266e6b28e3e0c20f871b2d4f7083cf658df722d173b625da0ede346b798",
+      "response": {
+        "category": "correctness",
+        "consequence": "Creating a booking with a Google Meet location and no destination calendar (for example, a user with no connected Google Calendar) now fails with a TypeError. Before this change it fell back to Cal Video, so the booking and its event creation break.",
+        "evidence_refs": [
+          "source:new:packages/core/EventManager.ts@sha256:063d5bf52852bc2ba79909fb247301e3e9ecf1b5dc949f6c8192b6a8b12b75d2"
+        ],
+        "explanation": "destinationCalendar is now an array, and callers pass `[]` when neither the booking nor the user has a destination calendar. In `create`, `const [mainHostDestinationCalendar] = evt.destinationCalendar ?? [];` gives `undefined` for an empty or missing array. The next condition then reads `mainHostDestinationCalendar.integration` without optional chaining. The old code used `evt.destinationCalendar?.integration`, which was null-safe. So when `evt.location === MeetLocationType` and there is no destination calendar, the property access throws instead of falling back to Cal Video (`integrations:daily`). The `&&` does not guard against this, because the left side is true in exactly that case. I did not read the callers of `create` in the snapshot. The three changed handlers (bookingReminder, confirm, editLocation) do build `[]` for this case.",
+        "lines": {
+          "end_line": 119,
+          "start_line": 119
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 119,
+          "original": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar.integration !== \"google_calendar\") {",
+          "start_line": 119,
+          "text": "    if (evt.location === MeetLocationType && mainHostDestinationCalendar?.integration !== \"google_calendar\") {"
+        },
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:43aec7e61a37d222797251a0"
+        ],
+        "title": "EventManager.create throws TypeError for Google Meet when destinationCalendar is empty"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29227,
+        "cache_write_input_tokens": 23357,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 52590,
+        "output_tokens": 2079,
+        "provider_cost": 0.11934829999999999,
+        "request_id": "",
+        "seconds": 21.483
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3e30047ec889a0834d19ebefab5ed40de9d6edda8a13d5318c42497d1beadec7",
+      "model": "sonnet",
+      "prompt_digest": "b552218856dd77066a9600038655181a5864b9648c2e8ba0d15cdc3f3a2ac2bc",
+      "response": {
+        "category": "correctness",
+        "consequence": "The booking is not written to the other collective hosts' calendars. Nothing logs the omission.",
+        "evidence_refs": [
+          "source:new:packages/features/bookings/lib/handleNewBooking.ts@sha256:71d7096a9d3acdb4e6a16c03def8692b26c1a4bf3cb7fc090d1ef501bdb6a3d2"
+        ],
+        "explanation": "evt.destinationCalendar is null when neither the event type nor the organizer has a destination calendar. The new code then runs `evt.destinationCalendar?.push(...teamDestinationCalendars)`, and the optional chaining skips the push. Calendars collected from the other COLLECTIVE hosts (lines 992-993) are discarded. Example: a collective event where the organizer has no destination calendar but the second host has one. The team calendars are collected and never used.",
+        "lines": {
+          "end_line": 1079,
+          "start_line": 1077
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:018b7c888dce838a4682579e"
+        ],
+        "title": "Collective team members' destination calendars silently dropped when organizer has none"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 144659,
+        "cache_write_input_tokens": 27910,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 172581,
+        "output_tokens": 2397,
+        "provider_cost": 0.15239780000000003,
+        "request_id": "",
+        "seconds": 26.926
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "72434d1c1a84d330468fa9a7d6b8b7e854c303bb7235cceaf9ce8b08e6a0f27d",
+      "model": "sonnet",
+      "prompt_digest": "63e20f3bc6cc3f6ec97d87ef5cd46d8db7919bc364bb55ad608e6120e22e0040",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The class field type now matches CalendarEvent.destinationCalendar (DestinationCalendar[] | null) in packages/types/Calendar.d.ts. The added optional externalId on EventResult is backward compatible.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:348da717febd70a9b76c8558",
+          "target:sym:656a3299a3a95e22aba51da5"
+        ],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 14450,
+        "cache_write_input_tokens": 7603,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22057,
+        "output_tokens": 594,
+        "provider_cost": 0.0385242,
+        "request_id": "",
+        "seconds": 8.483
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8f3e219d789eb93940b7022e105b0312838b6ba250e5a013e679e2de7f79d3e8",
+      "model": "sonnet",
+      "prompt_digest": "dd89dbde874ad1514e5f2ebfcd4756ddf9ad69def335470734e4a0c9a1e6fd85",
+      "response": {
+        "category": "correctness",
+        "consequence": "When a caller omits `externalCalendarId` and the destination calendar is a non-primary calendar, the delete or cancel runs against the user's primary calendar. The event stays in the real destination calendar, or the wrong calendar is touched. Updates in the same situation fail because there is no calendarId.",
+        "evidence_refs": [
+          "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+        ],
+        "explanation": "The old code fell back to `event.destinationCalendar?.externalId` when `externalCalendarId` was empty. The new fallback is `event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId`. That branch only runs when `externalCalendarId` is falsy, so it looks for a calendar whose externalId equals undefined, null or an empty string. That search never finds a real calendar and always returns undefined. In `deleteEvent` the call then uses the \"primary\" calendar instead of the event's destination calendar. In `updateEvent`, `calendarId` is undefined and the Google API call fails.",
+        "lines": {
+          "end_line": 317,
+          "start_line": 315
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Event updates fail whenever `externalCalendarId` is missing. Before this change they used the destination calendar.",
+            "evidence_refs": [
+              "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+            ],
+            "explanation": "The same broken `find` comparison in `updateEvent` always yields undefined when `externalCalendarId` is falsy. `calendar.events.update` is then called with `calendarId: undefined`.",
+            "lines": {
+              "end_line": 256,
+              "start_line": 254
+            },
+            "replacement": {
+              "end_line": 256,
+              "original": "      const selectedCalendar = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId;",
+              "start_line": 254,
+              "text": "      const selectedCalendar = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.[0]?.externalId;"
+            },
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:40ef326450483f4b93038e9f"
+            ],
+            "title": "Google updateEvent has no calendar fallback when externalCalendarId is empty"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 317,
+          "original": "      const calendarId = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId)?.externalId;",
+          "start_line": 315,
+          "text": "      const calendarId = externalCalendarId\n        ? externalCalendarId\n        : event.destinationCalendar?.[0]?.externalId;"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d4fbe2fe8cce3d6c1b324665",
+          "target:sym:40ef326450483f4b93038e9f"
+        ],
+        "title": "Google deleteEvent/updateEvent lose the destination-calendar fallback"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 31311,
+        "cache_write_input_tokens": 26368,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 57685,
+        "output_tokens": 3474,
+        "provider_cost": 0.1457598,
+        "request_id": "",
+        "seconds": 31.791
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "97e827381672dd53b02f9d4720954b63a181b6c357102b0d5007414f72de5e80",
+      "model": "sonnet",
+      "prompt_digest": "f4426dc1cd907c8daf6daacd1c187e0539a21d2bc46c286e1732865d2f9cc706",
+      "response": {
+        "category": "correctness",
+        "consequence": "No new failure is introduced by this change.",
+        "evidence_refs": [
+          "source:new:packages/app-store/larkcalendar/lib/CalendarService.ts@sha256:2261c8e0a108976620eec99fd132f0249c8ea5b22da670e69c27b0090d251d5d"
+        ],
+        "explanation": "The change only switches calendarId lookup to the first element of the destinationCalendar array. CalendarEvent.destinationCalendar is typed DestinationCalendar[] | null in packages/types/Calendar.d.ts, so the new destructuring is correct and consistent across createEvent, createAttendees, updateEvent and deleteEvent. The rollback in createEvent passes calendarId explicitly. The rollback delete in the catch block is not wrapped in its own try/catch, and the try block in updateEvent is effectively unreachable. Both of those were already in the code before this change, which did not alter them.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:512fd865ec9dd56fd46006b5",
+          "target:sym:c9a8cb30f89e08803a494ce2"
+        ],
+        "title": "No defect introduced by the change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 16843,
+        "cache_write_input_tokens": 10188,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 27035,
+        "output_tokens": 1079,
+        "provider_cost": 0.054192000000000004,
+        "request_id": "",
+        "seconds": 11.074
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cc47b6c62c320f937d7c013d0b2021f0fbe406fbd58f6ea64b5794685f7853c7",
+      "model": "sonnet",
+      "prompt_digest": "52bf34859446a133fc77987510f9810e538b7599e232b13afef83706e773751e",
+      "response": {
+        "category": "correctness",
+        "consequence": "No new failure introduced by this change was found.",
+        "evidence_refs": [
+          "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320"
+        ],
+        "explanation": "The diff changes only the organizer attendee email, from event.destinationCalendar?.externalId to mainHostDestinationCalendar?.externalId. mainHostDestinationCalendar is the first entry of the destinationCalendar array, or undefined when the array is empty or missing. The email therefore falls back to event.organizer.email in that case. The organizer spread and the id: String(event.organizer.id) line were already there and are not part of this change. I did not check the CalendarEvent organizer type or the updateEvent callers, so I can't say whether organizer.id is always set on reschedule. The calendarId fallback is also unchanged and outside this change.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:40ef326450483f4b93038e9f"
+        ],
+        "title": "Change only swaps the organizer email source; no new defect shown"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 13799,
+        "cache_write_input_tokens": 8634,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22437,
+        "output_tokens": 934,
+        "provider_cost": 0.0459199,
+        "request_id": "",
+        "seconds": 10.807
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e19017e9d1b6d93c2a0827d9497b61c491e5a7048f7c3d4f2c71e3cd697bd6a2",
+      "model": "sonnet",
+      "prompt_digest": "675963993db4c6e453f2bab88b0888c3018b1d56dc5e9d6b2c19b749eadaee6e",
+      "response": {
+        "category": "correctness",
+        "consequence": "Calendar events created from Stripe or PayPal payment confirmation get an organizer attendee with id \"undefined\". PayPal events also lose the organizer's time format. Providers that validate the id may reject the event or store bad data.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/payments/api/webhook.ts@sha256:3ac40027bc58c319a9ede6cc9b3d73d990d21379c2ff04ed5f3d73824877c8fd",
+          "source:new:packages/features/ee/payments/api/paypal-webhook.ts@sha256:83c8909250478e9c28f3ba2f90a35d94eb1404375d8fa1c384e8cc596a171e08"
+        ],
+        "explanation": "The Stripe getBooking, the cron reminder handler and the Stripe handlePaymentSuccess all build `organizer`, but only getBooking and the cron handler set `id`. handlePaymentSuccess in webhook.ts (organizer block, lines 219-225) and the PayPal handlePaymentSuccess (organizer block, lines 144-149) leave it out. The PayPal organizer also omits `timeFormat`. `Person.id` is optional in Calendar.d.ts, so this compiles. GoogleCalendarService spreads the organizer and sets `id: String(calEventRaw.organizer.id)` at lines 119 and 225. With no id that becomes the string \"undefined\" in the organizer attendee entry. These two handlers are the ones that create the calendar event after payment.",
+        "lines": {
+          "end_line": 225,
+          "start_line": 219
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:6e97411b1503912b67e430dc",
+          "target:sym:7a164885400857e512a14b19"
+        ],
+        "title": "Payment-success CalendarEvents omit organizer.id, which Google Calendar stringifies"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 33671,
+        "cache_write_input_tokens": 12342,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 46019,
+        "output_tokens": 1751,
+        "provider_cost": 0.0713599,
+        "request_id": "",
+        "seconds": 16.893
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f597eaa6b9bc58c3b15911e36d8d55d91193d9ea951e635f17331fa80b4d7a90",
+      "model": "sonnet",
+      "prompt_digest": "86514fc35f29fb89b7ddc95ae41fd3b37bf56afbf0ea2945a78198aeba8c5eff",
+      "response": {
+        "category": "correctness",
+        "consequence": "When a caller omits externalCalendarId, the delete targets the user's primary calendar instead of the booking's destination calendar. An event booked on a non-primary calendar is then not deleted; the call fails with 404 or leaves the event in place. If the same uid exists on the primary calendar, that event is deleted instead.",
+        "evidence_refs": [
+          "source:new:packages/app-store/googlecalendar/lib/CalendarService.ts@sha256:598a0567ea6593338d96ad4e4dd4d0116ec44c9c0887c8cd9ba4f83067426320",
+          "target:target:sym:d4fbe2fe8cce3d6c1b324665"
+        ],
+        "explanation": "The fallback branch only runs when externalCalendarId is falsy (undefined, null or \"\"), but it searches event.destinationCalendar for a calendar whose externalId equals that falsy value. No real destination calendar has such an externalId, so the fallback always yields undefined and calendarId becomes \"primary\". The previous code used event.destinationCalendar?.externalId. The change made destinationCalendar an array (Calendar.d.ts:171) but did not write a working lookup, for example the first entry or the one matching the credential. The same pattern is at line 256 in the update path.",
+        "lines": {
+          "end_line": 317,
+          "start_line": 315
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d4fbe2fe8cce3d6c1b324665"
+        ],
+        "title": "deleteEvent fallback compares against falsy externalCalendarId and never finds a calendar"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 13845,
+        "cache_write_input_tokens": 7691,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 21540,
+        "output_tokens": 1124,
+        "provider_cost": 0.044058200000000006,
+        "request_id": "",
+        "seconds": 10.642
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "62de23a92f81a4492152b76094426267d5fad37f81dd297d57c3a37db6bd2cc9",
+      "model": "sonnet",
+      "prompt_digest": "eae590b98505ae077a79f79a7e5a9a96152195a0357045ccb64b3bb746d6f9c9",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Read updateEvent callers and the CalendarEvent organizer type. Check whether organizer.id is populated on reschedule. Check whether calendarId can be undefined in events.update.",
+            "failure_mode": "In GoogleCalendarService.updateEvent the attendees payload spreads event.organizer (including language/timeFormat objects) and attendee rest fields into the Google API requestBody, and sets id as String(organizer.id). Extra or incorrectly typed fields (e.g. id of 'undefined' when organizer.id is absent) could be rejected by Google or corrupt the attendee record on update. The calendarId fallback is also circular and may be undefined.",
+            "investigation_rationale": "The payload construction changed. Check whether organizer.id is always set for update callers, and whether the extra fields are sent to Google. Check that calendarId falls back to 'primary' when externalCalendarId is empty.",
+            "priority_rationale": "The update path modifies live external calendar events. A bad payload or calendarId breaks rescheduling.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:40ef326450483f4b93038e9f"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Read the rest of deleteEvent and its callers (EventManager). Check whether externalCalendarId is always supplied, and how 404/410 errors are handled.",
+            "failure_mode": "In deleteEvent the calendarId fallback is `event.destinationCalendar?.find(cal => cal.externalId === externalCalendarId)`. This is only reached when externalCalendarId is falsy, so the find compares against a falsy value and never usefully matches. The delete silently targets 'primary' and may delete the wrong calendar's event, or fail with 404 that is then swallowed.",
+            "investigation_rationale": "Check the error handling in the callback and whether callers pass externalCalendarId for non-primary calendars.",
+            "priority_rationale": "Deleting from the wrong calendar is a destructive, hard-to-notice side effect.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:d4fbe2fe8cce3d6c1b324665"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Read the full Lark CalendarService, including translateAttendees and the deleteEvent error handling. Check whether the rollback delete is wrapped in its own try/catch.",
+            "failure_mode": "In Lark createEvent, if createAttendees fails, the rollback calls deleteEvent(eventId, event, calendarId). The updateEvent error path calls deleteEvent(eventId, event) without a calendarId. If the rollback delete itself throws, it masks the original error. The unreachable try block in updateEvent can also delete the user's existing event on a failure.",
+            "investigation_rationale": "Check the rollback semantics, and whether the delete in updateEvent's catch can destroy a pre-existing booking event.",
+            "priority_rationale": "Compensating deletes act on external data and could cause data loss or hide the root-cause error.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:512fd865ec9dd56fd46006b5",
+              "target:sym:c9a8cb30f89e08803a494ce2"
+            ]
+          },
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "Check whether CalendarEvent.organizer.id is required or optional. Check how the Google, Office365, and Lark services consume it. Look for other call sites that omit it.",
+            "failure_mode": "The CalendarEvent objects built in these webhook and cron handlers are inconsistent about organizer.id and timeFormat. The Stripe getBooking sets organizer.id, but handlePaymentSuccess and the PayPal handler omit it. The calendar services now use String(organizer.id), so events created from payment confirmation get the id 'undefined'. This could break Google attendee payloads.",
+            "investigation_rationale": "Compare the evt construction across handlers against the CalendarEvent type and its consumers in the calendar services.",
+            "priority_rationale": "Payment confirmation creates calendar events in production, so inconsistent organizer data would silently corrupt attendee entries.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:6e97411b1503912b67e430dc",
+              "target:sym:a39c32b44cf5ec1cec706631",
+              "target:sym:7a164885400857e512a14b19",
+              "target:sym:4b25f42adc3ebb0c0dd9b550"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 14883,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 17541,
+        "output_tokens": 1529,
+        "provider_cost": 0.07655840000000001,
+        "request_id": "",
+        "seconds": 14.21
+      }
+    }
+  ],
+  "case_id": "calcom-04",
+  "case_input_digest": "caefb9f74d9d3d7b997fbed1a75e4cf2a3f61ec0207b1d76cd805b4f3446f908",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

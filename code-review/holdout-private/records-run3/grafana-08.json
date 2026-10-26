@@ -1,0 +1,188 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "2b31626970dd5a309da18fa9d62cabb5e0501de13d6a10fb12d7e007c4c45a16",
+      "model": "sonnet",
+      "prompt_digest": "1ce55a19dbe24a51b55f6849abc245d9b3b53c1ca06ae7cbdaa8b8f7b5bac7d8",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "No crash or race was found for this hypothesis.",
+        "evidence_refs": [
+          "source:new:pkg/api/webassets/webassets.go@sha256:2f20079c6badf05ee3025f48953d3e8c0ea8930d7678cca49c817e06ee9c8a35"
+        ],
+        "explanation": "The cache is read under RLock and written under the write lock. SetContentDeliveryURL runs only on a freshly built result, before that result is published to the cache. A nil result from a failed read just means the next call retries. The recovery middleware, which ignores the error, explicitly handles a nil result. The other two callers, index.go and frontendsettings.go, both capture err.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:8bd340e81a3600d1ceb96b1f"
+        ],
+        "title": "No defect confirmed in GetWebAssets cache handling"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 26761,
+        "cache_write_input_tokens": 9475,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 36242,
+        "output_tokens": 984,
+        "provider_cost": 0.051138499999999996,
+        "request_id": "",
+        "seconds": 17.474
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9989681548271375cd865924428cfe10f852fd64641bb682479e54e5b50a8c6a",
+      "model": "sonnet",
+      "prompt_digest": "33871caa14b16dc8cc7e47694a8041fc2e0ab97b38d32de0e4d045d1f25a6dea",
+      "response": {
+        "category": "performance",
+        "consequence": "After a cold start, a burst of page renders does redundant manifest reads and parses, one after another. In Dev mode, every request that needs web assets queues behind the exclusive lock. The impact is limited to latency.",
+        "evidence_refs": [
+          "source:new:pkg/api/webassets/webassets.go@sha256:2f20079c6badf05ee3025f48953d3e8c0ea8930d7678cca49c817e06ee9c8a35"
+        ],
+        "explanation": "GetWebAssets reads the cache under RLock and returns early if it is set (outside Dev). On a miss it takes the exclusive Lock and goes straight to reading and parsing the manifest. It never re-checks entryPointAssetsCache after acquiring the lock. If N requests arrive while the cache is cold, all N see nil. Each one then takes the lock in turn and re-reads the manifest from disk, even though the first has already filled the cache. In Dev mode the cache is deliberately bypassed, so every request takes the exclusive lock and does file I/O. The old code also re-read the manifest on every Dev request, so that behavior is not new. The new lock now serializes those reads. The returned pointer is only replaced, never mutated in place, so there is no data race.",
+        "lines": {
+          "end_line": 49,
+          "start_line": 48
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 49,
+          "original": "\tentryPointAssetsCacheMu.Lock()\n\tdefer entryPointAssetsCacheMu.Unlock()",
+          "start_line": 48,
+          "text": "\tentryPointAssetsCacheMu.Lock()\n\tdefer entryPointAssetsCacheMu.Unlock()\n\n\tif cfg.Env != setting.Dev && entryPointAssetsCache != nil {\n\t\treturn entryPointAssetsCache, nil\n\t}"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:8bd340e81a3600d1ceb96b1f"
+        ],
+        "title": "No cache re-check after taking the write lock in GetWebAssets"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 15109,
+        "cache_write_input_tokens": 9230,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 24343,
+        "output_tokens": 1246,
+        "provider_cost": 0.0516817,
+        "request_id": "",
+        "seconds": 13.591
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "deee2c5d3b78c20143256e2d1579af26b4823d670609a0893a2720a89b65a4db",
+      "model": "sonnet",
+      "prompt_digest": "000c796c0bd5efecaedbaf7f744ba8331e39276b886535a71fe5b1607fefa511",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No caller or serialization mismatch follows from this change.",
+        "evidence_refs": [
+          "source:new:pkg/api/webassets/webassets.go@sha256:2f20079c6badf05ee3025f48953d3e8c0ea8930d7678cca49c817e06ee9c8a35"
+        ],
+        "explanation": "The change only adds a sync.RWMutex around the package-level cache. The signature and return type of GetWebAssets are unchanged, and so are the JSON structs. The cache is read under RLock and written under the write lock, with a deferred unlock, so there is no data race. Dev mode still re-reads the manifest on every call, and non-dev still returns the cached value. The one remaining quirk is that concurrent cold-cache callers each re-read the manifest because there is no re-check after taking the lock. That is a redundant read, not a correctness problem.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:76c8f6797cc70f693e3723a2",
+          "target:hun:89a960fda634d3a360b45008",
+          "target:sym:8bd340e81a3600d1ceb96b1f"
+        ],
+        "title": "No API or wire contract break in GetWebAssets locking change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 29408,
+        "cache_write_input_tokens": 10672,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 40088,
+        "output_tokens": 1501,
+        "provider_cost": 0.061519399999999995,
+        "request_id": "",
+        "seconds": 19.254
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9364cd549d54699bf8e2de9df44d1d9f6139684f26c71bb8ce17d8f68a812684",
+      "model": "sonnet",
+      "prompt_digest": "1172f465aefadb2a1034c19cf5f9ee8e00db1298f9648108d3ede25395e69914",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "Check every caller of GetWebAssets to see whether it checks the error before using the result. Check whether the mutation done by SetContentDeliveryURL on a shared cached pointer can race with readers that no longer hold the lock.",
+            "failure_mode": "GetWebAssets overwrites the global cache with `result` even when reading failed (result nil, err non-nil). A transient manifest read error stores nil, and the function returns (nil, err). Callers that ignore the error or dereference the result could panic. In Dev mode, the pointer is also replaced on every call while earlier callers may still hold it.",
+            "investigation_rationale": "Line 69 assigns the cache unconditionally. Lines 59-67 only set the CDN URL when err == nil. After a failed CDN attempt, `err` is overwritten by the file read. If the file read succeeds, `result` is non-nil. If it fails, the cache is nil, so the next call retries. That is fine. The remaining risk is callers that use the result without checking the error.",
+            "priority_rationale": "This is the central changed function. A nil result reaching index or template rendering would crash every page load.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:8bd340e81a3600d1ceb96b1f"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "Check whether the dtos.EntryPointAssets fields are mutated after being returned. Check whether any tests run with -race. Check whether the Dev-mode behavior matches the previous implementation.",
+            "failure_mode": "The cache is checked under RLock and then under a separate Lock without re-checking after the lock is acquired. Concurrent cold-start requests all re-read and parse the manifest one after another. In Dev mode every request takes the exclusive lock and does file I/O, which serializes requests.",
+            "investigation_rationale": "The code has no double-checked locking after Lock(). The returned pointer is shared across goroutines. Check whether any code mutates the returned EntryPointAssets after it is returned.",
+            "priority_rationale": "This affects every page render, but the impact is likely performance only.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:76c8f6797cc70f693e3723a2",
+              "target:sym:8bd340e81a3600d1ceb96b1f"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 10098,
+        "cache_write_input_tokens": 6360,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 16462,
+        "output_tokens": 934,
+        "provider_cost": 0.0362528,
+        "request_id": "",
+        "seconds": 13.739
+      }
+    }
+  ],
+  "case_id": "grafana-08",
+  "case_input_digest": "0f6a44cbf9b07145c8483f05a6235f2291980ad3164f2d62530c74e3e2442ac9",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

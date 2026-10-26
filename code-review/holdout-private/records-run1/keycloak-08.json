@@ -1,0 +1,418 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "3b125d5a20968ddae7751caee8058f7b25db72ee8f11d2565699c2fc53cca7a0",
+      "model": "sonnet",
+      "prompt_digest": "7a78f82650a298d039af4ec52be55595fa2950a83e204d2907b27438ccfafee9",
+      "response": {
+        "category": "security",
+        "consequence": "No exploitable defect is evident in the changed scope.",
+        "evidence_refs": [],
+        "explanation": "The diff removes no guard or validation. It only records the grant type as a Constants.GRANT_TYPE attribute on the ClientSessionContext. It does this in the pre-authorized code, password, standard token exchange, and generic createTokenResponse paths. It also makes getShouldUseLightweightToken static, adds a constant, and registers an SPI. The grant-type values come from server-side constants or context.getGrantType(), not from untrusted input that skips a validation path. The code is also unchanged in the following ways. The pre-authorized code is still validated before the attribute is set. validateConsents in token exchange is unchanged. Client authentication is unchanged.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:96879abf2d11447706f5b3dc",
+          "target:sym:b8f4ccfe276fe8f4ea6c727d",
+          "target:sym:2fd3ebfeb99d3d713f64d57a",
+          "target:sym:649ebb6121327bb3861051b1"
+        ],
+        "title": "No weakened check or authorization bypass found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 27939,
+        "cache_write_input_tokens": 21550,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 49495,
+        "output_tokens": 1298,
+        "provider_cost": 0.10405729999999999,
+        "request_id": "",
+        "seconds": 15.016
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3d5338cc09caf52fcd5d79ce343088cc5f2e4c7d58b713c14906a02251e0be4e",
+      "model": "sonnet",
+      "prompt_digest": "2b5fbcbef34a8fa2289a89eb344341264fb2c6b4a15cb00d59d357ea0e99204c",
+      "response": {
+        "category": "correctness",
+        "consequence": "No 500 error on the authentication path can be shown from this change.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/protocol/oidc/encode/DefaultTokenContextEncoderProvider.java@sha256:7bf4bee7ed77930085f7b6cf189d62caf4d341f15703fdde2542343fe754ece9"
+        ],
+        "explanation": "The method throws IllegalArgumentException for a jti with ':' and a malformed or unknown prefix, as the hypothesis says. A grep of the snapshot found no production caller, so I could not show that introspection, userinfo or logout reach it. The only references are the interface declaration, the implementation and unit tests. The throwing behavior is also deliberate and is exercised by the tests. Whether an attacker-controlled jti reaches it depends on callers outside this snapshot.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:1586255ced159106367e4007",
+          "target:sym:c7c0eed488acf2c50edee98b"
+        ],
+        "title": "No production caller of getTokenContextFromTokenId in the snapshot"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 18057,
+        "cache_write_input_tokens": 11675,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 29736,
+        "output_tokens": 769,
+        "provider_cost": 0.057286800000000006,
+        "request_id": "",
+        "seconds": 11.832
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "52563cdee8a400ab634577e1c7d430d0154603886a4b0e468829f8aa4e0d6525",
+      "model": "sonnet",
+      "prompt_digest": "82381d94634123b14996c29a73bb38e9f2faf0c818d4d04f17021c259918fa62",
+      "response": {
+        "category": "correctness",
+        "consequence": "Tokens from the client credentials grant, legacy token exchange, UMA and implicit/hybrid flows carry the wrong grant-type marker in their IDs. Consumers or tests that expect a grant-specific token ID for those grants will fail or misclassify the tokens.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/protocol/oidc/grants/OAuth2GrantTypeBase.java@sha256:4719389cef4d2849b1fd7eadfe855c88f70bc2c9e8bf7ec74f4e91c1b62c80f4",
+          "target:target:sym:b8f4ccfe276fe8f4ea6c727d"
+        ],
+        "explanation": "The change sets Constants.GRANT_TYPE only in createTokenResponse (authorization code, device, CIBA), the resource owner password grant, pre-authorized code, standard token exchange and refresh. TokenManager.initToken calls DefaultTokenContextEncoderProvider.getTokenContextFromClientSessionContext, which falls back to UNKNOWN (\"na\") when the attribute is missing. Grep over services/src/main/java shows no GRANT_TYPE assignment before AccessTokenResponseBuilder.generateAccessToken() in ClientCredentialsGrantType (line 140), AbstractTokenExchangeProvider (line 410), AuthorizationTokenService (UMA, line 358) or OIDCLoginProtocol (line 272). The same applies to the direct createClientAccessToken calls in PolicyEvaluationService and KeycloakIdentity. Client credentials, legacy and V1 token exchange, and UMA tokens therefore get an \"na\" grant-type segment in their token ID. This is inconsistent with the grant-aware ID the change introduces. The caller-supplied grant_type is not a risk here: TokenEndpoint dispatches only to registered grants, and an unregistered value would make encodeTokenId throw IllegalStateException.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:b8f4ccfe276fe8f4ea6c727d"
+        ],
+        "title": "GRANT_TYPE not set on several paths that mint access tokens, so token IDs get \"na\""
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 109572,
+        "cache_write_input_tokens": 24602,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 134186,
+        "output_tokens": 2984,
+        "provider_cost": 0.1405056,
+        "request_id": "",
+        "seconds": 29.332
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "66ac02be228a7b6e6caf9a619a2c62a1116b8cbe046d3aa62b8551c94174583b",
+      "model": "sonnet",
+      "prompt_digest": "7fdce9e079d9abc775c3d21a44f2f0ce7ce30197628653c2c97c636965dce087",
+      "response": {
+        "category": "correctness",
+        "consequence": "A null rawTokenId is accepted. encodeTokenId then builds a token id ending in \":null\", and getRawTokenId() can return null. This produces malformed token ids instead of failing early.",
+        "evidence_refs": [
+          "source:new:services/src/main/java/org/keycloak/protocol/oidc/encode/AccessTokenContext.java@sha256:831b97cd01a743af6db47c0aab457162f2bb35cf4b197f83db460c19afaed291",
+          "target:target:sym:f1e6f6b7dcc1ebfba28bab37"
+        ],
+        "explanation": "The AccessTokenContext constructor calls Objects.requireNonNull(grantType, \"Null rawTokenId not allowed\") a second time. It never checks rawTokenId, so the null guard for rawTokenId is missing.",
+        "lines": {
+          "end_line": 73,
+          "start_line": 73
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 73,
+          "original": "        Objects.requireNonNull(grantType, \"Null rawTokenId not allowed\");",
+          "start_line": 73,
+          "text": "        Objects.requireNonNull(rawTokenId, \"Null rawTokenId not allowed\");"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:f1e6f6b7dcc1ebfba28bab37"
+        ],
+        "title": "rawTokenId null check validates grantType instead"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 32978,
+        "cache_write_input_tokens": 27082,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60066,
+        "output_tokens": 1849,
+        "provider_cost": 0.1326967,
+        "request_id": "",
+        "seconds": 19.243
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "921a6e2419a97ae7bd27657c2e5933a5c408b02d97b37e89e403c861a12af5d8",
+      "model": "sonnet",
+      "prompt_digest": "6c74f5607e45430c2bf78f423af64295f31c49d3e20a107b9ce1964768b306cc",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "No defect confirmed in the supplied code. I did not grep the other getShortcut implementations, so uniqueness across all grant factories is unchecked.",
+        "evidence_refs": [],
+        "explanation": "The size check does catch both kinds of collision. If two grants share a shortcut but have different IDs, grantsByShortcuts keeps one entry while grantsToShortcuts keeps two, so the sizes differ and postInit throws. If two grants share an ID but have different shortcuts, the reverse happens and the check also throws. Grants that are not registered at postInit time are handled by the refresh paths in getShortcutByGrantType and getGrantTypeByShortcut. Those paths look the factory up again and fill both maps, so a missing shortcut does not break token issuance.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:c7c0eed488acf2c50edee98b",
+          "target:hun:82126bcd1801dcb7127e7330"
+        ],
+        "title": "Duplicate check catches collisions; missing grants are resolved lazily"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 16564,
+        "cache_write_input_tokens": 10201,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 26771,
+        "output_tokens": 1293,
+        "provider_cost": 0.056338299999999994,
+        "request_id": "",
+        "seconds": 16.065
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "adb9b6c29dad350a686a45b7a1234e1b5711b11dd5b1178508dfb61e02574a86",
+      "model": "sonnet",
+      "prompt_digest": "abdc64a4cae4db1d261e17d9400a425abd6913e62446e32d735d8e4e44d49a40",
+      "response": {
+        "category": "security",
+        "consequence": "No concrete failing input or state was found.",
+        "evidence_refs": [],
+        "explanation": "The change adds getShortcut() to every OAuth2GrantTypeFactory implementation, including AuthorizationCodeGrantTypeFactory, which already had it. It sets the grant type attribute on refresh, and encodes the token id in initToken. The encoder falls back to \"na\" when no grant type is set. The factory registers \"na\" and checks that shortcuts are unique at startup. Grant type values written to the client session context come from the server or from registered grant types, not directly from untrusted input. No authorization check was removed or weakened.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:cff1ce9bfaa66ffee57ec4bc"
+        ],
+        "title": "No exploitable validation gap found in grant shortcut / token id encoding change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 189568,
+        "cache_write_input_tokens": 44080,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 233660,
+        "output_tokens": 1716,
+        "provider_cost": 0.21507030000000002,
+        "request_id": "",
+        "seconds": 31.271
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b666486aa753896398a8fa65279eb938351f45b569a8c49fc94045a0274b6c5f",
+      "model": "sonnet",
+      "prompt_digest": "e5aadc0f0549bd659a80a80ec5dbdffcb2421f4e9944782446e3430c806c90df",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "Third-party custom grant factories will need to add getShortcut(). The AccessTokenContext constructor accepts a null rawTokenId and checks grantType twice. That second defect should be fixed separately.",
+        "evidence_refs": [],
+        "explanation": "All 9 in-repo OAuth2GrantTypeFactory implementers in the services module implement getShortcut(), so the repository itself compiles. The interface lives in server-spi-private, an internal SPI, so the new abstract method is a deliberate contract change rather than an unnoticed break. The removed Context(Context) copy constructor and the new grantType field don't break any caller I could see. The AccessTokenContext null-check bug is real: services/.../encode/AccessTokenContext.java:73 calls requireNonNull(grantType, \"Null rawTokenId not allowed\") instead of checking rawTokenId. That file is not one of the supplied targets and has no entry in the evidence registry, so I can't cite it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:60aed5e454dab9e361bcb5b2",
+          "target:sym:ac83bc7df72a73e96e617b84"
+        ],
+        "title": "No defect confirmed in the supplied targets"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 46187,
+        "cache_write_input_tokens": 12361,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58558,
+        "output_tokens": 1608,
+        "provider_cost": 0.07105120000000001,
+        "request_id": "",
+        "seconds": 20.166
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "d537dc4fd8d3b8399fcf32bfcdf3cc5feaee3d5296e8bddfb057c8d16c7cead0",
+      "model": "sonnet",
+      "prompt_digest": "766f3c4aac66e1b892d0e846cb8ecbe625d5b6e315d21bb82f3ff03c7a5e40ec",
+      "response": {
+        "category": "verification",
+        "consequence": "The event assertions in expectCodeToToken, expectRefresh, expectDeviceCodeToToken and expectAuthReqIdToToken give false confidence. Token IDs encoded with the wrong grant shortcut would pass undetected. If the offset were fixed without fixing the inversion, the tests would fail for correct tokens.",
+        "evidence_refs": [
+          "source:new:testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/AssertEvents.java@sha256:aa5a6542fe0f9320acfa5abb1d4a9a2ffb08cb4d5c6d58f65098faff9184609e",
+          "target:target:sym:14d75719950faa8e756f27bb"
+        ],
+        "explanation": "In isAccessTokenId, the line `if (items[0].substring(3, 5).equals(expectedGrantShortcut)) return false;` has two defects. First, the condition is inverted: it rejects a token ID whose grant shortcut matches the expected one. Second, the offset is wrong. Token IDs look like `ofrtro:5678` or `trltcc:1234`, which are 2 chars of session type, 2 of token type and 2 of grant. The grant shortcut is therefore at index 4 to 6, not 3 to 5. substring(3,5) returns the last char of the token-type pair plus the first char of the grant pair, for example `tr`. It will practically never equal a 2-char shortcut, so the inverted check never fires. The matcher therefore only verifies the `xxxxxx:<uuid>` shape and never verifies the grant type. A short prefix (fewer than 5 chars before the colon) also makes substring throw StringIndexOutOfBoundsException instead of returning a mismatch.",
+        "lines": {
+          "end_line": 482,
+          "start_line": 481
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 482,
+          "original": "                // Grant type shortcut starts at character 4th char and is 2-chars long\n                if (items[0].substring(3, 5).equals(expectedGrantShortcut)) return false;",
+          "start_line": 481,
+          "text": "                // Grant type shortcut starts at the 5th char (index 4) and is 2-chars long\n                if (items[0].length() != 6 || !items[0].substring(4, 6).equals(expectedGrantShortcut)) return false;"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:14d75719950faa8e756f27bb"
+        ],
+        "title": "isAccessTokenId matcher never checks the grant shortcut: condition inverted and offset wrong"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 25159,
+        "cache_write_input_tokens": 19566,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44731,
+        "output_tokens": 2551,
+        "provider_cost": 0.1080989,
+        "request_id": "",
+        "seconds": 24.321
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "0cb4d7923494239171388d509de0da77822f72f36a325c2700ea01a7ee01013a",
+      "model": "sonnet",
+      "prompt_digest": "e77b3db2a9ea2ebaf78894ae0d743ac9b05ceb21dc7c22f2482234472c9a1e95",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Call sites of getTokenContextFromTokenId and whether they catch IllegalArgumentException. Whether the jti is attacker-controlled before the signature check.",
+            "failure_mode": "getTokenContextFromTokenId throws IllegalArgumentException for token IDs with a ':' but a malformed or unknown prefix. Any access token whose jti contains ':' (e.g. tokens from other issuers/versions or an unrecognized shortcut) would make introspection, userinfo, or logout validation fail with a 500 instead of a clean invalid-token result. Also, the factory's getGrantTypeByShortcut lazy refresh runs a stream over provider factories on every unknown shortcut, and the plain HashMap swap in tests masks concurrency issues.",
+            "investigation_rationale": "Find callers of getTokenContextFromTokenId and check whether the runtime exceptions are caught and mapped to an invalid-token response. Check how tokens with legacy (no ':') or foreign IDs are handled.",
+            "priority_rationale": "Token ID parsing sits on the authentication path. Uncaught exceptions there could be triggered by attacker-supplied tokens.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:1586255ced159106367e4007",
+              "target:sym:c7c0eed488acf2c50edee98b"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "A grep of all getShortcut implementations for duplicates. Analysis of whether the equal-size check can fail in the duplicate-shortcut case. Whether getProviderFactoriesStream includes unsupported factories.",
+            "failure_mode": "The shortcut maps are built in postInit from the provider factories, and only OAuth2GrantType factories that are registered at that time are included. Grant factories disabled by EnvironmentDependentProviderFactory (CIBA, device, token exchange, pre-authorized code) may be excluded, and encodeTokenId then throws IllegalStateException 'unknown grantType'. The two-map update in the lazy refresh is also non-atomic, and the size-equality duplicate check does not detect a shortcut collision when two grants share a shortcut and the map overwrites it. The shortcuts 'rt' (RefreshTokenGrantTypeFactory) and 'rt' (TokenType.REGULAR) are in different positions, so they do not collide.",
+            "investigation_rationale": "Verify that the duplicate check actually catches collisions (both maps shrink equally on a duplicate shortcut or duplicate ID, so the size comparison may pass). Check the grant shortcuts for uniqueness across all factories, including those in other modules.",
+            "priority_rationale": "A silent shortcut collision would make token IDs decode to the wrong grant type. A missing shortcut would break token issuance.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:c7c0eed488acf2c50edee98b",
+              "target:hun:82126bcd1801dcb7127e7330"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "All call sites of createClientAccessToken, tokenManager.createClientAccessToken and initToken, and whether GRANT_TYPE attribute is set at each. Behavior of encodeTokenId when GRANT_TYPE is a non-registered string.",
+            "failure_mode": "Constants.GRANT_TYPE must be set on the ClientSessionContext before createClientAccessToken calls initToken. Grant paths that miss it (for example the authorization code, device, CIBA and client credentials paths that don't go through createTokenResponse, or token exchange variants) fall back to 'na', so the event TOKEN_ID will not match the isAccessTokenId(shortcut) expectation. Conversely, the refresh path sets REFRESH_TOKEN and a session type derived from the user session. Offline-session refresh and persistence-state edge cases could produce wrong prefixes.",
+            "investigation_rationale": "Trace every call of createClientAccessToken and check that GRANT_TYPE is set beforehand. In particular check context.getGrantType(), which comes from the form param and could be null or user-controlled.",
+            "priority_rationale": "A mismatch leads to wrong token IDs and broken integration tests across grants. The caller-supplied grant_type value is only trusted if it matches a registered grant.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:b8f4ccfe276fe8f4ea6c727d",
+              "target:sym:2fd3ebfeb99d3d713f64d57a",
+              "target:sym:96879abf2d11447706f5b3dc",
+              "target:sym:649ebb6121327bb3861051b1",
+              "target:sym:9f56b6e6f226fb61c816b7be"
+            ]
+          },
+          {
+            "category": "api_compatibility",
+            "evidence_needed": "All implementers of OAuth2GrantTypeFactory in the snapshot. Whether getShortcut is declared default. Whether any caller can pass a null rawTokenId.",
+            "failure_mode": "Adding the abstract method getShortcut() to the public OAuth2GrantTypeFactory SPI breaks existing custom grant implementations, which no longer compile or throw AbstractMethodError at runtime. Also, the AccessTokenContext constructor null-checks grantType twice and never rawTokenId, so a null rawTokenId is accepted.",
+            "investigation_rationale": "Check whether getShortcut has a default implementation in the interface and whether other OAuth2GrantTypeFactory implementations in the repository (e.g. in the testsuite or extensions) were updated. The AccessTokenContext null-check bug at line 'Objects.requireNonNull(grantType, \"Null rawTokenId not allowed\")' is a concrete defect.",
+            "priority_rationale": "This is a source and binary break for third-party providers, and a copy-paste validation defect.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:60aed5e454dab9e361bcb5b2",
+              "target:sym:ac83bc7df72a73e96e617b84"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 51029,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53687,
+        "output_tokens": 2065,
+        "provider_cost": 0.230118,
+        "request_id": "",
+        "seconds": 19.631
+      }
+    }
+  ],
+  "case_id": "keycloak-08",
+  "case_input_digest": "4dd05c0e7ca757ede05ff45a74a7e247b6a9c328cc4934954f66424fed5f5ef4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

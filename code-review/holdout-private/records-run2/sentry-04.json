@@ -1,0 +1,137 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "a8194d3a027d534eda1d86ee1225775996c3fd9b6f83abb94085902c6f63da4f",
+      "model": "sonnet",
+      "prompt_digest": "85cd4609742e2b8f10156eb21e4e6e7591ac419177d7466ddbf156da7d970d66",
+      "response": {
+        "category": "verification",
+        "consequence": "A regression in handling a missing GitHub installation would go undetected, because the test passes whatever the 404 handling does.",
+        "evidence_refs": [
+          "source:new:tests/sentry/integrations/github/test_integration.py@sha256:be02243004a09e53ec2c089fd17f0c0249578f9b118d56856c28c96a2df352ea",
+          "source:old:tests/sentry/integrations/github/test_integration.py@sha256:fd6e6494848a7a9c8672141d962c58db9fbdd86b01ea59064b90500faafb2bd7"
+        ],
+        "explanation": "The test never runs the init step, and its callback uses state \"ddd023d87a913d5226e2a882c4c4cc05\". That value differs from the pipeline signature used by the other tests (\"9cae5e88...\"). In the OAuth step, `request.GET.get(\"state\") != pipeline.signature` returns `error(request, ...)`, whose short message is \"Invalid installation request.\" The new assertion matches that message, so the test passes on the state mismatch. It never reaches GitHubInstallation or `build_integration`, where the 404 from `/app/installations/{id}` becomes \"The GitHub installation could not be found.\" The old assertion on that message was removed.",
+        "lines": {
+          "end_line": 396,
+          "start_line": 392
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d9f187965c97d9b293abb054"
+        ],
+        "title": "test_installation_not_found no longer exercises the 404 installation path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 69791,
+        "cache_write_input_tokens": 3321,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 73118,
+        "output_tokens": 1606,
+        "provider_cost": 0.038283300000000006,
+        "request_id": "",
+        "seconds": 16.348
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3f651635efd7c72ffb999435fe576a08c98dcdefb30db11858fe391cdeedf29",
+      "model": "sonnet",
+      "prompt_digest": "cd3759e6dde6b943f839ca52c97918cf82b287e1fa204b5dc37e68c706056570",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The constant was [\"github\"], so `provider_id in [\"github\"]` is equivalent to `provider_id == \"github\"`. No other references to FORWARD_INSTALL_FOR remain in the snapshot.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:2d23990736fb6e9436956024",
+          "target:sym:371c7e561e93b98e544aef4a"
+        ],
+        "title": "Behavior-preserving inlining of FORWARD_INSTALL_FOR"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 21746,
+        "cache_write_input_tokens": 1145,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22895,
+        "output_tokens": 619,
+        "provider_cost": 0.013715999999999999,
+        "request_id": "",
+        "seconds": 9.706
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "feb03417ee261b98954fd6dbdb30c7c00a1001ea826ee9487f95e053508997c0",
+      "model": "sonnet",
+      "prompt_digest": "ea2e9b676d238b15e6cc5b2e693b8f40e611abf35e9c10770094b30c4456753f",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user re-installing on an organization that has an Integration row with no sender metadata gets an unhandled 500 and cannot complete the install. The failure surfaces as a server error, not the intended 'could not verify' page.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a"
+        ],
+        "explanation": "The new check in GitHubInstallation.dispatch reads `integration.metadata[\"sender\"][\"login\"]` directly. This path runs when an Integration row exists for the installation_id but has no OrganizationIntegration. Integrations created before this change, or created without a sender, have no `metadata[\"sender\"]`. The sender is only copied into metadata conditionally in build_integration (around line 377). I did not check whether older rows lack the key. For such a row the lookup raises KeyError, or TypeError if `sender` is None, instead of returning the `error()` page. The same lookup also trusts that the stored sender has a `login` key.",
+        "lines": {
+          "end_line": 505,
+          "start_line": 501
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e6bbbd1d7437fd1cdec69bb3"
+        ],
+        "title": "Sender check raises KeyError for integrations without stored sender metadata"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 48728,
+        "cache_write_input_tokens": 2435,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51169,
+        "output_tokens": 2177,
+        "provider_cost": 0.038506399999999996,
+        "request_id": "",
+        "seconds": 24.953
+      }
+    }
+  ],
+  "case_id": "sentry-04",
+  "case_input_digest": "16f9b4fa1fb198865367fcb62ce67e58dbed7b3e358b320f8b43a2d1f76983df",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

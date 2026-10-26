@@ -1,0 +1,88 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "2404471e68ab6c2b2244dd626e382711722eead76cca8ea22f2aee6040674178",
+      "model": "sonnet",
+      "prompt_digest": "842e3980f4698eb7990c3fce161e28bfaeace98dee7903fc80a033e80301a110",
+      "response": {
+        "category": "correctness",
+        "consequence": "The new `optimized_pagination=true` mode returns HTTP 500 on the audit-log endpoint for admins. Crafted cursors with a negative offset also raise a server error.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "source:new:src/sentry/api/endpoints/organization_auditlogs.py@sha256:247f884c4df443920621b9699731520e13c01b181fe80358549cd798a75734d9"
+        ],
+        "explanation": "The audit log endpoint orders by \"-datetime\" and, when `optimized_pagination=true` and the user is an admin, now paginates with OptimizedCursorPaginator. That class extends BasePaginator directly, not DateTimePaginator. Its get_item_key calls math.floor/ceil on the raw `datetime` attribute, which raises TypeError for datetime objects. Its value_from_cursor returns the raw numeric cursor value instead of converting a timestamp to a datetime, so the queryset filter built from a cursor gets a number where a datetime is expected. Any request with a non-empty result set reaches build_cursor with key=get_item_key and fails. Separately, the `enable_advanced_features` branch slices the queryset with a negative start (`queryset[cursor.offset:stop]`). Django querysets reject negative indexing with an AssertionError, and Cursor.from_string accepts negative offsets from user input, so a crafted cursor returns a 500.",
+        "lines": {
+          "end_line": 840,
+          "start_line": 838
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:c2bce0e9e3241c6d44222d03",
+          "target:sym:15eb32d1a77543ba46a4511f",
+          "target:sym:9aeb4d417aeec39e0d066098"
+        ],
+        "title": "OptimizedCursorPaginator is incompatible with the datetime-ordered audit log endpoint and crashes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 65746,
+        "cache_write_input_tokens": 2451,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 68203,
+        "output_tokens": 1903,
+        "provider_cost": 0.03725,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "bfa20bab16685cf7b23958d6ac8037158add2f0a69270ccf3ed458ad0cd9ca1a",
+      "model": "sonnet",
+      "prompt_digest": "cdc3b7c3e605d175462dad439ca4382c846c31bc387fc038e382efa1094aa665",
+      "response": {
+        "verdicts": [
+          {
+            "finding_id": "finding-a74ad26ade7d3820ae737067",
+            "reason": "The diff shows OptimizedCursorPaginator.get_item_key calling math.floor/ceil on the raw `datetime` attribute, which raises TypeError for datetime objects. The audit-log endpoint orders by \"-datetime\", so the optimized path for admins fails. The negative-offset slice on a Django queryset is also unsupported.",
+            "verdict": "keep"
+          }
+        ]
+      },
+      "schema_digest": "9f2f3a1965415c4a67066ae287dcce6640e370878a5e0b4e4649df0929564791",
+      "stage": "finding_verification",
+      "system_digest": "d912f65725c6677d35ac975591b4d909da05cc465b66ba7adb49c391f1452e73",
+      "usage": {
+        "cache_read_input_tokens": 0,
+        "cache_write_input_tokens": 9492,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 9494,
+        "output_tokens": 468,
+        "provider_cost": 0.0433339,
+        "request_id": "",
+        "seconds": 8.562
+      }
+    }
+  ],
+  "case_id": "sentry-01",
+  "case_input_digest": "1be05f7e7de639b15900d16368c58df01a43ba949ac0e9795ac33900a6be7d54",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:09:02+00:00"
+  },
+  "version": 1
+}

@@ -1,0 +1,201 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "088440884fefc8f6eb679b45b1b2a99e9cec5395eee8e631d449d24f553a3398",
+      "model": "sonnet",
+      "prompt_digest": "e9ef89a1e6da53531d347c2cc352183f4e5a6dcbe22b59c55adcee57ede1c1ab",
+      "response": {
+        "category": "performance",
+        "consequence": "An authenticated attendee can send one request with a very large guest list. That bloats the booking's attendee rows and triggers a large number of outgoing emails and calendar updates. Those emails go from the platform's sender, so this can be used for spam and puts heavy load on the server.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts@sha256:ad2175fdb978d53d9618415853298db9b67223294a0a930f7987a55f4bf89214"
+        ],
+        "explanation": "ZAddGuestsInputSchema validates `guests` as `z.array(z.string().email())` with no `.min(1)` or `.max(n)`. The handler (addGuests.handler.ts) does a createMany with one attendee row per guest. It then builds a translation for every attendee, calls updateCalendarAttendees, and sends emails. The email step goes through sendAddGuestsEmails in email-manager.ts, which sends one email per attendee plus the organizer emails. Nothing in the handler caps the count either. It filters duplicates only against existing attendees, not within the input, so the same address repeated N times produces N attendee rows. Any attendee, who need not be the organizer, can call this procedure, so a single request can carry thousands of addresses.",
+        "lines": {
+          "end_line": 5,
+          "start_line": 5
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 5,
+          "original": "  guests: z.array(z.string().email()),",
+          "start_line": 5,
+          "text": "  guests: z.array(z.string().email()).min(1).max(10),"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:b314cced4e70c58a13fbaad7"
+        ],
+        "title": "addGuests input accepts an unbounded guests array"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 44066,
+        "cache_write_input_tokens": 20649,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 64721,
+        "output_tokens": 1464,
+        "provider_cost": 0.10318470000000002,
+        "request_id": "",
+        "seconds": 18.387
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7e57da3c855b170ee656fd0adc730343fb00245c58a39d470dd92d96ca999cdf",
+      "model": "sonnet",
+      "prompt_digest": "8cad16f7167ddabf3a014021209195c8751fdb7e87ca85c33eb97a39e61690a6",
+      "response": {
+        "category": "correctness",
+        "consequence": "Team admins or owners who are not the organizer or an attendee cannot add guests to team bookings, although the handler intends to allow them. The permission model is wrong, and the authorization gate is stricter than designed.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+          "target:target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "explanation": "isTeamAdminOrOwner is computed as isTeamAdmin(...) && isTeamOwner(...). The name and intent say \"admin or owner\", but && requires the user to pass both checks. A team admin who isn't an owner fails the owner check. If isTeamAdmin only matches the ADMIN role, an owner fails the admin check. If it matches both roles, the owner check is redundant and admins are still excluded. Either way, a team admin who is not the organizer or an attendee gets FORBIDDEN when adding guests to a team event booking. I did not open the isTeamAdmin or isTeamOwner definitions, so the second case is unconfirmed.",
+        "lines": {
+          "end_line": 48,
+          "start_line": 46
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Blacklisted addresses can be added as guests by changing their case, and existing attendees can be added again as duplicates.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+            ],
+            "explanation": "The blacklist is lowercased, but the guest email is compared as submitted. A guest entered as \"Bad@X.com\" bypasses a blacklisted \"bad@x.com\". The same applies to the duplicate check against existing attendee emails, where \"A@x.com\" passes against an attendee stored as \"a@x.com\".",
+            "lines": {
+              "end_line": 75,
+              "start_line": 71
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Blacklist and duplicate checks are case-sensitive on guest emails"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 48,
+          "original": "  const isTeamAdminOrOwner =\n    (await isTeamAdmin(user.id, booking.eventType?.teamId ?? 0)) &&\n    (await isTeamOwner(user.id, booking.eventType?.teamId ?? 0));",
+          "start_line": 46,
+          "text": "  const isTeamAdminOrOwner =\n    (await isTeamAdmin(user.id, booking.eventType?.teamId ?? 0)) ||\n    (await isTeamOwner(user.id, booking.eventType?.teamId ?? 0));"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Team admin/owner permission check uses && instead of ||"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 21629,
+        "cache_write_input_tokens": 16273,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 37908,
+        "output_tokens": 2995,
+        "provider_cost": 0.09865180000000001,
+        "request_id": "",
+        "seconds": 25.664
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a58771b725b2c110cdd125fd21f723db5093260f0c77fc660a0134cd9a3ef30d",
+      "model": "sonnet",
+      "prompt_digest": "a4f158f840151ff12c0c65c335e1ff0fe7b18ea7b51d2a2482acf7d645af4cfb",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The imported template classes exist (packages/emails/templates/attendee-add-guests-email.ts and organizer-add-guests-email.ts). They render the new React templates, which are exported from src/templates/index.ts. sendAddGuestsEmails follows the same pattern as the neighbouring send functions.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:d4c3b539aedcb8c02399dc4e"
+        ],
+        "title": "No defect confirmed in add-guests emails"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 37796,
+        "cache_write_input_tokens": 15614,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 53416,
+        "output_tokens": 898,
+        "provider_cost": 0.0765123,
+        "request_id": "",
+        "seconds": 10.673
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3b276e88f3991fe3c9c4794410fc7e0961e6a4d177d3f30a47aaaafe7280eba",
+      "model": "sonnet",
+      "prompt_digest": "35e060a2c56e651d9937905ea7d4ca8920889dd6decb11d78f1e230cd223ee35",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I found no concrete failing input in the changed code. The email template's `renderEmail(\"AttendeeAddGuestsEmail\")` call has a matching React template and export. `email-manager.ts` already references the new email class. `AddGuestsDialog` validates emails and checks they are unique before it calls the mutation. `MultiEmail` is exported through `MultiEmailLazy`. In `BookingListItem`, the dialog state and the new action entry are wired consistently.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed in the add-guests change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 39859,
+        "cache_write_input_tokens": 17760,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 57625,
+        "output_tokens": 1058,
+        "provider_cost": 0.0869871,
+        "request_id": "",
+        "seconds": 13.361
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:05:30+00:00"
+  },
+  "version": 1
+}

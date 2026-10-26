@@ -1,0 +1,114 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "053200212df3d6837f0b3e49572aa3aa902182e1e276eaee263ecfa692b3ab5a",
+      "model": "sonnet",
+      "prompt_digest": "6388c304584f677429d6536e36e3d9b2204b6c31be3d783378ec6fedef8bdce6",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The added test calls getSchedule with the same UTC range but the Asia/Dhaka timezone, which is defined in the Timezones map at line 78. It asserts the same UTC slots as the Asia/Kolkata case. The assertion is consistent with the scenario's date override and could fail if the code under test were wrong. I found no concrete failing input.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:0509eb746d8395751a91eb4a"
+        ],
+        "title": "No defect found in added timezone assertion"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 14182,
+        "cache_write_input_tokens": 9421,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 23607,
+        "output_tokens": 810,
+        "provider_cost": 0.047900099999999994,
+        "request_id": "",
+        "seconds": 10.73
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "dcc055a9fd020bdd8c4ec2e73168b2e15bc60be8201e080fc98fbe5a4bbe26d5",
+      "model": "sonnet",
+      "prompt_digest": "372f52e851c63fe8df827d3bd370445db6102647fbaedd143a3bd76aa09209da",
+      "response": {
+        "category": "correctness",
+        "consequence": "Valid slots are wrongly removed for any host with more than one working-hours range on a day. Slots that start in range but end after closing time are still offered. Both give wrong booking availability.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/slots.ts@sha256:dc6fb08ed9eb1c1406ca2eb18392bc93b0a91818aa900fccbe9e95ecd5909dd1",
+          "target:target:sym:b5dfb53b462d25928b91a2c5"
+        ],
+        "explanation": "In the new working-hours block, `end` is computed from `slotStartTime` (the same expression as `start`) instead of `slotEndTime`. The slot's end is therefore never checked against `workingHour.endTime`, and a slot that starts inside the hours but runs past closing is not caught. The `find` callback also returns true, meaning 'unavailable', as soon as any entry for that weekday fails the bounds test. A user with split hours on one day, such as 09:00-12:00 and 13:00-17:00, has two entries for that day. A 14:00 slot fails the first entry (start 840 is not below 540, but end 840 is above 720), so `find` returns true and the slot is rejected, even though the second entry contains it. The same happens with multiple schedule entries on a day, or after aggregation.",
+        "lines": {
+          "end_line": 143,
+          "start_line": 142
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "A zero-length date override (start equals end) does not block the day in this check. It relies on the other branches, which treat only slots at or before the start as outside the override.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/slots.ts@sha256:dc6fb08ed9eb1c1406ca2eb18392bc93b0a91818aa900fccbe9e95ecd5909dd1"
+            ],
+            "explanation": "`dayjs(date.start).add(...) === dayjs(date.end).add(...)` compares two distinct objects, so it is always false. The zero-length override case, which is meant to mark the day unavailable, is never handled by this branch.",
+            "lines": {
+              "end_line": 116,
+              "start_line": 114
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:b5dfb53b462d25928b91a2c5"
+            ],
+            "title": "Object identity comparison of dayjs instances is always false"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:b5dfb53b462d25928b91a2c5"
+        ],
+        "title": "Working-hours check in checkIfIsAvailable compares the slot start twice and rejects slots that fit another working-hours entry"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 26304,
+        "cache_write_input_tokens": 21108,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 47418,
+        "output_tokens": 2977,
+        "provider_cost": 0.1187505,
+        "request_id": "",
+        "seconds": 29.747
+      }
+    }
+  ],
+  "case_id": "calcom-07",
+  "case_input_digest": "4be0c870ca90bf1c0b58dffcbab487529aebd4ce57ff66cc94a27fcaac73fcee",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

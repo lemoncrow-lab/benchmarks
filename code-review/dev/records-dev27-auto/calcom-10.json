@@ -1,0 +1,117 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "18e85ffe6bc044f1bbab4fe0853974a4a5cb8b846f6b590e18c073aa24563f90",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I found no concrete failing input in the changed code. Both add-guests React templates are exported from the templates index. The email manager sends new guests the scheduled email and existing attendees the add-guests email. The organizer and team-member emails are wired consistently with the existing location-change flow.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 27417,
+        "cache_write_input_tokens": 20909,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 48330,
+        "output_tokens": 847,
+        "provider_cost": 0.09686689999999999,
+        "request_id": "",
+        "seconds": 15.1
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5a88e22939bbad8632290983cb9d396bfa6634c969e2893ed99e5b0d61944ee9",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "A blacklisted address still receives a notification email. Existing attendees get redundant mails. Mixed-case addresses evade the blacklist and the duplicate check, so they are stored as duplicate or blocked attendees.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+          "target:target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "explanation": "The handler filters `guests` into `uniqueGuests`. It drops existing attendees and blacklisted addresses, and only `uniqueGuests` is saved through `createMany`. The final call is `sendAddGuestsEmails(evt, guests)`, which passes the original unfiltered `guests`. If the input has an address from `BLACKLISTED_GUEST_EMAILS` or one that is already an attendee, the email still goes to it. The blacklist check therefore does not stop the email, and existing attendees get a duplicate 'guests added' mail. Separately, the blacklist entries are lowercased but `guest` is not. The blacklist check and the attendee de-duplication are both case-sensitive, so `Blocked@x.com` passes the filter and is saved as a new attendee.",
+        "lines": {
+          "end_line": 168,
+          "start_line": 168
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Team admins who are not owners are wrongly rejected with FORBIDDEN when adding guests to team bookings.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+            ],
+            "explanation": "`isTeamAdminOrOwner` is `isTeamAdmin(...) && isTeamOwner(...)`. It should be true if the user is either. A team admin who is not the owner fails this check. Such a user can only add guests if they are also the organizer or an attendee. The fallback `teamId ?? 0` also queries team 0 for bookings with no team.",
+            "lines": {
+              "end_line": 48,
+              "start_line": 46
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Team admin/owner check uses && instead of ||"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 168,
+          "original": "    await sendAddGuestsEmails(evt, guests);",
+          "start_line": 168,
+          "text": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Notification emails sent to the raw guest list, not the filtered list that was saved"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32940,
+        "cache_write_input_tokens": 28045,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60991,
+        "output_tokens": 3380,
+        "provider_cost": 0.1518505,
+        "request_id": "",
+        "seconds": 34.938
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

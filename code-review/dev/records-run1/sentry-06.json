@@ -1,0 +1,131 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "8cd5409049043ceb7e4fb9cefb333d125abe5969da103dc162b13c3ea68bd268",
+      "model": "sonnet",
+      "prompt_digest": "b9bbc50b85b53be5268127be16fd5f6f69d7cfe9577553eb5befb81af8211b0a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None confirmed.",
+        "evidence_refs": [],
+        "explanation": "The per-process sharding, restart, backpressure and memory aggregation logic is consistent with the constructor. The click option, factory and flusher arguments match. The only oddity is that join() breaks out of the loop without terminating the remaining processes once the deadline passes. Those processes are daemons and `stopped` is already set, so the impact is minimal.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 23608,
+        "cache_write_input_tokens": 19422,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 43034,
+        "output_tokens": 979,
+        "provider_cost": 0.0914798,
+        "request_id": "",
+        "seconds": 10.57
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ad13f2bf8da3e97eb3492f25f239906311be8a5ad6b37548cbd559c01ca4f908",
+      "model": "sonnet",
+      "prompt_digest": "2f1016ec554bb1cbea99df04ae537c7caea0a4c8838ae3633661c4d7cb3d8d1e",
+      "response": {
+        "category": "correctness",
+        "consequence": "A hung flusher keeps running after it is replaced, so two flushers handle the same shards. That can produce duplicate or conflicting segment flushes and leaks processes on every restart. On shutdown, join() does not terminate the child processes.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "The processes are created via mp_context = get_context(\"spawn\"), so they are SpawnProcess instances. SpawnProcess subclasses BaseProcess, not multiprocessing.context.Process (which is what multiprocessing.Process refers to), so isinstance(process, multiprocessing.Process) is False. The old code called self.process.kill() unconditionally. Now, when a flusher is unhealthy (\"hang\" cause, process still alive), kill() is skipped and _create_process_for_shards starts a second process for the same shards. The same check in join() skips terminate().",
+        "lines": {
+          "end_line": 257,
+          "start_line": 253
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 257,
+          "original": "            try:\n                if isinstance(process, multiprocessing.Process):\n                    process.kill()\n            except (ValueError, AttributeError):\n                pass  # Process already closed, ignore",
+          "start_line": 253,
+          "text": "            try:\n                if isinstance(process, multiprocessing.process.BaseProcess):\n                    process.kill()\n            except (ValueError, AttributeError):\n                pass  # Process already closed, ignore"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:0e6a3b84adb2381f7681c962"
+        ],
+        "title": "Hung flusher processes are never killed: isinstance check against multiprocessing.Process fails for SpawnProcess"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 58125,
+        "cache_write_input_tokens": 25898,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 84029,
+        "output_tokens": 1647,
+        "provider_cost": 0.12810159999999998,
+        "request_id": "",
+        "seconds": 15.357
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f807cb176e4ff1c66608ca588ed6ef5cc30553982a24a6b5d3f2a584ca24a123",
+      "model": "sonnet",
+      "prompt_digest": "30d997e29e1a4e1610060a7708b2e9e79dc5cd8dd4c7ee72ee7a00bdd974b58a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The new test assertions match the flusher implementation. The flusher defines max_processes, num_processes, process_to_shards_map, processes and process_backpressure_since. With 4 shards and flusher_processes=2, num_processes is 2 and all 4 shards are assigned. The backpressure assertion correctly uses the per-process values.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 38605,
+        "cache_write_input_tokens": 15562,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54173,
+        "output_tokens": 777,
+        "provider_cost": 0.07519510000000001,
+        "request_id": "",
+        "seconds": 9.334
+      }
+    }
+  ],
+  "case_id": "sentry-06",
+  "case_input_digest": "d47fc617dd98f176e551020d464ae5289c16cf90c5f8830c8952ee26e5596712",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

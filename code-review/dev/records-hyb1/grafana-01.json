@@ -1,0 +1,155 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "6c5406d2394d22b1f80d609786ca6b8c3eb76ca664a73a9e5a64123f3ac171f2",
+      "model": "sonnet",
+      "prompt_digest": "20279ed7befc9dedacd072902d7534c2641756743616b27b4596f8181c40f8d4",
+      "response": {
+        "category": "correctness",
+        "consequence": "The anonymous device limit is inconsistently enforced. A rejected device gets anonymous access on its next request, so a client can get past the limit with one retry. Users see intermittent failures: the first request fails and the retry succeeds.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/impl.go@sha256:3a3dbc9a4464ba8f6cebffb8b3baac9961a97a1ca681e463faff16fe65f580f8"
+        ],
+        "explanation": "The change makes TagDevice return the error from tagDeviceUI (impl.go:147). Anonymous.Authenticate in client.go:44-47 now rejects the request when that error is ErrDeviceLimitReached. tagDeviceUI (impl.go:87) writes the device cache key before CreateOrUpdateDevice runs at line 93. When the store returns ErrDeviceLimitReached, the key is already cached. The next request from the same device ID, IP and user agent hits the cache at line 83 and returns nil. TagDevice then returns nil and Authenticate lets the request through. The same device is therefore rejected once, then accepted for the cache TTL of 29 minutes, even though it was never stored.",
+        "lines": {
+          "end_line": 148,
+          "start_line": 144
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:545ae04436ff3cc05540a3c7"
+        ],
+        "title": "Device-limit rejection is only enforced once per device because the cache is set before the store call"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 34336,
+        "cache_write_input_tokens": 14430,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 48772,
+        "output_tokens": 1559,
+        "provider_cost": 0.07779960000000001,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "728da03f1573c1cd5326a68721bc472611f22ff05a0b86acd6d52788b47ec45d",
+      "model": "sonnet",
+      "prompt_digest": "fbcf043a14e4d2e2eeb53f7aeddbdbaa2a82500a8a51a1ad5918b2552e3de951",
+      "response": {
+        "category": "security",
+        "consequence": "After one rejected request, a device over the limit gets anonymous access for the cache TTL of about 29 minutes. Retrying every 29 minutes keeps it in. The enforced device limit can be exceeded in practice.",
+        "evidence_refs": [
+          "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355",
+          "source:new:pkg/services/anonymous/anonimpl/client.go@sha256:8e21f0a419770be322540aec8030a21abcc83f4ec42c30680004200201e175fc"
+        ],
+        "explanation": "The change makes CreateOrUpdateDevice return ErrDeviceLimitReached, and Authenticate rejects the request only when TagDevice returns that error. AnonDeviceService.tagDeviceUI (impl.go:83-95) calls localCache.SetDefault(key) before CreateOrUpdateDevice, and it returns nil on a cache hit. When the limit is reached, a new device is rejected on its first request, but its key stays in the 29-minute cache. Every later request from that device hits the cache, TagDevice returns nil, and Authenticate grants anonymous access without the device ever being stored. The limit therefore only blocks each new device once.",
+        "lines": {
+          "end_line": 50,
+          "start_line": 44
+        },
+        "other_findings": [
+          {
+            "category": "concurrency_state",
+            "consequence": "The device count can exceed the configured limit under concurrent first requests, and more so with several Grafana instances.",
+            "evidence_refs": [
+              "source:new:pkg/services/anonymous/anonimpl/anonstore/database.go@sha256:8e31f4f36ff77ac8441ff81d07c31c545244eca9fa83c7df0f199d7871f87355"
+            ],
+            "explanation": "CreateOrUpdateDevice counts devices and then inserts in separate statements with no transaction or lock. Concurrent requests from different new devices can all see count < limit and all insert.",
+            "lines": {
+              "end_line": 118,
+              "start_line": 109
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:e175cc03675101cf7c8e1325"
+            ],
+            "title": "Device limit check is not atomic with the insert"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e175cc03675101cf7c8e1325",
+          "target:sym:30654008b1d28db0116b6bb4"
+        ],
+        "title": "Device limit bypassed: rejected device is cached before the store call and then admitted"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 102493,
+        "cache_write_input_tokens": 31965,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 134466,
+        "output_tokens": 2055,
+        "provider_cost": 0.1614188,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cb3fcc3468380033f546623edee5b31458ab57ad24b2e72096761990dbe591bd",
+      "model": "sonnet",
+      "prompt_digest": "4ca6e5e3266e3dfad1bd257d8b936e0b376d1345876bba70c9383bade1a67e38",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The diff only updates tests for the new ProvideAnonDBStore(store, deviceLimit) signature and the service constructor taking the DB. It also adds a device-limit test. That test matches CreateOrUpdateDevice: with limit 1 and one existing device, a new device ID goes to updateDevice, which matches no row and returns ErrDeviceLimitReached. No persisted schema or representation is changed, and no unbounded work is added.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in test-only changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 43081,
+        "cache_write_input_tokens": 18503,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61590,
+        "output_tokens": 898,
+        "provider_cost": 0.0888767,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    }
+  ],
+  "case_id": "grafana-01",
+  "case_input_digest": "393d93ab9f4ada067ec3c0163d49f20ade02687209cfac484d90b2a8c0ced8ea",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:38:13+00:00"
+  },
+  "version": 1
+}

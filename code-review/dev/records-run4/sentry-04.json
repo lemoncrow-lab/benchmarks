@@ -1,0 +1,139 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "a8194d3a027d534eda1d86ee1225775996c3fd9b6f83abb94085902c6f63da4f",
+      "model": "sonnet",
+      "prompt_digest": "85cd4609742e2b8f10156eb21e4e6e7591ac419177d7466ddbf156da7d970d66",
+      "response": {
+        "category": "verification",
+        "consequence": "A regression in the installation-not-found handling would not be caught. The test passes whenever the flow rejects the request for any other reason.",
+        "evidence_refs": [
+          "source:new:tests/sentry/integrations/github/test_integration.py@sha256:be02243004a09e53ec2c089fd17f0c0249578f9b118d56856c28c96a2df352ea"
+        ],
+        "explanation": "The test stubs a 404 for the installation lookup. It now sends a callback with state \"ddd023d87a913d5226e2a882c4c4cc05\", which differs from the state \"9cae5e88803f35ed7970fc131e6e65d3\" used in every other test. It never calls init_path first. The assertion changed from \"The GitHub installation could not be found.\" to the generic \"Invalid installation request.\". A state mismatch or missing pipeline state would also produce that generic message, so the test can pass without the 404 handling ever running. The same message is asserted in test_github_user_mismatch. I did not read the production code. This conclusion rests on the differing state value and the missing init call.",
+        "lines": {
+          "end_line": 396,
+          "start_line": 388
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d9f187965c97d9b293abb054"
+        ],
+        "title": "test_installation_not_found no longer exercises the installation-404 path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 45506,
+        "cache_write_input_tokens": 2072,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 47584,
+        "output_tokens": 1785,
+        "provider_cost": 0.032648800000000006,
+        "request_id": "",
+        "seconds": 18.741
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3f651635efd7c72ffb999435fe576a08c98dcdefb30db11858fe391cdeedf29",
+      "model": "sonnet",
+      "prompt_digest": "cd3759e6dde6b943f839ca52c97918cf82b287e1fa204b5dc37e68c706056570",
+      "response": {
+        "category": "correctness",
+        "consequence": "No behavior change.",
+        "evidence_refs": [
+          "source:new:src/sentry/web/frontend/pipeline_advancer.py@sha256:98b668aa3482e71a1aca2b2b167656209a91f09cd8e442d5607c36a90b26286a",
+          "source:old:src/sentry/web/frontend/pipeline_advancer.py@sha256:9ca40a6e59151cb97468b5a5bc21ff7a03298a545765d448fff7e7cf783a3d7f"
+        ],
+        "explanation": "The change replaces `provider_id in FORWARD_INSTALL_FOR` (a list holding only \"github\") with `provider_id == \"github\"`. The two conditions give the same result for every input. A grep of the snapshot finds no remaining reference to the removed FORWARD_INSTALL_FOR constant, so nothing else depends on it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:2d23990736fb6e9436956024",
+          "target:sym:371c7e561e93b98e544aef4a"
+        ],
+        "title": "No defect found in pipeline_advancer change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 33367,
+        "cache_write_input_tokens": 1696,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35071,
+        "output_tokens": 1314,
+        "provider_cost": 0.024040100000000002,
+        "request_id": "",
+        "seconds": 22.961
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "feb03417ee261b98954fd6dbdb30c7c00a1001ea826ee9487f95e053508997c0",
+      "model": "sonnet",
+      "prompt_digest": "ea2e9b676d238b15e6cc5b2e693b8f40e611abf35e9c10770094b30c4456753f",
+      "response": {
+        "category": "correctness",
+        "consequence": "A user re-installing GitHub for an installation whose Integration row lacks sender metadata gets an unhandled 500 and cannot complete setup. The pipeline cannot fail cleanly in that state. This is limited to legacy or incomplete integration rows, so the impact is small.",
+        "evidence_refs": [
+          "source:new:src/sentry/integrations/github/integration.py@sha256:a621c52b9b5e8bb3ec12a6fbe6e75f1b1a3e6cd0ce77fe9de7d938cb66c1ae9a"
+        ],
+        "explanation": "The new check in GitHubInstallation.dispatch reads `integration.metadata[\"sender\"][\"login\"]` directly. `sender` is only added to the integration metadata when the install state includes it (build_integration, around line 377). I did not check whether the model default or older creation paths always set it. An Integration with no `sender` key, or with a `sender` that has no `login`, raises KeyError. That happens after the OAuth step has succeeded and when an Integration row exists for the installation_id but has no OrganizationIntegration. The check is the only authorization step in this path. It crashes instead of failing closed with the `error()` page.",
+        "lines": {
+          "end_line": 504,
+          "start_line": 501
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:e6bbbd1d7437fd1cdec69bb3"
+        ],
+        "title": "Sender check raises KeyError when an existing Integration has no metadata['sender']"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 48732,
+        "cache_write_input_tokens": 2625,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51363,
+        "output_tokens": 2386,
+        "provider_cost": 0.0413568,
+        "request_id": "",
+        "seconds": 25.651
+      }
+    }
+  ],
+  "case_id": "sentry-04",
+  "case_input_digest": "16f9b4fa1fb198865367fcb62ce67e58dbed7b3e358b320f8b43a2d1f76983df",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:55:04+00:00"
+  },
+  "version": 1
+}

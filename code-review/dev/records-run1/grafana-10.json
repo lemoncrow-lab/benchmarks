@@ -1,0 +1,96 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "b58e778dcb203cb649bf68ede334252ad735129cf1f27c709ab8bc41220bc09b",
+      "model": "sonnet",
+      "prompt_digest": "fb4b71b0cf27aaba8f7b01249f22e08cdfbfd4a667b0d224805293437229a1b1",
+      "response": {
+        "category": "correctness",
+        "consequence": "None beyond reduced postgres coverage for this test, which the TODO acknowledges.",
+        "evidence_refs": [
+          "source:new:pkg/server/module_server_test.go@sha256:39967df8305c244c1646758d3ffa118d5940df6a6cdc7d766fddf03bfe6c786e"
+        ],
+        "explanation": "The change only adds a documented t.Skip for the postgres DB type, mirroring the existing sqlite3 skip. It removes no guard and alters no production behavior. No concrete failing input or state results from it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:73d5005980ba38704671ad8a"
+        ],
+        "title": "Postgres skip added to integration test is intentional"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 12562,
+        "cache_write_input_tokens": 7772,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 20340,
+        "output_tokens": 825,
+        "provider_cost": 0.041230199999999995,
+        "request_id": "",
+        "seconds": 12.7
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f07c9bee8790337bce70e49d85c7acafe49f096499a804e1f88e27b7d2123ae3",
+      "model": "sonnet",
+      "prompt_digest": "8b89a0b7e9cbcd2b0ebca093bca748d9126ff917daa3d6a2e103f486fcddf23b",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "If a write event arrives for a namespace and resource with no index yet while startup is logging, Go can hit a concurrent map read/write. That is a fatal runtime error that crashes the process, and the race detector would also flag it.",
+        "evidence_refs": [
+          "source:new:pkg/storage/unified/resource/search.go@sha256:13a29251614ed223b36bf814ce299ca205c6cc61677095febd9333895c4f7969",
+          "source:new:pkg/storage/unified/search/bleve.go@sha256:ad6d159f6ac0aa1f3d26b7d0d6f230a97a42fe171b6bb96375f7a8e719a5d35d"
+        ],
+        "explanation": "The change adds `s.search.TotalDocs()` to the \"search index initialized\" log in searchSupport.init. That call comes after the goroutine that consumes WatchWriteEvents has started. It runs handleEvent, which can call getOrCreateIndex and then BuildIndex, and BuildIndex writes `b.cache[key]` under cacheMu. bleveBackend.TotalDocs iterates `b.cache` at bleve.go:146 without taking cacheMu, so a write and the iteration can overlap. This change also removes the function-wide cacheMu lock in BuildIndex, which previously serialized builds.",
+        "lines": {
+          "end_line": 216,
+          "start_line": 216
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "title": "New TotalDocs() log call in search init reads the index cache map without a lock"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 34561,
+        "cache_write_input_tokens": 28462,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 63027,
+        "output_tokens": 1605,
+        "provider_cost": 0.13609259999999998,
+        "request_id": "",
+        "seconds": 17.538
+      }
+    }
+  ],
+  "case_id": "grafana-10",
+  "case_input_digest": "897220768459cddae55e956f88c037f694036cacc8973421f9c1547e60d30ec4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

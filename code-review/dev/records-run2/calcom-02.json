@@ -1,0 +1,133 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "182864a9d5632d19a4d600eaa7e8da4b3e45a7b5d5a1adbc3e69a7ba38b43ff4",
+      "model": "sonnet",
+      "prompt_digest": "5c4c1e33459a76917e634423f804073f6c07369a23f73e12561bdc9eb0f7d4e8",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect found.",
+        "evidence_refs": [
+          "source:new:packages/lib/payment/handlePayment.ts@sha256:e65cb386dd434229d989b3f998bc52cd72a29bae855944c7ad9330907992eea8"
+        ],
+        "explanation": "Each appStore value is a dynamic import() promise, so awaiting it yields the module. The following \"lib\" in paymentApp check now works on the module instead of a Promise.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7bbaeb1b99becf99da2cfdfa"
+        ],
+        "title": "Await on appStore lookup is correct"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 19324,
+        "cache_write_input_tokens": 2038,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 21366,
+        "output_tokens": 841,
+        "provider_cost": 0.0191401,
+        "request_id": "",
+        "seconds": 11.087
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e9d595f9de8d22d53cee5386f94b632c192d223b24499faca6827a5d2f6554ea",
+      "model": "sonnet",
+      "prompt_digest": "f58554250bbbf98c4df8f5afc95e1bf561144db5c3566677758c8cb06b2273ab",
+      "response": {
+        "category": "api_compatibility",
+        "consequence": "No concrete breakage found.",
+        "evidence_refs": [],
+        "explanation": "The change makes getVideoAdapters and getBusyVideoTimes async. Every call site in videoClient.ts now awaits them, and getBusyTimes.ts:137 awaits getBusyVideoTimes. Every other getCalendar caller I checked awaits it. CalendarManager.ts:28 stores the promise and awaits it later at line 48. The appStore lookups in handleCancelBooking.ts, deletePayment.ts, handlePayment.ts and bookings.tsx are awaited as well.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No caller mismatch found for async getVideoAdapters/getCalendar"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 80627,
+        "cache_write_input_tokens": 3467,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 84100,
+        "output_tokens": 1039,
+        "provider_cost": 0.0346374,
+        "request_id": "",
+        "seconds": 12.855
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f7fb707e0c0a5bc286a4b89ee9985c9ba2ea9123f32cab9782aa3cbf1c4f7c5f",
+      "model": "sonnet",
+      "prompt_digest": "1253f4597dfe19f0ccbbcce69dbf57626ffb9ce1a62ec60fc280783735f639f5",
+      "response": {
+        "category": "correctness",
+        "consequence": "A failed calendar or video event deletion during reschedule is no longer logged by the existing handler and surfaces as an unhandled rejection. That can crash the process on newer Node versions or fail silently, and the old event may be left on the calendar.",
+        "evidence_refs": [
+          "source:new:packages/app-store/vital/lib/reschedule.ts@sha256:e38508d7614d5295e4ebdca2b1aeabb21aeb92d4fb966d4bf0754129e4273aca",
+          "source:new:packages/app-store/wipemycalother/lib/reschedule.ts@sha256:1b9778c6748fee76741011db5ce900329eb1fcd94579d1855f572fa615a7c97d",
+          "source:new:packages/trpc/server/routers/viewer/bookings.tsx@sha256:d9aa8dfd68bde34fc084558df5f77e921b763a0671c7d9de5e3892bf0b25ead4"
+        ],
+        "explanation": "The callback passed to forEach was changed to async so it can await getCalendar. forEach ignores the returned promise, so the surrounding try/catch (which logs errors) can no longer catch anything thrown inside the callback. This covers getCalendar, calendar.deleteEvent and deleteMeeting, and the same pattern appears in the bookings.tsx requestReschedule handler, which has no try/catch at all. Before the change, a synchronous throw from getCalendar was caught and logged. Now a rejection from getCalendar (for example a failed dynamic import of the app module) or from deleteEvent becomes an unhandled promise rejection. The reschedule flow also continues and returns before the deletions finish.",
+        "lines": {
+          "end_line": 128,
+          "start_line": 125
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:f73fad14dfb9f4fee2a05be3",
+          "target:sym:9a9a19d7a6c060c69e5adbed"
+        ],
+        "title": "try/catch no longer catches calendar delete errors after forEach callback became async"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 82831,
+        "cache_write_input_tokens": 2975,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 85812,
+        "output_tokens": 1646,
+        "provider_cost": 0.039023800000000004,
+        "request_id": "",
+        "seconds": 18.252
+      }
+    }
+  ],
+  "case_id": "calcom-02",
+  "case_input_digest": "ea13442e2720523e73056de48455f95f5de30a3570a991ac76967bec746ba785",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

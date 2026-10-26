@@ -1,0 +1,216 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1c5884c53c03ab83f6ddac51ba28e5b162116417ebd51671cbcaa779524119b0",
+      "model": "sonnet",
+      "prompt_digest": "e58ddd8867265c978af84e763369afc7c24769da062aa9e61d85f6e5f66befa8",
+      "response": {
+        "category": "correctness",
+        "consequence": "A trace with a parent chain deeper than about 1000 spans is flushed as several partial segments instead of one. Those segments are missing spans or their root span.",
+        "evidence_refs": [
+          "source:new:src/sentry/scripts/spans/add-buffer.lua@sha256:7aceb582bed0f1c930eee583b55306bbe883327fc7374ddada962c668155230e",
+          "target:target:hun:098a729f1b113035186bec95"
+        ],
+        "explanation": "The loop that follows the redirect chain was changed from `for i = 0, 10000` to `for i = 0, 1000`. The removed comment said this limit means trees deeper than the limit may not be joined correctly. With a chain longer than 1000 hops, the loop exits before it reaches the real set root. The span is then attached to an intermediate set_span_id, and the segment is split across several sets. The change cuts the limit tenfold with no stated reason.",
+        "lines": {
+          "end_line": 30,
+          "start_line": 30
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "When a segment exceeds 1000 spans, the wrong spans can be evicted. Duplicated spans are favored over legitimate later ones.",
+            "evidence_refs": [
+              "source:new:src/sentry/scripts/spans/add-buffer.lua@sha256:7aceb582bed0f1c930eee583b55306bbe883327fc7374ddada962c668155230e",
+              "target:target:hun:2cdda2f2d44e33e9309bf4e8"
+            ],
+            "explanation": "`zunionstore set_key 2 set_key span_key` uses the default AGGREGATE SUM. When the same payload is present in both sets, for example after a redelivered span, its score (end_timestamp_precise) is added to itself. The later `zpopmin` evicts the lowest scores, so it then treats that span as much later than it really is and keeps it over genuinely later spans.",
+            "lines": {
+              "end_line": 58,
+              "start_line": 50
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:hun:2cdda2f2d44e33e9309bf4e8"
+            ],
+            "title": "zunionstore default SUM aggregate distorts scores used by zpopmin eviction"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:098a729f1b113035186bec95"
+        ],
+        "title": "Redirect-chain limit lowered from 10000 to 1000, so deep span trees are no longer joined"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 36183,
+        "cache_write_input_tokens": 13758,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 49947,
+        "output_tokens": 1791,
+        "provider_cost": 0.0777953,
+        "request_id": "",
+        "seconds": 18.045
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "3331ee7e02bf48fa6ca9037b5dc64cd2303f9e4c5a4c970e7cd2980a5f786224",
+      "model": "sonnet",
+      "prompt_digest": "2be0dff3dfa97cd49261d940530d3526d759e19ed80173bb76cfae3554b6ebae",
+      "response": {
+        "category": "correctness",
+        "consequence": "No concrete failing input or state was identified.",
+        "evidence_refs": [],
+        "explanation": "The diff only adds end_timestamp_precise to the Span fixtures and to the expected output in the three tests. No guard, condition, or assertion was removed or weakened. The added values are consistent between the input spans and the expected flushed output in test_basic. I did not open the production span buffer code, so I did not check whether it handles this field the way the tests expect.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:59369b1b000043038ae07910",
+          "target:sym:14bc0151d8df3e81cf05579c",
+          "target:sym:199fbe9ca480a614e889ffb2"
+        ],
+        "title": "No defect found in test-only additions"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 17564,
+        "cache_write_input_tokens": 10939,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 28509,
+        "output_tokens": 925,
+        "provider_cost": 0.0558045,
+        "request_id": "",
+        "seconds": 11.792
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "532a94501bce9654a901e806fa7671fdd4635ca75b140ce3256e794d5463fecc",
+      "model": "sonnet",
+      "prompt_digest": "f3f99523d7cf33c1eb995523cc42dbe5495450a157cd3408321f81489019e278",
+      "response": {
+        "category": "correctness",
+        "consequence": "Any admin or superuser request to the audit-log endpoint with optimized_pagination=true that returns at least one row fails with a TypeError (HTTP 500). Following a cursor would also hit the wrong value type.",
+        "evidence_refs": [
+          "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db",
+          "source:new:src/sentry/api/endpoints/organization_auditlogs.py@sha256:247f884c4df443920621b9699731520e13c01b181fe80358549cd798a75734d9"
+        ],
+        "explanation": "The audit-log endpoint now passes OptimizedCursorPaginator with order_by=\"-datetime\" when ?optimized_pagination=true. The previous paginator, DateTimePaginator, converts datetimes to and from numeric cursor values. The new class does not. Its get_item_key calls math.floor or math.ceil on getattr(item, \"datetime\"), which is a datetime object, so it raises TypeError. Its value_from_cursor returns the raw numeric cursor.value, so build_queryset would filter a datetime column against a number on any page after the first. I read this from the diff and did not look up DateTimePaginator or build_cursor in the snapshot.",
+        "lines": {
+          "end_line": 840,
+          "start_line": 839
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "A crafted cursor with a negative offset, such as 0:-5:0, returns a 500 error. If the slice did work, it would let callers reach rows outside the normal pagination bounds.",
+            "evidence_refs": [
+              "source:new:src/sentry/api/paginator.py@sha256:40cfa5f5c8821bb7e794344fba54419f16e4355fe7b66d80afea3a90ad7949db"
+            ],
+            "explanation": "When enable_advanced_features is set and the user-supplied cursor.offset is negative, the code runs queryset[cursor.offset:stop]. Django querysets raise AssertionError (\"Negative indexing is not supported\") for negative slice bounds. The comment saying the ORM handles negative slicing is wrong. The same expression is used for prev cursors in BasePaginator.get_result (line 180).",
+            "lines": {
+              "end_line": 882,
+              "start_line": 880
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:77f04ab50bcd074002cfd4ed"
+            ],
+            "title": "Negative-offset slicing is passed to the Django queryset, which does not support it"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:c2bce0e9e3241c6d44222d03",
+          "target:sym:9aeb4d417aeec39e0d066098"
+        ],
+        "title": "OptimizedCursorPaginator is incompatible with the audit-log datetime key and crashes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 28639,
+        "cache_write_input_tokens": 23762,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 52407,
+        "output_tokens": 3368,
+        "provider_cost": 0.1337443,
+        "request_id": "",
+        "seconds": 31.372
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "75b03d8e41d236602b7fd9ed876f84157f699e38417871d3979334f0da8ba5e2",
+      "model": "sonnet",
+      "prompt_digest": "b16a796ad81af4822e7066f15d2a69e66c9a6dc435f9a70bdbcac021252f2006",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only adds end_timestamp_precise=1700000000.0 to Span(...) constructions in tests. Span in src/sentry/spans/buffer.py is a NamedTuple with a required end_timestamp_precise float, so the tests were previously missing a required argument and now match the definition. All Span constructions in the file, including test_flush_rebalance, now pass it.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in added end_timestamp_precise test args"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 164312,
+        "cache_write_input_tokens": 33433,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 197757,
+        "output_tokens": 1271,
+        "provider_cost": 0.16523859999999999,
+        "request_id": "",
+        "seconds": 21.618
+      }
+    }
+  ],
+  "case_id": "sentry-02",
+  "case_input_digest": "395867a68ce7a221d83e6e7f8950162fe8da4a285810ee6fc782ad816851b953",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:58:08+00:00"
+  },
+  "version": 1
+}

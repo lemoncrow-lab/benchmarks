@@ -1,0 +1,133 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "17a950f89b356e1add63e9ea6539a17c1c449d03f92f06f350d3a000ff99be7c",
+      "model": "sonnet",
+      "prompt_digest": "b9bbc50b85b53be5268127be16fd5f6f69d7cfe9577553eb5befb81af8211b0a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I read the whole flusher. Shards are mapped to processes with a modulo. Each process gets its own health and backpressure values. Restarts rebuild a per-process buffer, and the flusher_processes option is passed through the CLI option, the factory and SpanFlusher. I could not construct a concrete failing input. In join(), the deadline break skips terminate() for the remaining processes. They are daemon processes and stopped is already set, so the effect is negligible.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:59db98c1578f77bc9bd4b707"
+        ],
+        "title": "No defect confirmed in multi-process flusher change"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 39898,
+        "cache_write_input_tokens": 4499,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44401,
+        "output_tokens": 1075,
+        "provider_cost": 0.0344144,
+        "request_id": "",
+        "seconds": 13.274
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1fb4cab8858c099fcb46d980499c88fa23805d39f87acca59ebbb9e4f9c57244",
+      "model": "sonnet",
+      "prompt_digest": "30d997e29e1a4e1610060a7708b2e9e79dc5cd8dd4c7ee72ee7a00bdd974b58a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The attributes the updated tests use (processes, max_processes, num_processes, process_to_shards_map, process_backpressure_since) all exist in flusher.py. The assertions match the sharding logic: 4 shards across 2 processes gives 2 processes and 4 total shards.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 51792,
+        "cache_write_input_tokens": 2732,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54530,
+        "output_tokens": 751,
+        "provider_cost": 0.0249699,
+        "request_id": "",
+        "seconds": 13.239
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f2802421dff9bc2d68400f1a7afb5c30b2be6ebff6d07ace198bea041b2055dc",
+      "model": "sonnet",
+      "prompt_digest": "2f1016ec554bb1cbea99df04ae537c7caea0a4c8838ae3633661c4d7cb3d8d1e",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a hang, the old flusher process stays alive and a duplicate flusher for the same shards is started. Both can flush and produce the same segments to Kafka, and each restart leaks another process. At shutdown, flusher processes that don't exit on their own are not terminated.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "Processes are created from the \"spawn\" context, so they are `SpawnProcess` instances. `SpawnProcess` derives from `BaseProcess`, not from `multiprocessing.Process` (that class is `context.Process`, a different subclass of `BaseProcess`). So `isinstance(process, multiprocessing.Process)` is False in `_ensure_processes_alive` (lines 253-257). The old code called `self.process.kill()` unconditionally. In the \"hang\" case, where the process is alive but unhealthy, the kill is now skipped and `_create_process_for_shards` starts a second flusher for the same shards while the hung one keeps running. The same isinstance check in `join` (line 346) means `process.terminate()` is never called there either.",
+        "lines": {
+          "end_line": 257,
+          "start_line": 253
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 257,
+          "original": "            try:\n                if isinstance(process, multiprocessing.Process):\n                    process.kill()\n            except (ValueError, AttributeError):\n                pass  # Process already closed, ignore",
+          "start_line": 253,
+          "text": "            try:\n                process.kill()  # type: ignore[union-attr]\n            except (ValueError, AttributeError):\n                pass  # Process already closed or a thread, ignore"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:055cc048af5462caeda5cff1"
+        ],
+        "title": "Hung flusher process is never killed because isinstance check against multiprocessing.Process fails for SpawnProcess"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 51499,
+        "cache_write_input_tokens": 3713,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 55216,
+        "output_tokens": 1739,
+        "provider_cost": 0.039650099999999994,
+        "request_id": "",
+        "seconds": 20.657
+      }
+    }
+  ],
+  "case_id": "sentry-06",
+  "case_input_digest": "d47fc617dd98f176e551020d464ae5289c16cf90c5f8830c8952ee26e5596712",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T07:55:04+00:00"
+  },
+  "version": 1
+}

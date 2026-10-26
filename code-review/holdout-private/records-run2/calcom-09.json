@@ -1,0 +1,347 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "220f8ec39d5420bf381ceda8482c42e88f9e32b8e98d1c3b2178d0b6fb5ba149",
+      "model": "sonnet",
+      "prompt_digest": "8f708f18ee8a6a870ddb0c8fce8f52777cc5f4eb5c03a800cb61118770226c24",
+      "response": {
+        "decisions": [
+          {
+            "finding_ids": [
+              "finding-88d4bb3c7460466080ae2c08",
+              "finding-e17f4a53b6badc2c429bc758"
+            ],
+            "keep_id": "finding-88d4bb3c7460466080ae2c08"
+          }
+        ]
+      },
+      "schema_digest": "0825459e35272adabc2ee4206e74a48b024dc2ee8974c890496bf4078bac4156",
+      "stage": "finding_dedupe",
+      "system_digest": "801b67f03faab6d0c50b9ec29e1e333d349b2db5ceecb03acb63ca7b1636982b",
+      "usage": {
+        "cache_read_input_tokens": 8602,
+        "cache_write_input_tokens": 5714,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 14322,
+        "output_tokens": 221,
+        "provider_cost": 0.026599199999999996,
+        "request_id": "",
+        "seconds": 10.723
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2b73f9728db5f00253fb778d2a1ae9fe803c245ec52caa50bb3ec9e8154e158a",
+      "model": "sonnet",
+      "prompt_digest": "4715e8515d5af11b5bf9accfd1aa8cfa5f1c7218ed388eee3b666ad77a07baeb",
+      "response": {
+        "category": "correctness",
+        "consequence": "No wrong deletions occur with the current code. If another handler later increments retryCount on WorkflowReminder, this cron would delete its rows.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08"
+        ],
+        "explanation": "The second OR branch in deleteMany (retryCount > 1) has no method filter. However, a grep for retryCount shows that only scheduleSMSReminders.ts increments it on WorkflowReminder (lines 184 and 195). The other hits are the schema and migration, an unrelated Zapier table, and an Office365 local variable. Email and WhatsApp reminder rows keep the default of 0, so they are never matched by this branch today. The first branch is restricted to SMS and matches the original behaviour.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "Unscoped retryCount delete branch does not currently hit other reminder types"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 30414,
+        "cache_write_input_tokens": 10974,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 41396,
+        "output_tokens": 1450,
+        "provider_cost": 0.0623892,
+        "request_id": "",
+        "seconds": 24.436
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4371cbb2e70a00c773145aeef3e39ebac8a3f60dfa060e8466b14b4616ab628a",
+      "model": "sonnet",
+      "prompt_digest": "90bb0c00e4173fc3d3d89d8fd5a5b84a0ec1805f1e8c9cbcc172d7b136870a24",
+      "response": {
+        "category": "correctness",
+        "consequence": "One failing or missing row stops processing of all later unscheduled reminders in that cron run, and the endpoint returns a 500. If the success-path DB update failed after Twilio accepted the SMS, retryCount is bumped (when the DB is reachable) and the SMS is rescheduled on the next run, which sends a duplicate.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08"
+        ],
+        "explanation": "The new catch block calls prisma.workflowReminder.update to bump retryCount, and that call is not wrapped in its own try/catch. If it throws, the exception escapes the per-reminder loop. For example, the row may have been deleted concurrently, or the DB call may fail. The same update can also throw because the earlier success-path update (scheduled: true) failed after twilio.scheduleSMS had already succeeded. In that case the catch re-throws from the DB, and the SMS was already scheduled at Twilio. The handler then rejects instead of continuing to the remaining reminders.",
+        "lines": {
+          "end_line": 197,
+          "start_line": 190
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "Unguarded retryCount update inside catch block can abort the whole cron run"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 32222,
+        "cache_write_input_tokens": 2395,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 34623,
+        "output_tokens": 2163,
+        "provider_cost": 0.035727999999999996,
+        "request_id": "",
+        "seconds": 24.326
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "63f62fa381232d84da3fc2f02226935e6c194402c812335ab1a93b618b92c9e8",
+      "model": "sonnet",
+      "prompt_digest": "f745ce8db71e20fe1270fd0a5293e1388724af824e8afa49dc9b7e0b391e0ae5",
+      "response": {
+        "category": "correctness",
+        "consequence": "Permanently unschedulable SMS reminders are re-evaluated on every cron run until their scheduledDate passes. Each run repeats the profile lookup and template rendering for them, and the retry cap does not bound that work. The impact is limited because scheduledDate eventually deletes the rows.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08"
+        ],
+        "explanation": "The new retry logic increments retryCount only when twilio.scheduleSMS returns a falsy value or throws. The guard `if (message?.length && message?.length > 0 && sendTo)` has no else branch. A reminder whose message resolves to empty (for example, no reminderBody and a non-REMINDER template) or whose sendTo is missing (no smsReminderNumber on the booking) is neither scheduled nor counted as a failure. It stays `scheduled: false` and the cron selects it again on every run. The `retryCount > 1` cleanup added to deleteMany never applies to these rows, so only the scheduledDate cleanup removes them. In addition, the new `retryCount > 1` clause in the delete's OR is not restricted to `method: SMS`. Only the SMS cron uses the column today, so this is currently latent.",
+        "lines": {
+          "end_line": 188,
+          "start_line": 187
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "Reminders with empty message or missing sendTo never increment retryCount"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 17294,
+        "cache_write_input_tokens": 11172,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 28470,
+        "output_tokens": 1508,
+        "provider_cost": 0.06250800000000001,
+        "request_id": "",
+        "seconds": 18.846
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e6d6ee5cd235ccbb96f970065255ce6791968740c903987cf823c3bc31c54912",
+      "model": "sonnet",
+      "prompt_digest": "4876633d5278580500b9147406324174a9c0161c7f503baed8fe7aa791cfa3bd",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "No actionable defect.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql@sha256:836d64055efea69586df812385de3f1f0a4a35e8ea2877ac1734d69d3b5d5e3e",
+          "source:new:packages/prisma/schema.prisma@sha256:d4d7d4d629588fbf5bd8786b486a4f7a05e93658ce0782479da277b06bc02264"
+        ],
+        "explanation": "The migration adds \"retryCount\" INTEGER NOT NULL DEFAULT 0, and schema.prisma declares retryCount Int @default(0). Type, nullability and default match. On Postgres 11 and later, adding a column with a constant default is a metadata-only change and does not rewrite the table. Deploy ordering (migration before code) is the standard Prisma flow, and nothing in the supplied snapshot shows otherwise.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:7e3446f5a656f5ed3bb402b0",
+          "target:hun:4c78e431b2cbf6002f2464d4"
+        ],
+        "title": "Migration and schema agree; no defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 13379,
+        "cache_write_input_tokens": 8766,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 22151,
+        "output_tokens": 1177,
+        "provider_cost": 0.04889159999999999,
+        "request_id": "",
+        "seconds": 19.532
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "efd76c32c6effeba1dc3c2670efbeae4d6a318ddde9c1b0574c9e4de746459a3",
+      "model": "sonnet",
+      "prompt_digest": "753a40791636d3287ef1f38dfa7d52307a79cafa9463d60b77d455c82a1e3d4f",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "With overlapping cron invocations, failing reminders can take more retries than intended to pass the `retryCount > 1` cleanup threshold. Duplicate SMS can also be scheduled for the same reminder. Both effects are limited to cron overlap.",
+        "evidence_refs": [
+          "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08",
+          "target:target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "explanation": "The handler reads reminders with findMany and later writes `retryCount: reminder.retryCount + 1`. This happens in the `else` branch (line 184) and again in the `catch` block (line 195). Both writes use the value read at the start of the run, not `{ increment: 1 }`. Both updates are keyed only on `id`, with no `scheduled: false` condition. If two cron runs overlap, both read the same retryCount and both write N+1, so one failure is lost. Both runs also pick up the same unscheduled reminder, so both can call twilio.scheduleSMS for it. Each run then sets scheduled=true with its own sid, so the user gets a duplicate SMS. The first run's reference is overwritten, so it can no longer be cancelled.",
+        "lines": {
+          "end_line": 184,
+          "start_line": 184
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "One bad row can block SMS scheduling for the rest of the batch. A transient DB error after a successful Twilio schedule can produce duplicate SMS.",
+            "evidence_refs": [
+              "source:new:packages/features/ee/workflows/api/scheduleSMSReminders.ts@sha256:8f34c3736fbfa35202f0406a65e2d1a8ff98783c7694cc8b3aea63a916ceed08"
+            ],
+            "explanation": "The new `prisma.workflowReminder.update` in the catch block (lines 190-198) is not itself guarded. If the reminder row was deleted concurrently, or the DB errors, the update throws out of the handler. The remaining reminders are then skipped and the request returns a 500. Separately, the `scheduled: true` update at about lines 170-177 sits inside the same try. If that update fails after twilio.scheduleSMS succeeded, the catch increments retryCount and the reminder stays scheduled=false. The next run schedules the SMS again.",
+            "lines": {
+              "end_line": 198,
+              "start_line": 190
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2"
+            ],
+            "title": "Update in catch can throw and abort the whole batch; post-schedule update failure causes retry and duplicate SMS"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 184,
+          "original": "              retryCount: reminder.retryCount + 1,",
+          "start_line": 184,
+          "text": "              retryCount: { increment: 1 },"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:7684294b4ccb67c1adbdcbd2"
+        ],
+        "title": "retryCount incremented from stale snapshot value, not atomically, and without a scheduled=false guard"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 16552,
+        "cache_write_input_tokens": 11455,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 28013,
+        "output_tokens": 3269,
+        "provider_cost": 0.0811068,
+        "request_id": "",
+        "seconds": 34.522
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "30c4e034e761460f29c8ba7a408ae6ba5d1571fa4830f9c64478c278584fb89e",
+      "model": "sonnet",
+      "prompt_digest": "9b32ca6c8dac0458b1bb33c48114143fb713603d795647f314fe32d3b931ee5a",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Confirm the OR branch has no method condition and whether other reminder types use retryCount. Check that deleteMany semantics match the intent.",
+            "failure_mode": "The deleteMany OR clause deletes reminders with retryCount > 1 regardless of method (not restricted to SMS), so email/WhatsApp workflow reminders sharing the WorkflowReminder table could be deleted by the SMS cron. Also, the first clause deletes SMS reminders with scheduledDate <= now even if they were never successfully scheduled.",
+            "investigation_rationale": "The second OR branch lacks a method filter; check whether other handlers (email reminders) also increment retryCount, and whether those rows would be wrongly removed.",
+            "priority_rationale": "Unintended data deletion of other reminder types is irreversible and affects user-facing notifications.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Read the loop's branches; verify the retryCount increment paths and threshold semantics vs. intent.",
+            "failure_mode": "Retry logic: retryCount increments only on failure, and deletion happens when retryCount > 1 (so after 2 failures). If message is empty or sendTo is missing, no increment occurs, so those reminders remain unscheduled and are reprocessed forever until scheduledDate passes. Also the success path with a falsy scheduleSMS result increments without logging.",
+            "investigation_rationale": "Examine the branches in the loop for paths that neither schedule nor increment retryCount, and whether the retry threshold matches the intended number of attempts.",
+            "priority_rationale": "Affects reliability of SMS delivery and cron workload, but impact is bounded.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2",
+              "target:sym:435a26bb9b8379e3fa210a42"
+            ]
+          },
+          {
+            "category": "concurrency_state",
+            "evidence_needed": "Confirm update uses a computed value instead of increment, and no locking or conditional update on scheduled=false exists.",
+            "failure_mode": "retryCount is updated with a read-then-write value (reminder.retryCount + 1) from a stale findMany snapshot rather than an atomic increment; overlapping cron runs could lose increments or double-schedule SMS for the same reminder.",
+            "investigation_rationale": "The cron may overlap executions; check whether the update uses {increment: 1} and whether scheduled state is guarded against concurrent runs.",
+            "priority_rationale": "Could lead to duplicate SMS sends or reminders never reaching the retry limit.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:7684294b4ccb67c1adbdcbd2"
+            ]
+          },
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Confirm schema.prisma and migration.sql agree on type and default, and check Postgres version and table size considerations.",
+            "failure_mode": "Adding a NOT NULL column with DEFAULT 0 to the large WorkflowReminder table may take a lock or rewrite on older Postgres; and during deploy, old code or new code may run against a schema without the column (the select of retryCount fails if the migration hasn't run).",
+            "investigation_rationale": "Verify the migration matches the schema and that the deploy ordering is safe for the new select of retryCount.",
+            "priority_rationale": "A missing column would break the whole cron handler at query time.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:hun:7e3446f5a656f5ed3bb402b0",
+              "target:hun:4c78e431b2cbf6002f2464d4"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 9483,
+        "cache_write_input_tokens": 965,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 10450,
+        "output_tokens": 1283,
+        "provider_cost": 0.0184042,
+        "request_id": "",
+        "seconds": 13.61
+      }
+    }
+  ],
+  "case_id": "calcom-09",
+  "case_input_digest": "84f3b9669001dc464f6265e0185a38f8c5a2ab8db88c888e790f164d3b39ecb3",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

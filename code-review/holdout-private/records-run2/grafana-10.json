@@ -1,0 +1,97 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "137522ceebf3ffbd343341808205573524ffdc3e9e4271673bb020aad6b2a955",
+      "model": "sonnet",
+      "prompt_digest": "fb4b71b0cf27aaba8f7b01249f22e08cdfbfd4a667b0d224805293437229a1b1",
+      "response": {
+        "category": "correctness",
+        "consequence": "The test is not run against postgres; this is an intentional coverage trade-off and not a code defect.",
+        "evidence_refs": [
+          "source:new:pkg/server/module_server_test.go@sha256:39967df8305c244c1646758d3ffa118d5940df6a6cdc7d766fddf03bfe6c786e"
+        ],
+        "explanation": "The change only adds a t.Skip for GRAFANA_TEST_DB == \"postgres\", placed before DB initialization. It is a deliberate, documented skip with a TODO and does not alter any logic, guard, or assertion for other database types.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:73d5005980ba38704671ad8a"
+        ],
+        "title": "No defect in added postgres skip"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 18772,
+        "cache_write_input_tokens": 2279,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 21057,
+        "output_tokens": 845,
+        "provider_cost": 0.0201143,
+        "request_id": "",
+        "seconds": 11.656
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "585fc1783819ec0b429e4e9c707d51cbc41789347323594dda620a97c722a054",
+      "model": "sonnet",
+      "prompt_digest": "8b89a0b7e9cbcd2b0ebca093bca748d9126ff917daa3d6a2e103f486fcddf23b",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "If a write event for a not-yet-indexed namespace arrives during startup, the process can crash with \"fatal error: concurrent map iteration and map write\".",
+        "evidence_refs": [
+          "source:new:pkg/storage/unified/resource/search.go@sha256:13a29251614ed223b36bf814ce299ca205c6cc61677095febd9333895c4f7969",
+          "source:new:pkg/storage/unified/search/bleve.go@sha256:ad6d159f6ac0aa1f3d26b7d0d6f230a97a42fe171b6bb96375f7a8e719a5d35d",
+          "target:target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "explanation": "searchSupport.init now calls s.search.TotalDocs() in the new \"search index initialized\" log line. This runs after the WatchWriteEvents goroutine has started. That goroutine calls handleEvent, which can reach BuildIndex and write b.cache[key] under cacheMu. TotalDocs (bleve.go:146) ranges over b.cache without taking cacheMu. A write that overlaps the iteration is a concurrent map iteration and map write, which Go aborts with a fatal error.",
+        "lines": {
+          "end_line": 216,
+          "start_line": 216
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:a6e15bb2386b1f198dade424"
+        ],
+        "title": "TotalDocs iterates bleve cache without lock while the event goroutine may write it"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 61810,
+        "cache_write_input_tokens": 2144,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 63958,
+        "output_tokens": 1917,
+        "provider_cost": 0.036698100000000004,
+        "request_id": "",
+        "seconds": 25.569
+      }
+    }
+  ],
+  "case_id": "grafana-10",
+  "case_input_digest": "897220768459cddae55e956f88c037f694036cacc8973421f9c1547e60d30ec4",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T08:51:13+00:00"
+  },
+  "version": 1
+}

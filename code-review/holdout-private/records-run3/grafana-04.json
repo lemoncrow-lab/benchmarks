@@ -1,0 +1,217 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1e9f7c6ed726897f9df88e4de3a47f6835558d0873ed7ada8fc5c4c3afbe0688",
+      "model": "sonnet",
+      "prompt_digest": "a81a8a6b92e504896fb3d75e6458d0e1a7dc7eacda6ae19af4644f0a8e5cbf9e",
+      "response": {
+        "category": "correctness",
+        "consequence": "No incorrect queries sent to Loki were demonstrated.",
+        "evidence_refs": [
+          "source:new:public/app/plugins/datasource/loki/shardQuerySplitting.ts@sha256:c728a430017ad29589f41dca9f44a5b5b601498c1f2ea9eb6e7e3263b0d0e9f0"
+        ],
+        "explanation": "runShardSplitQuery calls applyTemplateVariables once per visible target, once per request, not once per cycle. The sharded sub-requests then go through runSplitQuery, which calls applyTemplateVariables again (querySplitting.ts:299). That second pass was there before this change, because the old interpolateVariablesInQueries call also ran first. The real applyTemplateVariables returns a copy with {...target}, so request.targets is not mutated. It passes $__interval and $__interval_ms through as literals and drops the other built-in scopedVars (__auto, __range and so on). Those are left for the backend to resolve against each split sub-range. A second pass over an already-interpolated expression is therefore effectively idempotent. The new call is closer to the backend-interpolation contract than the old one. The in-place mutation in the test mock only affects test data. The assertion of 5 applyTemplateVariables calls in the existing test matches the extra calls from runSplitQuery, so it is consistent.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:111201af3213ada6ba1c334e",
+          "target:hun:71a979019089387051cfad30"
+        ],
+        "title": "No harmful double interpolation found in shard split path"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 116250,
+        "cache_write_input_tokens": 23097,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 139361,
+        "output_tokens": 3157,
+        "provider_cost": 0.13651049999999998,
+        "request_id": "",
+        "seconds": 31.18
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "5f1e810c103e99a128b9074f0cf269d93bdcabca504538b8463c3b4e766ba585",
+      "model": "sonnet",
+      "prompt_digest": "ab993a8e7f1e7194f8f6fa397534eb3683b29cc0f189ef8ac618d1def6e350ef",
+      "response": {
+        "category": "performance",
+        "consequence": "No performance defect is introduced on the changed path.",
+        "evidence_refs": [],
+        "explanation": "The change adds one applyTemplateVariables call per visible query, once per request, before splitting. That is linear in the number of targets and does not depend on the number of time or shard splits. In the shard path it replaces a single interpolateVariablesInQueries pass, so the cost is equivalent. Template and ad hoc interpolation is a cheap string operation.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:111201af3213ada6ba1c334e",
+          "target:sym:9f0f257bc1647fb73b1ce98a"
+        ],
+        "title": "No unbounded or multiplicative work introduced"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 45664,
+        "cache_write_input_tokens": 14330,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60002,
+        "output_tokens": 1408,
+        "provider_cost": 0.0768109,
+        "request_id": "",
+        "seconds": 14.898
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a4e24883186c8002a97380c24f9187bf2838e236ef75a7fd13a38e3f6a5e9df6",
+      "model": "sonnet",
+      "prompt_digest": "bb26d29d99f4790b5329432c0550c9d8a4ffae34b80d70cbb970901f0a426de1",
+      "response": {
+        "category": "performance",
+        "consequence": "No defect in the changed lines. The tests assert the actual call counts and interpolated expressions.",
+        "evidence_refs": [],
+        "explanation": "The diff only changes tests: it mocks applyTemplateVariables per query and adds two 'Interpolates queries before execution' tests. The new expectation of 5 applyTemplateVariables calls matches the production code. runShardSplitQuery interpolates once per target (shardQuerySplitting.ts:52). Each of the 4 shard-group sub-requests then goes through runSplitQuery, which interpolates again (querySplitting.ts:299). That gives 1 + 4 = 5. The work grows with the number of shard groups, which is bounded by the shard count, and the production code is not part of this diff.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:204268e0725ae713a12883aa"
+        ],
+        "title": "No unbounded work in the test-only changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 83026,
+        "cache_write_input_tokens": 22948,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 105984,
+        "output_tokens": 1931,
+        "provider_cost": 0.12071399999999999,
+        "request_id": "",
+        "seconds": 19.365
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "f3fd66b3491a4be22af7618702024dd2dadc185447d19b95f2a036a9e6fcb182",
+      "model": "sonnet",
+      "prompt_digest": "7d2208f2504b54d5ed1965ec54b6b32befb4f56dfe49c0e29779aaaf01d956be",
+      "response": {
+        "category": "correctness",
+        "consequence": "No defect confirmed.",
+        "evidence_refs": [
+          "source:new:public/app/plugins/datasource/loki/querySplitting.ts@sha256:8e8a54da287c127b853fbbc7a87ca24a73c890c40455cf037c464b8e8e127b19"
+        ],
+        "explanation": "applyTemplateVariables removes __range, __range_s, __range_ms and __auto from scopedVars before replacing. It leaves $__interval and $__interval_ms as literals for backend interpolation. A $__range expression therefore keeps the literal variable when querySplitting.ts:287 checks it, so the non-splitting partition is correct. The filter order (hide, then expr, then map) is preserved, so the 3-request and 4-emission test expectations are unaffected. The datasource interpolates a second time inside super.query, which is a redundant pass. shardQuerySplitting.ts:52 already does the same up-front interpolation, and the second pass leaves the already-interpolated expression and ad hoc filters stable. I could not show any input that this makes wrong.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:9f0f257bc1647fb73b1ce98a",
+          "target:hun:21406c8e45f48f7896d91163"
+        ],
+        "title": "No partitioning mismatch from up-front interpolation"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 66072,
+        "cache_write_input_tokens": 16536,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 82618,
+        "output_tokens": 2055,
+        "provider_cost": 0.09418869999999999,
+        "request_id": "",
+        "seconds": 22.166
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "74534f490bb978566b52724538a441f795b8ccf927a7743033e7065ad5d2307a",
+      "model": "sonnet",
+      "prompt_digest": "e8e69f29100728f5b66a6a545fd5421b6001799679359ca78691105c94684879",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "correctness",
+            "evidence_needed": "Read splitQueriesByStreamShard and the datasource runQuery/query flow to count applyTemplateVariables calls per request. Check whether the repeated calls come from per-cycle re-interpolation. Check whether already-interpolated expressions are re-processed, and whether the original request.targets are mutated.",
+            "failure_mode": "runShardSplitQuery now calls datasource.applyTemplateVariables on every target before sharding. The sharded sub-requests then go through datasource.runQuery, which may interpolate again. Variables, $__auto or step could be interpolated twice, or interpolated against the wrong range or scopedVars. The test also expects applyTemplateVariables to be called 5 times, which suggests it is called repeatedly, possibly once per shard group.",
+            "investigation_rationale": "Check whether runQuery and the shard path both interpolate. Check whether applyTemplateVariables is called once per target or once per cycle. Check whether it mutates the original request targets, since the test mock mutates query in place.",
+            "priority_rationale": "Double or repeated interpolation changes the queries actually sent to Loki and could produce incorrect results. It affects the main code path, not only test code.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:111201af3213ada6ba1c334e",
+              "target:hun:71a979019089387051cfad30"
+            ]
+          },
+          {
+            "category": "correctness",
+            "evidence_needed": "Read runSplitQuery, querySupportsSplitting and isQueryWithRangeVariable. Check whether the datasource's own interpolation still runs on split requests. Check whether the 'Interpolates queries before execution' test covers a $__range expression.",
+            "failure_mode": "runSplitQuery interpolates targets up front with applyTemplateVariables and then partitions them into splitting and non-splitting queries, using querySupportsSplitting on the interpolated expressions. If runQuery interpolates again downstream, the two passes could disagree. For example, $__range could be resolved before the isQueryWithRangeVariable check, or the interpolated step could differ from the one the tests assert.",
+            "investigation_rationale": "Verify that the order of interpolation and filtering still matches the intent of the $__range check. Verify that the non-splitting queries are not interpolated twice. Verify that the tests' 3-request and 4-emission expectations hold with the filter order (hide, then expr).",
+            "priority_rationale": "Wrong partitioning would split queries that must not be split, or skip splitting for queries that should be split, producing wrong metric results.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:9f0f257bc1647fb73b1ce98a",
+              "target:hun:21406c8e45f48f7896d91163"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 14179,
+        "cache_write_input_tokens": 10063,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 24248,
+        "output_tokens": 2118,
+        "provider_cost": 0.06372449999999999,
+        "request_id": "",
+        "seconds": 21.369
+      }
+    }
+  ],
+  "case_id": "grafana-04",
+  "case_input_digest": "03327e83a39cd2f77aa932fce684b86bd75d874b90e91b3d7f94de4fba0489ee",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T11:36:40+00:00"
+  },
+  "version": 1
+}

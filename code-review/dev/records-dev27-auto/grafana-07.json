@@ -1,0 +1,116 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "4ae0d82385d6cd71ce20f789c4830bb8c99c9226c98763efd2b58d806c7b44d1",
+      "model": "sonnet",
+      "prompt_digest": "96e5473c066dddf83a0a28f8c7506e4c7decee00e1e47d04b61162bbc0e59544",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The annotationTag struct exists in the package (xorm_store.go:663) and maps to the annotation_tag table. The expected counts for the new 40003-annotation case work out: 40003 annotations leave 1 of each type, so 40000 are deleted. The per-subtest cleanup now clears both tables, and the explicit IDs do not collide across subtests.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:ca83e7399b0691f92af8425b",
+          "target:sym:3fb25d0178ee6514865b0426"
+        ],
+        "title": "No defect found in the cleanup test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "3d4872cae0c8b7843f9c1137f79c0891e6db7d56991f484fe04c75f2731afb13",
+      "usage": {
+        "cache_read_input_tokens": 49545,
+        "cache_write_input_tokens": 20286,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 69837,
+        "output_tokens": 1101,
+        "provider_cost": 0.0989925,
+        "request_id": "",
+        "seconds": 16.355
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "80bf2af8084491bc73ade589e1b27b34f5120a9ffb8fc988e0728d46dee74111",
+      "model": "sonnet",
+      "prompt_digest": "74c1c3f0b3cccb7a6719abe20206e47629614fbc4e4b192c1a8b3e3aeaaa66fd",
+      "response": {
+        "category": "performance",
+        "consequence": "Normal, successful cleanup runs flood the logs with Error entries carrying thousands of IDs. This hides real errors and can trigger error-level alerting. The cost is high log volume and wasted memory and I/O.",
+        "evidence_refs": [
+          "source:new:pkg/services/annotations/annotationsimpl/xorm_store.go@sha256:f98585ffead9d7390c0cfd25e4ee3b4c3e355d927413da568d1cac9e8ff13440",
+          "target:target:sym:579f30b080d62347f0c07ca1"
+        ],
+        "explanation": "The new batched cleanup logs two Error-level lines per batch: \"Tags to clean\" and \"cleaned tags\". CleanAnnotations does the same for the by-time and by-count passes. Each line includes the full `ids` slice, the SQL condition and `err`, which is nil on those paths. These look like leftover debug statements. Every batch emits them, including the final empty batch. Batches can hold up to AnnotationCleanupJobBatchSize IDs, and the loop runs until nothing is left to delete. A large backlog therefore produces very large error-level log output.",
+        "lines": {
+          "end_line": 576,
+          "start_line": 576
+        },
+        "other_findings": [
+          {
+            "category": "performance",
+            "consequence": "Cleanup jobs run ten times more often on every instance, adding database load. With long-running cleanups this also makes overlapping runs more likely.",
+            "evidence_refs": [
+              "source:new:pkg/services/cleanup/cleanup.go@sha256:5ec96529f8615840e79239160e0256ad79e98e6c99741a5f45adee0a7549ebd2",
+              "target:target:sym:450d037e51d320fbfb5bedfb"
+            ],
+            "explanation": "`time.NewTicker(time.Minute * 10)` became `time.NewTicker(time.Minute * 1)` in CleanUpService.Run. The change is unrelated to the annotation batching and looks like a debugging leftover. Each clean() run has a 9-minute timeout, so runs now trigger ten times more often than before. Every run does all the cleanup jobs, including the annotation cleanup, which now issues extra queries.",
+            "lines": {
+              "end_line": 77,
+              "start_line": 77
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:450d037e51d320fbfb5bedfb"
+            ],
+            "title": "Cleanup ticker interval cut from 10 minutes to 1 minute"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:579f30b080d62347f0c07ca1"
+        ],
+        "title": "Debug logging at Error level dumps full ID lists on every cleanup batch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 28413,
+        "cache_write_input_tokens": 22969,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 51388,
+        "output_tokens": 2730,
+        "provider_cost": 0.12414689999999999,
+        "request_id": "",
+        "seconds": 28.0
+      }
+    }
+  ],
+  "case_id": "grafana-07",
+  "case_input_digest": "d94343eeb1d27047326c457dda51c6b5a2e0d66a271aebcbea6fd8a3f064a448",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:52:20+00:00"
+  },
+  "version": 1
+}

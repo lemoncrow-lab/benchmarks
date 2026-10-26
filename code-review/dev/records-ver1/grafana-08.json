@@ -1,0 +1,90 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "17d65cce3bdb63c5b90f8c78e8153a1030d282cf179e52cdb8cd106fe843ea9f",
+      "model": "sonnet",
+      "prompt_digest": "000c796c0bd5efecaedbaf7f744ba8331e39276b886535a71fe5b1607fefa511",
+      "response": {
+        "category": "performance",
+        "consequence": "Redundant file I/O and parsing on a cold start under concurrent load. The results are identical, so correctness is not affected. The fix is to re-check the cache after Lock().",
+        "evidence_refs": [
+          "source:new:pkg/api/webassets/webassets.go@sha256:2f20079c6badf05ee3025f48953d3e8c0ea8930d7678cca49c817e06ee9c8a35"
+        ],
+        "explanation": "GetWebAssets reads the cache under RLock, releases it, and then takes the write Lock on a miss. It does not check the cache again once it holds the write lock. If N requests arrive while the cache is empty in non-Dev mode, all N see nil. They then take the lock one at a time, and each re-reads assets-manifest.json and overwrites the cache. The exported signature and return type are unchanged, so I found no API compatibility break.",
+        "lines": {
+          "end_line": 49,
+          "start_line": 48
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 49,
+          "original": "\tentryPointAssetsCacheMu.Lock()\n\tdefer entryPointAssetsCacheMu.Unlock()",
+          "start_line": 48,
+          "text": "\tentryPointAssetsCacheMu.Lock()\n\tdefer entryPointAssetsCacheMu.Unlock()\n\tif cfg.Env != setting.Dev && entryPointAssetsCache != nil {\n\t\treturn entryPointAssetsCache, nil\n\t}"
+        },
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:8bd340e81a3600d1ceb96b1f"
+        ],
+        "title": "No cache re-check after taking the write lock; concurrent cold-start callers each re-read the manifest"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 23684,
+        "cache_write_input_tokens": 2042,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 25730,
+        "output_tokens": 1133,
+        "provider_cost": 0.022733700000000003,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2229048eb9c423581b1c8d4a35b8b331285f4d9a2a8509d897286760bec92550",
+      "model": "sonnet",
+      "prompt_digest": "2cd8207f642e393697e87d723ae01369de907c8800be4d24725b2d911b5c2a75",
+      "response": {
+        "verdicts": [
+          {
+            "finding_id": "finding-a04acb8aebf9ba0903c048c5",
+            "reason": "The diff shows no cache re-check after taking the write lock, so concurrent cold-start callers each redo the manifest read; this is a real, if minor, inefficiency introduced by the change.",
+            "verdict": "keep"
+          }
+        ]
+      },
+      "schema_digest": "9f2f3a1965415c4a67066ae287dcce6640e370878a5e0b4e4649df0929564791",
+      "stage": "finding_verification",
+      "system_digest": "d912f65725c6677d35ac975591b4d909da05cc465b66ba7adb49c391f1452e73",
+      "usage": {
+        "cache_read_input_tokens": 2481,
+        "cache_write_input_tokens": 4018,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 6501,
+        "output_tokens": 157,
+        "provider_cost": 0.0182749,
+        "request_id": "",
+        "seconds": 3.844
+      }
+    }
+  ],
+  "case_id": "grafana-08",
+  "case_input_digest": "0f6a44cbf9b07145c8483f05a6235f2291980ad3164f2d62530c74e3e2442ac9",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T06:09:02+00:00"
+  },
+  "version": 1
+}

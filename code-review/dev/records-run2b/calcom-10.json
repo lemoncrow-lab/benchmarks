@@ -1,0 +1,162 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1afcf3d68a3bdc799d54284b30153836ca1d3150f97018eafda44a1244773de4",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "correctness",
+        "consequence": "An authenticated attendee can make the system email blacklisted or already-added addresses. Mixed-case blacklisted addresses are stored as attendees. Duplicate attendees can be created.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+        ],
+        "explanation": "The handler filters the input into `uniqueGuests`. That removes guests who are already attendees and guests on BLACKLISTED_GUEST_EMAILS. Only `uniqueGuests` are persisted. But `sendAddGuestsEmails(evt, guests)` is called with the raw `guests` input. A blacklisted address, or an existing attendee, therefore still gets an \"added to booking\" email even though it was rejected and not stored. The blacklist check also compares the un-lowercased `guest` against lowercased blacklist entries (line 77), so `Bad@x.com` passes the filter. The input list is also not de-duplicated server-side, so repeated addresses create duplicate attendee rows.",
+        "lines": {
+          "end_line": 168,
+          "start_line": 168
+        },
+        "other_findings": [
+          {
+            "category": "performance",
+            "consequence": "A single request can trigger a large number of attendee inserts and outbound emails, which is a resource-abuse and spam vector.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts@sha256:ad2175fdb978d53d9618415853298db9b67223294a0a930f7987a55f4bf89214"
+            ],
+            "explanation": "`guests: z.array(z.string().email())` has no `.max()`. The handler runs `createMany`, does a translation lookup per attendee and sends emails per guest, so the work grows with the array length. An authenticated attendee can submit very large arrays.",
+            "lines": {
+              "end_line": 5,
+              "start_line": 5
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:hun:b314cced4e70c58a13fbaad7"
+            ],
+            "title": "No upper bound on the number of guests per request"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 168,
+          "original": "    await sendAddGuestsEmails(evt, guests);",
+          "start_line": 168,
+          "text": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Notification emails sent to the unfiltered guest list instead of the guests actually added"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 32871,
+        "cache_write_input_tokens": 28043,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 60918,
+        "output_tokens": 3116,
+        "provider_cost": 0.14918530000000002,
+        "request_id": "",
+        "seconds": 26.39
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "2a66932ae5a190e0b0e8c1789fda712276e0bb9a868eea34dc6407b475adcc59",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "Existing attendees can receive a misleading \"new booking\" email with a fresh invite when someone adds guests, instead of the guests-added notification.",
+        "evidence_refs": [
+          "source:new:packages/emails/email-manager.ts@sha256:41cc872a18fc7c4649602f48af57cd31883d10bedc563ed3395fd762dd68159f"
+        ],
+        "explanation": "sendAddGuestsEmails decides per attendee whether to send AttendeeScheduledEmail (new guest) or AttendeeAddGuestsEmail by checking newGuests.includes(attendee.email). The only caller, addGuests.handler.ts:168, passes the raw `guests` input, not `uniqueGuests`, which has existing attendees and blacklisted addresses removed (lines 74-78). If the input includes an email that is already an attendee, as long as at least one other guest is new, that existing attendee matches newGuests. They then get the full \"scheduled\" email instead of the \"guests added\" notification. The same applies to a blacklisted address, which is excluded from the booking but still listed in newGuests. Also, `blacklistedGuestEmails` is lowercased but `guest` is compared as-is, so mixed-case blacklisted addresses are not filtered.",
+        "lines": {
+          "end_line": 545,
+          "start_line": 541
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:d4c3b539aedcb8c02399dc4e"
+        ],
+        "title": "Pre-existing attendees can be sent the \"new booking\" email because the caller passes unfiltered guests as newGuests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 52115,
+        "cache_write_input_tokens": 23911,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 76032,
+        "output_tokens": 1874,
+        "provider_cost": 0.12161440000000001,
+        "request_id": "",
+        "seconds": 19.544
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a0f4f069eb1db00467dded97b99747d3121065b9c551d63914bfd876d637aaf1",
+      "model": "sonnet",
+      "prompt_digest": "51e4e6237055d52d78e45ef41b2eac59bda63daeb098f255764db9bfcbf9a4bd",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change only adds seven new English translation keys. A grep of common.json found each key exactly once, so there are no duplicate keys. The JSON syntax and placeholders in the diff are well-formed.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:644711a2b958cdc32e36891d",
+          "target:hun:2f776a725e2eba7cbb861eba",
+          "target:hun:89804d4c62875956ca9ecf4d"
+        ],
+        "title": "No defect found in added locale strings"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 30173,
+        "cache_write_input_tokens": 10316,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 40497,
+        "output_tokens": 900,
+        "provider_cost": 0.0542304,
+        "request_id": "",
+        "seconds": 13.344
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:58:08+00:00"
+  },
+  "version": 1
+}

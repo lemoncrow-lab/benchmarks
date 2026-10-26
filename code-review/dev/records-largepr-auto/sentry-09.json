@@ -1,0 +1,398 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "044e516c9e054f33333180c9cbc181ce87ac2a438758a0820ff886a38bf263b5",
+      "model": "sonnet",
+      "prompt_digest": "9e65b4dc643e01a9ec57849a5b6d21b173eecab596f953824d6666e88f55394d",
+      "response": {
+        "category": "verification",
+        "consequence": "The test doesn't verify the behaviour it claims to. If the consumer started committing past a failed message, or if it never committed anything, the test would give the same result either way. That hides a real regression in error and offset handling.",
+        "evidence_refs": [
+          "source:new:tests/sentry/uptime/consumers/test_results_consumer.py@sha256:d2592fb512e4d128076dbe054a28a561018a49d755c651513ec643b2fefc4d86",
+          "target:target:sym:b9c2ee664bd20790c329aa54"
+        ],
+        "explanation": "The docstring of test_thread_queue_parallel_error_handling (line 1876) says a processing error must not block offset commits for other messages. The test makes the first message (offset 100) raise and the second (offset 101) succeed. Line 1922 then asserts that no offset was committed for the partition, which is the opposite of the docstring. The assertion also passes if nothing is ever committed, so it can't tell the intended behaviour from a stalled consumer. I read only the test code. I did not check the consumer implementation.",
+        "lines": {
+          "end_line": 1922,
+          "start_line": 1922
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:b9c2ee664bd20790c329aa54"
+        ],
+        "title": "Error-handling test asserts the opposite of its docstring and can't catch a regression"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 48019,
+        "cache_write_input_tokens": 19606,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 67633,
+        "output_tokens": 1798,
+        "provider_cost": 0.1030373,
+        "request_id": "",
+        "seconds": 22.115
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "25282910a16e2904c82b836221df07c05b7a9a5b2888a43e898a7de0c971c96c",
+      "model": "sonnet",
+      "prompt_digest": "8a23a50cb6060f7e4ce6c76e99e89d315c53dce7477ff21a983cc599cc2dfbc6",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "After the first rebalance, every message routed to the thread-queue-parallel consumer is silently dropped and its offset is committed. The result is permanent loss of check-in results, with only 'Error submitting message to queue' logged.",
+        "evidence_refs": [
+          "source:new:src/sentry/remote_subscriptions/consumers/result_consumer.py@sha256:bdf20e4cfa84403fbe70e338159ad74d78267482740df187d4e674f08e4bdc75",
+          "target:target:sym:1c44f3178a02e080ae8c345e",
+          "target:target:sym:85982213c52c771037e50360"
+        ],
+        "explanation": "ResultsStrategyFactory creates one FixedQueuePool in __init__. create_thread_queue_parallel_worker passes that same pool to a new SimpleQueueProcessingStrategy on every create_with_partitions call, which happens on every partition assignment or rebalance. Arroyo calls close() or terminate() on the old strategy when partitions are revoked. In queue_consumer.py, SimpleQueueProcessingStrategy.close() and terminate() call queue_pool.shutdown(). That sets worker.shutdown and calls q.shutdown() on every queue, and the worker threads exit. The factory's queue_pool attribute stays non-None, because only ResultsStrategyFactory.shutdown() clears it. The next strategy therefore gets a dead pool. Its submit() calls work_queue.put(), which raises queue.ShutDown. SimpleQueueProcessingStrategy.submit catches that in its generic `except Exception`, then does add_offset and complete_offset for the message. The commit loop treats that offset as processed and commits it. The same OffsetTracker is also shared across strategies, so state from before the rebalance carries over.",
+        "lines": {
+          "end_line": 260,
+          "start_line": 255
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "high",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:1c44f3178a02e080ae8c345e",
+          "target:sym:85982213c52c771037e50360"
+        ],
+        "title": "Shared FixedQueuePool is shut down by each strategy's close() and reused after a rebalance, so messages are committed without being processed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 81367,
+        "cache_write_input_tokens": 25814,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 107191,
+        "output_tokens": 2580,
+        "provider_cost": 0.1391202,
+        "request_id": "",
+        "seconds": 25.908
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4837e3c65e354d6a24b526f8c5d88218c3415047c4ba02bd88486781aa736de5",
+      "model": "sonnet",
+      "prompt_digest": "cf28625316d002bb85b46ef4d5601cdd2fb6d17c2ec64b41c5e217504ce42210",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "None confirmed.",
+        "evidence_refs": [],
+        "explanation": "I checked the tests against the implementation in queue_consumer.py (OffsetTracker, FixedQueuePool, SimpleQueueProcessingStrategy). The expectations match the code. Offsets commit only up to the contiguous completed prefix, and the gap test commits 100 and then 103. Filtered messages are added and completed immediately. Group-to-queue assignment is stable within a process, and each queue has a single worker, so order within a group holds. The remaining risks are timing windows with the 1-second commit loop and the random string hash. Those are flakiness concerns, not failing cases.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete concurrency defect confirmed in the new tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 64229,
+        "cache_write_input_tokens": 32272,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 96507,
+        "output_tokens": 1820,
+        "provider_cost": 0.1563034,
+        "request_id": "",
+        "seconds": 19.905
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "957d76860e944759575abdcd2321e0fa5adef8c8c0b81b13a04b8f83d51e4d43",
+      "model": "sonnet",
+      "prompt_digest": "9e420197e6e32daaacfd56046a10bb0b7af2bc5926f07b4af37fb94efbf34551",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The tests synchronize with locks and events. The final `total_items == 0` assertion in test_stats_reporting is sound. `qsize()` drops when a worker calls `get()`, which happens before the processor sets the completion event. I found no invalid state transition or lost update in the test code.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:f44ac069e3330f18ceed7af8"
+        ],
+        "title": "No concrete concurrency defect found in the new tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 43430,
+        "cache_write_input_tokens": 18318,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61754,
+        "output_tokens": 958,
+        "provider_cost": 0.08880160000000001,
+        "request_id": "",
+        "seconds": 12.794
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a0ea55ae4a164b8255b3d814318f719fae364ee51c090dd91fb297e9aa03ba8b",
+      "model": "sonnet",
+      "prompt_digest": "a849bb245ddccc72e3bd03cd68f0e2323209fae45667459e8498f0866bc6402e",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a restart or rebalance, the last processed message of every partition is redelivered and processed again. For uptime results this means duplicate result processing.",
+        "evidence_refs": [
+          "source:new:src/sentry/remote_subscriptions/consumers/queue_consumer.py@sha256:d81531e244222e6d99a4876eaab0d05904ce867d9219a782acbdc0b6246f2da1"
+        ],
+        "explanation": "get_committable_offsets returns the highest fully processed offset (line 96), and _commit_loop passes that dict unchanged to commit_function. Arroyo/Kafka commit semantics expect the next offset to consume (processed offset + 1). Offset N, which has already been processed, is therefore committed as the resume position. mark_committed then records N as last_committed, so the tracker and Kafka agree on the same off-by-one value.",
+        "lines": {
+          "end_line": 96,
+          "start_line": 95
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "The partition's committed offset stops advancing at the gap. all_offsets grows without bound, and each commit pass rescans the range. After a restart, everything since the gap is reprocessed.",
+            "evidence_refs": [
+              "source:new:src/sentry/remote_subscriptions/consumers/queue_consumer.py@sha256:d81531e244222e6d99a4876eaab0d05904ce867d9219a782acbdc0b6246f2da1"
+            ],
+            "explanation": "get_committable_offsets walks range(start, max_offset+1) and breaks at the first offset that is not in all_offsets (lines 89-93). Offsets never submitted to the tracker are not tracked. These include Kafka offset gaps from compaction or transaction markers, and any message that does not reach submit. Such an offset is treated as a hole, so the loop breaks there on every pass.",
+            "lines": {
+              "end_line": 93,
+              "start_line": 89
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:9f52da0a86adf84db60b21c1"
+            ],
+            "title": "Commit progress stalls permanently on any gap in offsets"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:b97079852e9dddc5f6b89131",
+          "target:sym:9f52da0a86adf84db60b21c1"
+        ],
+        "title": "Commits highest processed offset instead of next offset to consume"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 30411,
+        "cache_write_input_tokens": 25883,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56298,
+        "output_tokens": 2055,
+        "provider_cost": 0.1294448,
+        "request_id": "",
+        "seconds": 20.746
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c2c02c1911de68b646a0f03fa718fcc216e2fb791732b6bbba977da1d0ecdf16",
+      "model": "sonnet",
+      "prompt_digest": "92c07db40a3fca3344fe8b757352a03e2431727ca829f066e116d6e497b348a9",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "No defect to report.",
+        "evidence_refs": [],
+        "explanation": "I read OffsetTracker, FixedQueuePool and SimpleQueueProcessingStrategy and traced the new tests against them. Offset tracking, per-group ordering, the gap-blocking commit and the commit loop behave as the tests assert. I found no reachable lost update or invalid transition that the tests get wrong.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:61b9c90ac456e7a7d561b18a"
+        ],
+        "title": "No concrete invalid state found in the new queue consumer tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 61600,
+        "cache_write_input_tokens": 30517,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 92123,
+        "output_tokens": 1144,
+        "provider_cost": 0.14213009999999998,
+        "request_id": "",
+        "seconds": 13.575
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "dd0b987581293869d2fcbe1252c05eec39763eada4badb5c20aac3499c1269a2",
+      "model": "sonnet",
+      "prompt_digest": "dde3fdef5c7f96fcd9e5af963eaef0c9e80d9bac6b1e1facdacbc282d7f61335",
+      "response": {
+        "category": "verification",
+        "consequence": "The test fails, or passes only if the commit thread has not yet fired. It would not catch a regression where an error blocks commits, and it encodes the wrong expected behavior.",
+        "evidence_refs": [
+          "source:new:tests/sentry/uptime/consumers/test_results_consumer.py@sha256:d2592fb512e4d128076dbe054a28a561018a49d755c651513ec643b2fefc4d86",
+          "target:target:sym:954fff744960e7a4f364183d"
+        ],
+        "explanation": "The test's docstring says an error in processing must not block offset commits. The worker in queue_consumer.py (line 148-149) calls complete_offset in a `finally`, so a failed item 100 still completes. After item 101 succeeds, get_committable_offsets returns the partition, and the commit loop (about 1s interval) calls commit_function. The test still asserts `len(committed_offsets) == 0 or test_partition not in committed_offsets` at line 1922. That asserts the opposite of both the docstring and the code. The assertion fails once the commit loop runs. The test never checks that offset 101 was committed, so it does not verify the behavior it claims to.",
+        "lines": {
+          "end_line": 1922,
+          "start_line": 1922
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:954fff744960e7a4f364183d"
+        ],
+        "title": "Error-handling test asserts no commit, contradicting its docstring and the worker's behavior"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 56397,
+        "cache_write_input_tokens": 26042,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 82445,
+        "output_tokens": 1952,
+        "provider_cost": 0.1314163,
+        "request_id": "",
+        "seconds": 20.185
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e7a2cb5f6253648dd732db3ed877c8495c149c18269fd72f693f3ac8e10c62d2",
+      "model": "sonnet",
+      "prompt_digest": "9f6c91437bc68b8feadf95f485550a03c036959bd40a3bf9172d22ef7236e9d2",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "No actionable defect.",
+        "evidence_refs": [
+          "source:new:tests/sentry/uptime/consumers/test_results_consumer.py@sha256:d2592fb512e4d128076dbe054a28a561018a49d755c651513ec643b2fefc4d86"
+        ],
+        "explanation": "The change only adds tests. I read the added tests and found no input or interleaving that makes them fail or pass vacuously. The tests wait on queue stats and call counts, and they assert order and offset values that match the behavior they describe. I did not open the consumer implementation (UptimeResultsStrategyFactory), so I could not check these expectations against it. The review excerpt of the diff was also cut off in the Kafka test.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:1b6d5ffe0b284f21414c5ea0",
+          "target:sym:1fd80c3459eb28a7f2b6f76d",
+          "target:sym:2a4ac82cd91368903c42ade8",
+          "target:sym:3a7fdf174a935641938f1077",
+          "target:sym:43e7c289ca4581c0ddbc584b",
+          "target:sym:4c353fb23f2ebedd0dc18376",
+          "target:sym:4f05b5d18003f1d66d163d38",
+          "target:sym:537238d9656810d0a19842f7"
+        ],
+        "title": "No concrete concurrency defect found in the new thread-queue-parallel tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 30532,
+        "cache_write_input_tokens": 24289,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 54827,
+        "output_tokens": 1529,
+        "provider_cost": 0.1178399,
+        "request_id": "",
+        "seconds": 17.462
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ea52cc4850949d376b8d0298ab36ba247e75031808a42f11f8f35f1943df5338",
+      "model": "sonnet",
+      "prompt_digest": "b7ff9183a752f03657c8f003a51c0c9229b1b3ec485c5a6600fefec027262b61",
+      "response": {
+        "category": "concurrency_state",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "Every OffsetTracker mutation and read (add, complete, get_committable, mark_committed) runs under a per-partition lock. The lock-creation race in _get_partition_lock is safe because setdefault is atomic. submit records the offset before enqueueing, and the worker's finally block always completes it. The commit loop passes the highest processed offset, and result_consumer's commit_offsets adds 1, so the off-by-one is handled. I did not find a reachable invalid transition or lost update.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete race or invalid state found in the offset tracking and queue pool"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "b68a8eaa203e7d5d8432e36c1cbd3ce375c28b8420e303297889ed9dbbdf2e0b",
+      "usage": {
+        "cache_read_input_tokens": 90961,
+        "cache_write_input_tokens": 27750,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 118719,
+        "output_tokens": 2417,
+        "provider_cost": 0.14667550000000001,
+        "request_id": "",
+        "seconds": 25.01
+      }
+    }
+  ],
+  "case_id": "sentry-09",
+  "case_input_digest": "0e940dc0b4086be004b5643a2489f8760a79ca1d8dd362b7ae3cb88e16b635dc",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T13:09:22+00:00"
+  },
+  "version": 1
+}

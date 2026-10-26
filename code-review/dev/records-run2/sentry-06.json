@@ -1,0 +1,146 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "06a8974f16bea91758a451a2dda15fcc05f6d7f8e782f5deb50f16ae9f75e112",
+      "model": "sonnet",
+      "prompt_digest": "30d997e29e1a4e1610060a7708b2e9e79dc5cd8dd4c7ee72ee7a00bdd974b58a",
+      "response": {
+        "category": "verification",
+        "consequence": "The added wait does nothing, so test_basic stays timing-dependent and can fail intermittently. The change gives a false impression of a fix.",
+        "evidence_refs": [
+          "source:new:tests/sentry/spans/consumers/process/test_consumer.py@sha256:612979bb5b7079932b7eb2618ed57414f7418536f000c7f8a1709d885cf3a0f0",
+          "target:target:sym:199fbe9ca480a614e889ffb2"
+        ],
+        "explanation": "test_basic starts with monkeypatch.setattr(\"time.sleep\", lambda _: None). The added `time.sleep(0.1)` resolves through the `time` module attribute, so it calls the no-op lambda and waits for nothing. The comment says it gives the flusher threads time to process after the drift change, but no waiting happens. The flusher runs in separate processes, so step.join() may run before the segment is flushed. The test then races on `(msg,) = messages`.",
+        "lines": {
+          "end_line": 62,
+          "start_line": 61
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:199fbe9ca480a614e889ffb2"
+        ],
+        "title": "Added time.sleep(0.1) in test_basic is a no-op because time.sleep is monkeypatched"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 33240,
+        "cache_write_input_tokens": 2390,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 35634,
+        "output_tokens": 1213,
+        "provider_cost": 0.026356400000000002,
+        "request_id": "",
+        "seconds": 12.583
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1f5f5d14432f01b5611c9a31e46e81163d2d9659961da8169b8542b314356777",
+      "model": "sonnet",
+      "prompt_digest": "b9bbc50b85b53be5268127be16fd5f6f69d7cfe9577553eb5befb81af8211b0a",
+      "response": {
+        "category": "correctness",
+        "consequence": "Flusher processes can keep running after the consumer strategy is joined, for example during rebalance or shutdown. They may keep flushing and producing to Kafka after the strategy is gone. They are only reaped when the parent exits, because they are daemon processes.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "The old join() always called terminate() on the single flusher process after its wait loop, even when the timeout had expired. The new loop breaks out when the deadline is reached (line 341). The terminate() call sits at the end of the loop body, so it never runs for the current process or any later one. Example: timeout=5 and 3 flusher processes. The first process hangs for the full 5s, so the second and third hit the break and are never terminated.",
+        "lines": {
+          "end_line": 341,
+          "start_line": 338
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:c933d3f76e383384363d3afc"
+        ],
+        "title": "join() skips terminate() for remaining flusher processes once the deadline passes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 39772,
+        "cache_write_input_tokens": 4496,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 44272,
+        "output_tokens": 1524,
+        "provider_cost": 0.038871,
+        "request_id": "",
+        "seconds": 16.717
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "7ca37b3cad201d52e663c88bf12979086efbf3615d9a0a1c76e1dc5f782759c1",
+      "model": "sonnet",
+      "prompt_digest": "2f1016ec554bb1cbea99df04ae537c7caea0a4c8838ae3633661c4d7cb3d8d1e",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a hang, two flusher processes can flush the same shards at once. That can produce duplicate segments on Kafka. The leaked hung process also keeps its Redis and Kafka resources and is never cleaned up. On shutdown, the child processes are not terminated.",
+        "evidence_refs": [
+          "source:new:src/sentry/spans/consumers/process/flusher.py@sha256:ef3d47bfffc0264ff758b0c4a3d1b82e89de0437418a1141c09ec7fae9477ec3"
+        ],
+        "explanation": "The processes are created from `multiprocessing.get_context(\"spawn\").Process`, which is `SpawnProcess`. `SpawnProcess` subclasses `BaseProcess`. It does not subclass `multiprocessing.Process`, which is `multiprocessing.context.Process`. So `isinstance(process, multiprocessing.Process)` at line 254 is False for real spawned processes, and `process.kill()` is skipped. The old code called `self.process.kill()` unconditionally. When the cause is \"hang\", the process is still alive. The code then calls `_create_process_for_shards`, which starts a second process for the same shards and overwrites `self.processes[process_index]`. The hung process is never killed and is no longer tracked. The same check in `join` (line 346) skips `terminate()` for the same reason.",
+        "lines": {
+          "end_line": 257,
+          "start_line": 253
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 257,
+          "original": "            try:\n                if isinstance(process, multiprocessing.Process):\n                    process.kill()\n            except (ValueError, AttributeError):\n                pass  # Process already closed, ignore",
+          "start_line": 253,
+          "text": "            try:\n                if isinstance(process, multiprocessing.process.BaseProcess):\n                    process.kill()\n            except (ValueError, AttributeError):\n                pass  # Process already closed, ignore"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:0e6a3b84adb2381f7681c962"
+        ],
+        "title": "Hung flusher processes are never killed because isinstance check uses the wrong Process class"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 51370,
+        "cache_write_input_tokens": 4086,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 55460,
+        "output_tokens": 1513,
+        "provider_cost": 0.0388629,
+        "request_id": "",
+        "seconds": 17.945
+      }
+    }
+  ],
+  "case_id": "sentry-06",
+  "case_input_digest": "d47fc617dd98f176e551020d464ae5289c16cf90c5f8830c8952ee26e5596712",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:27:37+00:00"
+  },
+  "version": 1
+}

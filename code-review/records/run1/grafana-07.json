@@ -1,0 +1,120 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "1f28ba5be5ef7a4fb2ea30034254c2994dd1d995bbe1f24fb15bb551fe3f8872",
+      "model": "sonnet",
+      "prompt_digest": "96e5473c066dddf83a0a28f8c7506e4c7decee00e1e47d04b61162bbc0e59544",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I found no concrete failing input in the changed tests. Each subtest now seeds its own data and cleans both annotation and annotation_tag afterwards. The annotationTag struct exists in xorm_store.go and maps to the annotation_tag table. The batched InsertMulti calls cover all items, and the slice bounds use min.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:sym:3fb25d0178ee6514865b0426"
+        ],
+        "title": "No defect found in test refactor"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "7a6ab74e6d91876440e52c19a9a48b4ab702de622c8918ab5588cd486988255b",
+      "usage": {
+        "cache_read_input_tokens": 48407,
+        "cache_write_input_tokens": 19492,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 67905,
+        "output_tokens": 1062,
+        "provider_cost": 0.0952771,
+        "request_id": "",
+        "seconds": 11.784
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "595ed382c785022d03da61b1fd6e83b729db0a117605f63cb12d077d8d6594e2",
+      "model": "sonnet",
+      "prompt_digest": "74c1c3f0b3cccb7a6719abe20206e47629614fbc4e4b192c1a8b3e3aeaaa66fd",
+      "response": {
+        "category": "performance",
+        "consequence": "Every cleanup cycle writes several Error-level log lines per batch, each with thousands of IDs when the batch size is large. This floods logs and can trigger error alerting even though nothing failed. It also adds I/O overhead to a background job that now runs every minute.",
+        "evidence_refs": [
+          "source:new:pkg/services/annotations/annotationsimpl/xorm_store.go@sha256:f98585ffead9d7390c0cfd25e4ee3b4c3e355d927413da568d1cac9e8ff13440",
+          "source:new:pkg/services/cleanup/cleanup.go@sha256:5ec96529f8615840e79239160e0256ad79e98e6c99741a5f45adee0a7549ebd2"
+        ],
+        "explanation": "The batched cleanup code calls r.log.Error before and after each batch. The messages are \"Annotations to clean by time\", \"Annotations to clean by count\", \"Tags to clean\" and the matching \"cleaned ...\" ones. They run on the success path with err=nil. Each call logs the full ids slice and the SQL condition, and each batch can hold up to AnnotationCleanupJobBatchSize IDs. These look like leftover debugging statements. The change also reduces the cleanup ticker in cleanup.go from 10 minutes to 1 minute, so the cleanup runs ten times as often.",
+        "lines": {
+          "end_line": 537,
+          "start_line": 534
+        },
+        "other_findings": [
+          {
+            "category": "performance",
+            "consequence": "All cleanup jobs, including expensive DB deletions, run ten times as often. This adds steady database load, and a cleanup that takes longer than a minute is followed by another run immediately.",
+            "evidence_refs": [
+              "source:new:pkg/services/cleanup/cleanup.go@sha256:5ec96529f8615840e79239160e0256ad79e98e6c99741a5f45adee0a7549ebd2"
+            ],
+            "explanation": "CleanUpService.Run now ticks every minute instead of every 10 minutes. That interval drives all cleanup jobs, not just annotations. Nothing in the change relates to the annotation batching, so it looks like an unintended debug change.",
+            "lines": {
+              "end_line": 77,
+              "start_line": 77
+            },
+            "replacement": {
+              "end_line": 77,
+              "original": "\tticker := time.NewTicker(time.Minute * 1)",
+              "start_line": 77,
+              "text": "\tticker := time.NewTicker(time.Minute * 10)"
+            },
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:450d037e51d320fbfb5bedfb"
+            ],
+            "title": "Cleanup ticker interval cut from 10 minutes to 1 minute"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:3ddca39ce2805f3162799b05",
+          "target:sym:579f30b080d62347f0c07ca1"
+        ],
+        "title": "Debug logging at Error level dumps full ID lists on every cleanup batch"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "bf9cabb599b0efd221cef618dc4ac9d643100d2033163bba02553197e4cd7e46",
+      "usage": {
+        "cache_read_input_tokens": 28068,
+        "cache_write_input_tokens": 22712,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50786,
+        "output_tokens": 2899,
+        "provider_cost": 0.1247373,
+        "request_id": "",
+        "seconds": 29.675
+      }
+    }
+  ],
+  "case_id": "grafana-07",
+  "case_input_digest": "d94343eeb1d27047326c457dda51c6b5a2e0d66a271aebcbea6fd8a3f064a448",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:12:04+00:00"
+  },
+  "version": 1
+}

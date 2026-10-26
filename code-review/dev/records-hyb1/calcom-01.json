@@ -1,0 +1,786 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "0cf5babb0a9dbdce65eeda60eafbfcfd638a81bfcd8fd22f7d28967999c9e586",
+      "model": "sonnet",
+      "prompt_digest": "63ea173899d1078489da87cbf4809a3346a90316d8f8e2e2d9ea821aea28542b",
+      "response": {
+        "category": "correctness",
+        "consequence": "Users can no longer fetch recordings that were not yet marked as recorded, for example when a recording is still processing or its webhook was missed. The control is greyed out with no way to trigger a check. Pending bookings with payments enabled but no payment record can be confirmed without payment.",
+        "evidence_refs": [
+          "source:new:apps/web/components/booking/BookingListItem.tsx@sha256:2088f1f6463d026fb6ed23eb5dfb61639f6ff9503e8bd14cedb54bd9b236500b",
+          "target:target:hun:fb9f4c705c7eb91a38ff5ff5"
+        ],
+        "explanation": "The old code showed a \"check_for_recordings\" button for a past, confirmed Cal Video booking whose isRecorded is false. It also showed \"view_recordings\" for recorded bookings. The refactor moves these into getVideoOptionsActions, where view_recordings is disabled unless booking.isRecorded is true. BookingListItem.tsx:394 adds a second `view_recordings && !booking.isRecorded` disable. For a past Cal Video booking with isRecorded=false, the item is therefore always disabled. The \"check_for_recordings\" label and the showCheckRecordingButton logic were dropped, so the dialog that looks for recordings can no longer be opened. The same refactor changes the confirm condition. The old rule was `(isPending && !paymentAppData.enabled) || (enabled && price && paid)`. The new rule uses showPendingPayment, which also requires payment.length. A pending booking with payments enabled but no payment rows now gets a Confirm button it did not have before.",
+        "lines": {
+          "end_line": 394,
+          "start_line": 394
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:fb9f4c705c7eb91a38ff5ff5"
+        ],
+        "title": "\"Check for recordings\" action is permanently disabled after refactor"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 62907,
+        "cache_write_input_tokens": 30796,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 93709,
+        "output_tokens": 2463,
+        "provider_cost": 0.1566475,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "1601a9ee11202d90cf3be588459c3f451545b083ee5998154c85264c820134d6",
+      "model": "sonnet",
+      "prompt_digest": "8ce8ca490d4544c6e3d212e3a2eeaca385df1e2244d1a1dadc202af70a31044a",
+      "response": {
+        "category": "security",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I checked the Prisma migration, the new repository method, the import paths and the permission service. The `updatedAt` column has a migration with a default. `SelectedCalendarRepository.updateManyByCredentialId` exists. The renamed and moved imports resolve. `canViewRoles` only hides a nav item, and the roles page still does its own authorization. The `unstable_cache` key includes the user, team and resource arguments, so cached results are not shared across users.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No supportable defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 106539,
+        "cache_write_input_tokens": 33316,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 139863,
+        "output_tokens": 1620,
+        "provider_cost": 0.1630254,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "4de3fe27f94e0f7a73b931f25ce4ec93f43a0d54abdf4fa84129261d75b98656",
+      "model": "sonnet",
+      "prompt_digest": "3927358c2e7a26b1f62074c37b99a15013811ce4fe677c82c86e295c5e7df0be",
+      "response": {
+        "category": "correctness",
+        "consequence": "On Linux, re-running the script when .env already has GOOGLE_WEBHOOK_URL leaves the stale URL in place. The script still prints \"✅ Updated\". A failed run also exits with status 0.",
+        "evidence_refs": [
+          "source:new:scripts/test-gcal-webhooks.sh@sha256:823ac9ff13faa57d58d896d7d32860d58dd2d7a82b994dceaff8eb562be98a25"
+        ],
+        "explanation": "The script updates an existing GOOGLE_WEBHOOK_URL with `sed -i '' -E ...`. That form works only with BSD/macOS sed. On GNU sed (Linux), the empty string is read as the script and the real expression is treated as a file name, so the replacement fails and the existing .env line is not updated. Separately, the failure paths (no tunnel URL, rate limit) call `cleanup`, which always runs `exit 0`, so callers can't tell that the script failed.",
+        "lines": {
+          "end_line": 69,
+          "start_line": 69
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:beac7dfd17c2f87369327b5f"
+        ],
+        "title": "test-gcal-webhooks.sh uses BSD-only `sed -i ''` and exits 0 on failure"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 33315,
+        "cache_write_input_tokens": 27998,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61317,
+        "output_tokens": 1356,
+        "provider_cost": 0.1314969,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "539ad52063a465a05eaee682c3eb46a2c68a81c8c2e9006a8583dcdfd5d75cb0",
+      "model": "sonnet",
+      "prompt_digest": "fb1c6e9e5e23bc8740f61b0dc541a6557dddafe6c27a9802cb4176c0f1d78be9",
+      "response": {
+        "category": "security",
+        "consequence": "No concrete failing input found.",
+        "evidence_refs": [],
+        "explanation": "CredentialActionsDropdown only calls the existing tRPC delete and deleteCache mutations, and the server still has to authorize those calls. The migration adds a NOT NULL column with a DEFAULT, so existing rows are handled. toggleResourcePermissionLevel removes \"*.*\" before editing, so the new \"*.*\" shortcut in getResourcePermissionLevel does not leave a stale \"all\" state. The checkbox runs both onCheckedChange and onClick, but both compute the same result from the same selectedPermissions, so there is no double-toggle problem. The inviteMemberByToken change is only an import path rename.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:54760c83541d296fb70ba644"
+        ],
+        "title": "No security or persistence defect confirmed"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 34236,
+        "cache_write_input_tokens": 28277,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62517,
+        "output_tokens": 1355,
+        "provider_cost": 0.1327893,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "62b60965d773786cc20a03b393da29bb1127a5e24eb0aabd1ce8dbfc6c54645f",
+      "model": "sonnet",
+      "prompt_digest": "4d39ae701afefb5ff5aae71b3ceb7cfc1d35d1ae63d5f727bc6cbd96ac7985bc",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "I found no defect in the changed code. The new deleteCache route calls a handler that exists and checks credential ownership (userId matches the caller) before deleting. The teamService import path matches the imports in other files. The Playwright edits open the actions dropdown before clicking the reschedule and cancel options. The Booker change adds a null guard on timeslotsRef.current.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 64307,
+        "cache_write_input_tokens": 27775,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 92088,
+        "output_tokens": 845,
+        "provider_cost": 0.12861809999999999,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8a431ef90ba49e440bd55864aa3e49839d73a1c8a1efe5d484f10d135906c1f5",
+      "model": "sonnet",
+      "prompt_digest": "1423adb5117847a4ba405bf5a1ba968d7e9d6b40ebcc7dbd1dbfbda9fcf2f1c7",
+      "response": {
+        "category": "correctness",
+        "consequence": "When the event-type data changes, the form is unmounted and remounted. Unsaved edits are lost, the UI flickers, and the imperative ref is briefly null. This hits any consumer that uses `onFormStateChange` or the new ref.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/event-types/wrappers/EventTypePlatformWrapper.tsx@sha256:c76546d6c69449d1a97d641165d135b3a68377a2a35115f2e8de3eeae251af94",
+          "target:target:hun:9ef27c674cd0533248ec4eab"
+        ],
+        "explanation": "The change added `eventTypeQueryData` to the useEffect dependency array. The effect's cleanup calls `invalidateQueries` and `resetQueries` on the event-type query. Before, the cleanup ran only on unmount or when `id` changed. Now it also runs whenever `eventTypeQueryData` changes. That happens after a save that updates the cache, or after a refetch that returns different data (for example on window focus). `resetQueries` clears the query data to undefined. `EventTypePlatformWrapper` then hits `if (!eventTypeQueryData) return null`. This unmounts the inner `EventType` and its react-hook-form state until the refetch completes. I did not read the hook implementation; this follows from the diff and the excerpts.",
+        "lines": {
+          "end_line": 384,
+          "start_line": 384
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:9ef27c674cd0533248ec4eab"
+        ],
+        "title": "Query reset cleanup now runs on every data change, unmounting the editor and discarding form state"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 33875,
+        "cache_write_input_tokens": 28082,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 61963,
+        "output_tokens": 2053,
+        "provider_cost": 0.13892120000000002,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8c0a6873009328fee6d90e2b07a0fc0a7aedac679157fcb899f2454b0f12f3f8",
+      "model": "sonnet",
+      "prompt_digest": "658145360833eea69fb767f45fd7a9a1a100f9fbdd1b66851925283a90b2ac26",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The changed import paths resolve: generateDataAttributes and isSameBookingLink are exported from embed-core/src/lib/utils.ts, and TeamService is exported from teamService.ts. The new allow='payment' tests match embed.ts:337, which sets the allow attribute.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:f38d0a80c307bcdeae6a21e7",
+          "target:hun:45506407c4bba18e30dfe48b",
+          "target:hun:bf137f5dd727764f9cfd4524",
+          "target:hun:d45fa7d34c3b71f653734809"
+        ],
+        "title": "No defect found in test changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 36645,
+        "cache_write_input_tokens": 14063,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 50714,
+        "output_tokens": 1163,
+        "provider_cost": 0.0727682,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "8e77c92f61f338d6ffa4e61466d160ef847da4ddf382e5d5c50c3be1e509b701",
+      "model": "sonnet",
+      "prompt_digest": "cf68b70aedeeaf29ae39d57f099503b19b7a48fff12f964d48644ac47b28cefb",
+      "response": {
+        "category": "correctness",
+        "consequence": "CommonJS consumers, such as require('@calcom/atoms') or tools that resolve \"main\", fail with module-not-found, because the published package does not contain the referenced file.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/package.json@sha256:24fb760732a4f499a75d1ec1fcedbd5710930c0952638462e92c71d4cbb238d1",
+          "target:target:hun:3251face26b41880fd0e26a7",
+          "target:target:hun:c30cf307be7abd20b88b6e81"
+        ],
+        "explanation": "The change adds exports[\".\"].require and \"main\" pointing to ./dist/cal-atoms.umd.cjs. packages/platform/atoms/vite.config.ts sets build.lib formats to [\"es\"] only (line 34), so the build emits only cal-atoms.js and no .umd.cjs file. The vite config was not changed to add a umd or cjs format.",
+        "lines": {
+          "end_line": 47,
+          "start_line": 47
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:3251face26b41880fd0e26a7",
+          "target:hun:c30cf307be7abd20b88b6e81"
+        ],
+        "title": "package.json points require/main at a UMD/CJS bundle the build never produces"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 17946,
+        "cache_write_input_tokens": 11128,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 29078,
+        "output_tokens": 1070,
+        "provider_cost": 0.058080599999999996,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "97a67376b4a51928530a76b913f63a5c239c7e853e10902e49d7d8473f50936d",
+      "model": "sonnet",
+      "prompt_digest": "f1f752bd4be09a04bb5fb96dd2150f8c95014aa6232b46ad2198c1b1b408f0e1",
+      "response": {
+        "category": "correctness",
+        "consequence": "After a booking's userId changes, routing form reports that read the denormalized table show the wrong booking user name, email and avatar. They also filter or group inconsistently, because the id is the new user's and the name is the old user's.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql@sha256:66d7583100662402c1fa9cd55bd622b95ffcc0f6aff4e27bb07c8712449f8aed",
+          "target:target:sym:13b86cc632acecf7b9d5a30f"
+        ],
+        "explanation": "trigger_refresh_routing_form_response_denormalized_booking is fired on UPDATE OF \"userId\" on Booking. It sets \"bookingUserId\" = NEW.\"userId\" but never updates \"bookingUserName\", \"bookingUserEmail\" or \"bookingUserAvatarUrl\". Those columns are only refreshed by the users trigger, which fires on changes to the user row, and by the full refresh function. When a booking is reassigned to another host, the denormalized row therefore holds the new user id with the old user's name, email and avatar. Two related gaps exist. The booking INSERT trigger reuses this function and updates WHERE rfrd.\"bookingId\" = NEW.id. A response written before its booking exists has a NULL bookingId, so no row matches and it is never linked to the booking. The function also never refreshes the assignment reason or the tracking (utm) columns.",
+        "lines": {
+          "end_line": 195,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:13b86cc632acecf7b9d5a30f"
+        ],
+        "title": "Booking update trigger changes bookingUserId but leaves the denormalized user name, email and avatar stale"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 38111,
+        "cache_write_input_tokens": 32434,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 70551,
+        "output_tokens": 2222,
+        "provider_cost": 0.1588636,
+        "request_id": "",
+        "seconds": 0.001
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "9be0d8bb07ed974e0a4af0bc79e11aed687df9359af1c5699a73c80fb6fcd79f",
+      "model": "sonnet",
+      "prompt_digest": "09cd115b8f675a01e1ad03bf46ebce953abe158f4bc7cdc4cc0fc53664d2f22b",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The EventTypeRepository import now points at eventTypeRepository.ts, which exists and exports the class. EventSettingsFromRef is exported from @calcom/atoms. The toast, the selectedCalendar findMany/updateManyByCredentialId and the type-widening changes are benign.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 31172,
+        "cache_write_input_tokens": 25052,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 56228,
+        "output_tokens": 733,
+        "provider_cost": 0.1130536,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a2ab0fa1b974c040009da792d59d47b083f0306aef29ef9e03bfb26e683c3c00",
+      "model": "sonnet",
+      "prompt_digest": "58ac6e9d5cef71fd820fb46d5fdbe9b253b64b9799f00b7202cbcab65b25384a",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The playground `only` key change to `ns:hideEventTypeDetails` matches the link in index.html. The new scroll playground sections match the containers in index.html. The forwardRef and useImperativeHandle additions have correct dependency arrays. getScrollableAncestor is coherent.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 59868,
+        "cache_write_input_tokens": 25516,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 85390,
+        "output_tokens": 747,
+        "provider_cost": 0.1179384,
+        "request_id": "",
+        "seconds": 0.008
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "a40b79b6919bc11f810b309bb5f2abe5c9299c961ac47a6b619f72105af0e795",
+      "model": "sonnet",
+      "prompt_digest": "001b7cead6774439003f8b22e43c6cbbef5c901dbdaa5b3aa3d98f930cb3007c",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The change renames import paths to eventTypeRepository and teamService. Both modules exist and export EventTypeRepository and TeamService. No imports of the old paths remain. The DisableTeamImpersonation change only adds a labelClassName prop.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in import path renames"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 24625,
+        "cache_write_input_tokens": 18010,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 42639,
+        "output_tokens": 651,
+        "provider_cost": 0.0827565,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c50d20d0d93ae30e83f3006d17bba1beeff3ba098827508c7a0d9ed14d931e80",
+      "model": "sonnet",
+      "prompt_digest": "abe18b03d778165d0860d9804011a9a62deea0e2816b6162fdf1b2a296a96e0b",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The one suspect was that domUtils.test.ts uses `afterAll` without importing it from vitest. The \"@calcom/embeds\" project in vitest.workspace.ts (lines 206-213) sets `globals: true`, so `afterAll` resolves at runtime. The other changes are well-formed: the role.service test additions are consistent with their mocks, and the bookingActions test is a new fixture-based file.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No supportable defect found in the changed tests"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 114574,
+        "cache_write_input_tokens": 25295,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 139879,
+        "output_tokens": 1191,
+        "provider_cost": 0.1269075,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "c9674ad2574b41e5131b4f152e96b297e1e9c3663102bdff39a2bba8f5f61423",
+      "model": "sonnet",
+      "prompt_digest": "bba04eb40a9e6ae98578e33585a76013150806ba77f4369f8adcef9942b20a5e",
+      "response": {
+        "category": "persistence_migration",
+        "consequence": "Routing-form analytics that read bookingUserName, bookingUserEmail or bookingUserAvatarUrl from RoutingFormResponseDenormalized show the wrong host for reassigned bookings. The id and the display fields disagree. The mismatch is silent.",
+        "evidence_refs": [
+          "source:new:packages/prisma/migrations/20250711154030_setup_triggers_for_routing_form_response_denormalized_2/migration.sql@sha256:66d7583100662402c1fa9cd55bd622b95ffcc0f6aff4e27bb07c8712449f8aed"
+        ],
+        "explanation": "booking_update_trigger_for_routing_form fires AFTER UPDATE OF status, createdAt, startTime, endTime, userId, eventTypeId on \"Booking\" (migration.sql:257-260). It calls trigger_refresh_routing_form_response_denormalized_booking(). That function sets \"bookingUserId\" = NEW.\"userId\" (line 195). It does not set \"bookingUserName\", \"bookingUserEmail\" or \"bookingUserAvatarUrl\". The only other writer of those columns is the users-table trigger (lines 268-288). It fires only on changes to name, email or avatarUrl of a user, and it matches on \"bookingUserId\". It does not run when a booking is reassigned. The full refresh function sets all three from the joined user, so the trigger path is inconsistent with it. After a booking's userId changes (for example a reassignment to another host), the denormalized row has the new bookingUserId but the previous host's name, email and avatar. Nothing heals this until the user changes their own profile or the row is fully refreshed.",
+        "lines": {
+          "end_line": 195,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:13b86cc632acecf7b9d5a30f",
+          "target:hun:95acb650ba6284c35109dcc1"
+        ],
+        "title": "Booking userId change leaves stale bookingUserName/Email/AvatarUrl in denormalized rows"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 44226,
+        "cache_write_input_tokens": 21501,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 65735,
+        "output_tokens": 2457,
+        "provider_cost": 0.1163293,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cfb4a4e2e64015386fe80c3cbba685c40297400b69191b6452a8635230a5d32f",
+      "model": "sonnet",
+      "prompt_digest": "95c75d1669fde5849bbbbf27806d1d734dfe8d8bcbcfb3f9e8626360ac3fa35e",
+      "response": {
+        "category": "security",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The only change to deleteCredential.test.ts is an import path rename to @calcom/lib/server/repository/eventTypeRepository. That file exists and exports EventTypeRepository. The added usePermissions test only calls a pure helper, getResourcePermissionLevel. The helper uses no React hooks such as useMemo or useLocale. Neither file changes an authorization or validation path.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [
+          "target:hun:3f12045aa5233d9019a978b1",
+          "target:hun:bdac392ddd7e774ff2dc1b9d"
+        ],
+        "title": "No security defect in the changed test files"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 30337,
+        "cache_write_input_tokens": 10551,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 40896,
+        "output_tokens": 1131,
+        "provider_cost": 0.057495000000000004,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "d16eb89cb76be0688827cb4ecacf8a7db0a43305193144acbafb03b0bdae74c3",
+      "model": "sonnet",
+      "prompt_digest": "d8d9874421667bd199b629b1829e071a3828f018f52046bfaabf83ddefac8bb1",
+      "response": {
+        "category": "correctness",
+        "consequence": "The platform atoms package fails type-check or build (TS2459/TS2305), and the new ref forwarding cannot compile.",
+        "evidence_refs": [
+          "source:new:packages/platform/atoms/availability/wrappers/AvailabilitySettingsPlatformWrapper.tsx@sha256:5b7b1f101f45de6b378e7948aa9118f41a6daa8e0f7ba0f742c64d556b5a7b92"
+        ],
+        "explanation": "The wrapper has `import type { CustomClassNames, AvailabilitySettingsFormRef } from \"../AvailabilitySettings\"`. AvailabilitySettings.tsx only imports AvailabilitySettingsFormRef from \"./types\" (line 49). It does not export or re-export it. The interface is exported only from availability/types.ts:38. The import therefore fails type-checking, and the forwardRef generic in the wrapper has no valid type.",
+        "lines": {
+          "end_line": 14,
+          "start_line": 14
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 14,
+          "original": "import type { CustomClassNames, AvailabilitySettingsFormRef } from \"../AvailabilitySettings\";",
+          "start_line": 14,
+          "text": "import type { CustomClassNames } from \"../AvailabilitySettings\";\nimport type { AvailabilitySettingsFormRef } from \"../types\";"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:hun:977649e79a9f82dd54880384"
+        ],
+        "title": "AvailabilitySettingsFormRef imported from a module that does not export it"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 94399,
+        "cache_write_input_tokens": 27618,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 122025,
+        "output_tokens": 1495,
+        "provider_cost": 0.137469,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "e90583484213b65a4a3dd6b3e75bcb695977541a9a6d201e46a23c3072aba197",
+      "model": "sonnet",
+      "prompt_digest": "f1c8a534b08ee519da2d5a091bb87ffc480957c241e7b0866413d38c229e934e",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The import path renames resolve. eventTypeRepository.ts exists and exports EventTypeRepository, and no imports of the old repository/eventType path remain. The embed-core utils move is consistent: ModalBox.ts and Inline.ts both import from ../lib/utils, and nothing imports the old path. The RoleRepository change from AND to OR is a fix, because an AND of several distinct resource/action pairs matches no rows. The saveButtonRef prop is optional and only forwarded to the Button. The two extra selectedCalendars fields are additive.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect found in the changed targets"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 65186,
+        "cache_write_input_tokens": 29005,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 94197,
+        "output_tokens": 989,
+        "provider_cost": 0.1350212,
+        "request_id": "",
+        "seconds": 0.007
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "ecc7adc3d0a93d77b7e7b73c437201ef8b5d580f0591b74d57a5012bb9a174ed",
+      "model": "sonnet",
+      "prompt_digest": "2d253439c39865d2696fe1780085941766aa0317d883141450518bf3a3ddd907",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "I read the changed code but did not trace its callers, so this rests on the supplied source alone. The new `__scrollByDistance` event type matches how the handler reads `e.detail.data.distance`. The handler returns early when `cal.inlineEl` is missing. The functions in `bookingActions.ts` are internally consistent. I could not name a concrete failing input for any of them.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No supported defect found"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 32285,
+        "cache_write_input_tokens": 25801,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58092,
+        "output_tokens": 999,
+        "provider_cost": 0.1189379,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "fc9758a3d3e40f30b67918cf1b53d4303110a732dcecc8faf2f0921d563e5235",
+      "model": "sonnet",
+      "prompt_digest": "ee3c8e07a6035697b551ae15861d3fd65e4467649c82d1f46ab5a9bf04cbd039",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "I found no defect I could support. `AvailabilitySettings` is a `forwardRef<AvailabilitySettingsFormRef, ...>` and accepts `onFormStateChange`, so the example page's ref and callback match the component's API. `getCacheStatusByCredentialIds` exists on the cache repository, and so do the new `lib/domUtils` and `lib/eventHandlers` modules the embed code imports. The new ESLint rule branches and `scrollByDistance` have no failing input that I could name.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect confirmed in the changed code"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9f6bce01848418ba2cc96aec15216e9e34a9fd5fd5ac29dc1c15ac9f9a57dfcb",
+      "usage": {
+        "cache_read_input_tokens": 66266,
+        "cache_write_input_tokens": 30047,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 96319,
+        "output_tokens": 1105,
+        "provider_cost": 0.1404925,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "cd1a6af8e593cf58361ca89105a4c57738097e2846baa7a48088c0636b61cca6",
+      "model": "sonnet",
+      "prompt_digest": "0e6b7c9aee0d0f1ba9f4164a339d2a7d0bc0c37233a7eaba97472f5555faf4e8",
+      "response": {
+        "hypotheses": [
+          {
+            "category": "persistence_migration",
+            "evidence_needed": "Confirm the SET clause omits the three user columns and the trigger is declared AFTER UPDATE OF ... \"userId\" on Booking. Confirm no other trigger or application code refreshes these columns on a booking userId change.",
+            "failure_mode": "trigger_refresh_routing_form_response_denormalized_booking updates bookingUserId when Booking.userId changes (the trigger fires on userId updates) but does not update bookingUserName, bookingUserEmail or bookingUserAvatarUrl. Denormalized rows keep the previous host's name, email and avatar paired with the new bookingUserId. The user-update trigger only fires on changes to the user row, so it never repairs this. A booking reassignment, such as round-robin reassign, leaves routing-form insights and filters showing the wrong host.",
+            "investigation_rationale": "Compare the booking update trigger's SET list at migration.sql around lines 185-215 with the full-refresh function's column list. Confirm that the trigger fires on UPDATE OF \"userId\" and that nothing else resyncs the user fields. Also check whether bookingAssignmentReason or utm fields need the same handling.",
+            "priority_rationale": "This is a silent data-correctness bug in a new migration. It affects the denormalized analytics table, and there is no later self-healing path.",
+            "rule_refs": [],
+            "target_ids": [
+              "target:sym:13b86cc632acecf7b9d5a30f",
+              "target:hun:95acb650ba6284c35109dcc1"
+            ]
+          }
+        ]
+      },
+      "schema_digest": "63365cdd4a4c3c8650ff5fd4c7e50747381463eae5a9010da61b94ac02a2509f",
+      "stage": "hypothesis_generation",
+      "system_digest": "6f9207535f4867fadd30acee8ba9032d909e93f7bbecdd7ff2714e70b580d6f7",
+      "usage": {
+        "cache_read_input_tokens": 2656,
+        "cache_write_input_tokens": 59388,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 62046,
+        "output_tokens": 944,
+        "provider_cost": 0.2531778,
+        "request_id": "",
+        "seconds": 0.0
+      }
+    }
+  ],
+  "case_id": "calcom-01",
+  "case_input_digest": "29a4e121769145e672ae4d74cf1f439c9d21672af0af8ab5d0aff96c227b4f2c",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T05:38:13+00:00"
+  },
+  "version": 1
+}

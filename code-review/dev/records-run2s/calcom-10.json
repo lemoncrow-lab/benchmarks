@@ -1,0 +1,176 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "4852321d8447d0d250a8715fa223f6d7b62ec0531f476d082a19c9c5f22b32fa",
+      "model": "sonnet",
+      "prompt_digest": "a223636b4d77ddda79a29c9746c528259d74ebce177b2050e57b7c0d132d8951",
+      "response": {
+        "category": "security",
+        "consequence": "Legitimate team admins or owners may be refused when adding guests to team members' bookings. Two DB queries run per request even for non-team bookings.",
+        "evidence_refs": [
+          "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca",
+          "target:target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "explanation": "isTeamAdminOrOwner is computed as isTeamAdmin(...) && isTeamOwner(...). The name and intent are \"admin or owner\", but the && means the user must pass both checks. Whether a team admin who is not an owner passes depends on how isTeamOwner is implemented, and a plain owner may fail isTeamAdmin if that checks only the ADMIN role. Such users are rejected with FORBIDDEN unless they are also the organizer or an attendee. The `?? 0` fallback also runs both team queries for bookings that have no team.",
+        "lines": {
+          "end_line": 48,
+          "start_line": 46
+        },
+        "other_findings": [
+          {
+            "category": "correctness",
+            "consequence": "Existing attendees receive the wrong email (a fresh 'scheduled' email instead of the guests-added notice). The email logic does not respect the blacklist filter.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+            ],
+            "explanation": "Duplicate and blacklisted guests are filtered into uniqueGuests, and only uniqueGuests are saved. At the end, sendAddGuestsEmails(evt, guests) is called with the raw input, so newGuests includes the filtered-out addresses. Any filtered address that is already an attendee is matched in `newGuests.includes(attendee.email)` and gets the 'scheduled' email instead of the 'guests added' email.",
+            "lines": {
+              "end_line": 168,
+              "start_line": 168
+            },
+            "replacement": {
+              "end_line": 168,
+              "original": "    await sendAddGuestsEmails(evt, guests);",
+              "start_line": 168,
+              "text": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+            },
+            "rule_refs": [],
+            "severity": "low",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Emails are sent for the unfiltered guest list, not the saved guests"
+          },
+          {
+            "category": "security",
+            "consequence": "Blacklisted addresses can be added as attendees by changing their case. Direct tRPC callers can create duplicate attendees.",
+            "evidence_refs": [
+              "source:new:packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts@sha256:00f31f61d2a11ba8550312b2941824c1c53d488d220b0c32f19a801fd3c301ca"
+            ],
+            "explanation": "The blacklist is lowercased, but each guest is compared as-is with includes(guest). 'Bad@Example.com' therefore bypasses a blacklist entry 'bad@example.com'. The same applies to the existing-attendee comparison. Duplicates within the input are also not removed on the server, since that check exists only in the client dialog, so a direct API call with the same email twice creates duplicate attendee rows.",
+            "lines": {
+              "end_line": 78,
+              "start_line": 74
+            },
+            "replacement": null,
+            "rule_refs": [],
+            "severity": "medium",
+            "target_ids": [
+              "target:sym:89c17fc286f1640c96fb6c0a"
+            ],
+            "title": "Blacklist and duplicate checks are case-sensitive and the input is not deduped"
+          }
+        ],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 48,
+          "original": "  const isTeamAdminOrOwner =\n    (await isTeamAdmin(user.id, booking.eventType?.teamId ?? 0)) &&\n    (await isTeamOwner(user.id, booking.eventType?.teamId ?? 0));",
+          "start_line": 46,
+          "text": "  const isTeamAdminOrOwner =\n    (await isTeamAdmin(user.id, booking.eventType?.teamId ?? 0)) ||\n    (await isTeamOwner(user.id, booking.eventType?.teamId ?? 0));"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:89c17fc286f1640c96fb6c0a"
+        ],
+        "title": "Team admin/owner authorization requires both roles (&& instead of ||)"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "1f80dcbe50b36d9fab138fd26a1a03ab6d2df63feec1c9d30aa92edcb57df9d5",
+      "usage": {
+        "cache_read_input_tokens": 95452,
+        "cache_write_input_tokens": 28779,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 124239,
+        "output_tokens": 3520,
+        "provider_cost": 0.1624538,
+        "request_id": "",
+        "seconds": 32.596
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "561813564ea33bc92c168c2e566fa33d900f2ab78e4d4e533f6fdf871d2c1311",
+      "model": "sonnet",
+      "prompt_digest": "dd3270e346b418f1a3960b64e39a49fd5c9c67849a2aca6b3c4d1ab5cb9e9a73",
+      "response": {
+        "category": "correctness",
+        "consequence": "None identified.",
+        "evidence_refs": [],
+        "explanation": "The new email classes, sendAddGuestsEmails, and the BookingListItem wiring are consistent with each other. New guests get the scheduled email, existing attendees get the add-guests email, and the organizer and team members get the organizer email. I found no failing input at specific lines.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No concrete defect found in add-guests email and UI changes"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "e48366bf30cbf8be2c24ef1f69f8582e381e7129219d5cbd50c9e18fd5233241",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 20486,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 24015,
+        "output_tokens": 805,
+        "provider_cost": 0.09237400000000001,
+        "request_id": "",
+        "seconds": 8.627
+      }
+    },
+    {
+      "driver": "claude",
+      "key": "b07611c41bb29bf61489e9989c40495fbbb005b4b0dedf824bc08807502f555d",
+      "model": "sonnet",
+      "prompt_digest": "51e4e6237055d52d78e45ef41b2eac59bda63daeb098f255764db9bfcbf9a4bd",
+      "response": {
+        "category": "correctness",
+        "consequence": "None.",
+        "evidence_refs": [],
+        "explanation": "The diff only adds new English translation keys with valid JSON syntax and consistent interpolation placeholders. No existing keys are removed or altered.",
+        "lines": null,
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": null,
+        "rule_refs": [],
+        "severity": "low",
+        "status": "not_confirmed",
+        "target_ids": [],
+        "title": "No defect in added locale strings"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "e48366bf30cbf8be2c24ef1f69f8582e381e7129219d5cbd50c9e18fd5233241",
+      "usage": {
+        "cache_read_input_tokens": 3527,
+        "cache_write_input_tokens": 9746,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 13275,
+        "output_tokens": 396,
+        "provider_cost": 0.0442537,
+        "request_id": "",
+        "seconds": 5.111
+      }
+    }
+  ],
+  "case_id": "calcom-10",
+  "case_input_digest": "338460781cd54205c4dd36b521b3613821cb1c1cb40333c4aab94a5bcb8dd01e",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:44:24+00:00"
+  },
+  "version": 1
+}

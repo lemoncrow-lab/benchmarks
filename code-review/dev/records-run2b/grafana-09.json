@@ -1,0 +1,63 @@
+{
+  "calls": [
+    {
+      "driver": "claude",
+      "key": "b61d038b386ecb8deaaece0edd2d18dd416263ab1df37413fd4d72c8a49f05aa",
+      "model": "sonnet",
+      "prompt_digest": "2df4567f28066d5f1f60573c80e339357785dc419c91c0694685d371df024ea4",
+      "response": {
+        "category": "correctness",
+        "consequence": "Any SQL expression query fails at parse time, even with the sqlExpressions feature flag enabled. SQLCommand.Execute and TablesList cannot work. This is a regression from the previous duck-backed behavior.",
+        "evidence_refs": [
+          "source:new:pkg/expr/reader.go@sha256:b7f88f205baaacdab7262acb1d821c78954342dab888ac83e62f341668c061ba",
+          "source:new:pkg/expr/sql/db.go@sha256:20b57e42fc99842ab870f855809dfa1454917ef73e7d6a7173b306d5c685956c"
+        ],
+        "explanation": "enableSqlExpressions negates the feature flag (`enabled := !IsEnabledGlobally(FlagSqlExpressions)`). It then returns false when that negated value is true, and returns false on the other path too. Every path returns false, whatever the flag says. ReadQuery's QueryTypeSQL case rejects any query when the result is false, so it always returns \"sqlExpressions is not implemented\". The flag-on case is never reached. The replacement DB in pkg/expr/sql/db.go is also a stub: TablesList, RunCommands and QueryFramesInto all return \"not implemented\". The stub makes the real behavior unreachable and drops the previous go-duck implementation.",
+        "lines": {
+          "end_line": 199,
+          "start_line": 195
+        },
+        "other_findings": [],
+        "prior_findings": [],
+        "replacement": {
+          "end_line": 199,
+          "original": "\tenabled := !h.features.IsEnabledGlobally(featuremgmt.FlagSqlExpressions)\n\tif enabled {\n\t\treturn false\n\t}\n\treturn false",
+          "start_line": 195,
+          "text": "\treturn h.features.IsEnabledGlobally(featuremgmt.FlagSqlExpressions)"
+        },
+        "rule_refs": [],
+        "severity": "medium",
+        "status": "confirmed",
+        "target_ids": [
+          "target:sym:1403ec713a271de5e0abc4c4",
+          "target:sym:5f5693fdbe8479f66d4bf1a9"
+        ],
+        "title": "enableSqlExpressions always returns false, so SQL expressions can never be enabled"
+      },
+      "schema_digest": "0c16fe0755faa8b5308bebfc9ab83bd1739760a7bd13d6ce97b01528ac15e59f",
+      "stage": "finding_investigation",
+      "system_digest": "9343c62d84f6c8e740057657502f6ea54df3956568f1864c5f67dacdb60c886b",
+      "usage": {
+        "cache_read_input_tokens": 31964,
+        "cache_write_input_tokens": 26159,
+        "calls": 1,
+        "currency": "USD",
+        "input_tokens": 58129,
+        "output_tokens": 2181,
+        "provider_cost": 0.1321225,
+        "request_id": "",
+        "seconds": 20.863
+      }
+    }
+  ],
+  "case_id": "grafana-09",
+  "case_input_digest": "bb2cf3b25ef5d0cb13e209ed0d01c2aaf491bf51d8adf77b15d12d97bb7802be",
+  "recorded_with": {
+    "driver": "claude",
+    "mode": "live",
+    "model": "sonnet",
+    "note": "outputs of a live provider run",
+    "recorded_at": "2026-10-26T04:58:08+00:00"
+  },
+  "version": 1
+}
