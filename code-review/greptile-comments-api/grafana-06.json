@@ -1,0 +1,133 @@
+{
+ "fork": "ai-code-review-evaluation/grafana-greptile",
+ "pull": 6,
+ "source_url": "https://github.com/ai-code-review-evaluation/grafana-greptile/pull/6",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Dual Storage Architecture",
+ "base": "dual-storage-baseline",
+ "head": "dual-storage-enhanced",
+ "reviews": [
+  {
+   "id": 3064741691,
+   "submitted_at": "2025-07-28T22:22:47Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements Mode 3 of the dual storage architecture in Grafana's playlist API. Mode 3 represents a critical migration phase where writes go to both legacy and new storage systems, but reads come exclusively from the new storage system - typically the final stage before complete cutover.\n\nThe changes add comprehensive test coverage for Mode 3 across all three supported storage backends (file, unified storage, and etcd) in the playlist test suite. Each test follows a consistent pattern: configuring GrafanaOpts with the appropriate storage type, enabling required feature toggles, setting the DualWriterDesiredModes map to Mode3, and running the standard test suite.\n\nThe core Mode 3 implementation in `dualwriter_mode3.go` has been significantly refactored to include proper metrics recording, consistent logging, and asynchronous operations for legacy storage writes. Legacy operations now run in goroutines with timeouts to prevent blocking the primary unified storage operations, which is essential for maintaining performance during migration.\n\nAdditional changes include standardizing prometheus registry usage across tests by moving from local to global registry instances, and updating Go workspace dependencies to include new Grafana Azure SDK, plugin SDK, Prometheus Alertmanager, and OpenTelemetry components required for the dual storage functionality.\n\n## Confidence score: 2/5\n\n• This PR has critical implementation issues that will cause compilation failures and incorrect behavior\n• The Mode 3 test file contains undefined variables and mock objects, the metrics recording has parameter inconsistencies, and there are missing context propagations in goroutines\n• Files needing attention: `pkg/apiserver/rest/dualwriter_mode3_test.go` (undefined variables), `pkg/apiserver/rest/dualwriter_mode3.go` (metrics bugs and missing context)\n\n<sub>5 files reviewed, 9 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=grafana-greptile_6)</sub>"
+  },
+  {
+   "id": 3217682430,
+   "submitted_at": "2025-09-12T16:23:33Z",
+   "state": "COMMENTED",
+   "body": "Your free trial has ended. If you'd like to continue receiving code reviews, you can add a payment method [here](https://app.greptile.com/review/github)."
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237962146,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:03Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "start_line": null,
+   "line": 45,
+   "original_start_line": null,
+   "original_line": 45,
+   "body": "logic: Bug: calling `recordLegacyDuration` when storage operation fails should be `recordStorageDuration`\n\n```suggestion\n\t\td.recordStorageDuration(true, mode3Str, options.Kind, method, startStorage)\n```"
+  },
+  {
+   "id": 2237962154,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:04Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "start_line": null,
+   "line": 106,
+   "original_start_line": null,
+   "original_line": 106,
+   "body": "logic: Inconsistency: using `name` instead of `options.Kind` for metrics recording differs from other methods\n\n```suggestion\n\td.recordStorageDuration(false, mode3Str, options.Kind, method, startStorage)\n```"
+  },
+  {
+   "id": 2237962166,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:05Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "start_line": null,
+   "line": 129,
+   "original_start_line": null,
+   "original_line": 129,
+   "body": "logic: Bug: calling `recordLegacyDuration` when storage operation fails should be `recordStorageDuration`\n\n```suggestion\n\t\td.recordStorageDuration(true, mode3Str, options.Kind, method, startStorage)\n```"
+  },
+  {
+   "id": 2237962176,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:05Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "start_line": null,
+   "line": 97,
+   "original_start_line": null,
+   "original_line": 97,
+   "body": "logic: Context issue: passing `d.Log` instead of the enriched `log` variable breaks logging consistency\n\n```suggestion\n\tctx = klog.NewContext(ctx, log)\n```"
+  },
+  {
+   "id": 2237962192,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:06Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "start_line": null,
+   "line": 166,
+   "original_start_line": null,
+   "original_line": 166,
+   "body": "logic: Bug: calling `recordStorageDuration` in legacy operation goroutine should be `recordLegacyDuration`\n\n```suggestion\n\t\td.recordLegacyDuration(err != nil, mode3Str, options.Kind, method, startLegacy)\n```"
+  },
+  {
+   "id": 2237962589,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:28Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3_test.go",
+   "start_line": null,
+   "line": 63,
+   "original_start_line": null,
+   "original_line": 63,
+   "body": "logic: Variable `p` is undefined. Should be `prometheus.NewRegistry()` or moved to shared test setup\n\n```suggestion\n\t\t\tp := prometheus.NewRegistry()\n\t\t\tdw := NewDualWriter(Mode3, ls, us, p)\n```"
+  },
+  {
+   "id": 2237962600,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:28Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3_test.go",
+   "start_line": 53,
+   "line": 54,
+   "original_start_line": 53,
+   "original_line": 54,
+   "body": "logic: Mock types `legacyStoreMock` and `storageMock` are undefined - need to be defined or imported"
+  },
+  {
+   "id": 2237962610,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:29Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3_test.go",
+   "start_line": null,
+   "line": 345,
+   "original_start_line": null,
+   "original_line": 345,
+   "body": "logic: Type `updatedObjInfoObj` is undefined - should be defined or use existing mock"
+  },
+  {
+   "id": 2237962617,
+   "pull_request_review_id": 3064741691,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:22:29Z",
+   "path": "pkg/apiserver/rest/dualwriter_mode3_test.go",
+   "start_line": null,
+   "line": 42,
+   "original_start_line": null,
+   "original_line": 42,
+   "body": "logic: Missing setupStorageFn call in error test case - unified storage should also be mocked"
+  }
+ ]
+}

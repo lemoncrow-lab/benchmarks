@@ -1,0 +1,103 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 9,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/9",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Implement recovery key support for user storage providers",
+ "base": "feature-recovery-keys-foundation",
+ "head": "feature-recovery-keys-implementation",
+ "reviews": [
+  {
+   "id": 3064646530,
+   "submitted_at": "2025-07-28T21:20:57Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements recovery key support for user storage providers by extending Keycloak's authentication system to handle recovery codes stored in federated user storage. The implementation creates a dual storage approach where recovery codes can be stored either in external user storage providers (like LDAP) or fall back to Keycloak's local storage.\n\nKey changes include:\n\n1. **Centralized credential retrieval**: A new utility method `RecoveryAuthnCodesUtils.getCredential()` that checks federated credentials first, then falls back to local storage\n2. **Abstracted credential creation**: Introduction of `CredentialHelper.createRecoveryCodesCredential()` that handles both user storage and local database creation\n3. **Enhanced test infrastructure**: Updates to the backwards compatibility test framework to support recovery codes, including comprehensive integration tests\n4. **Updated authentication flows**: Refactoring of authenticators and required actions to use the new unified credential handling approach\n\nThe implementation follows established patterns from existing OTP credential handling, ensuring consistency with Keycloak's authentication architecture. This change enables organizations using external user directories to store and manage recovery codes in their preferred storage systems while maintaining backward compatibility.\n\n**PR Description Notes:**\n- The PR body only contains \"Test 9\" which provides no meaningful description of the changes\n\n## Confidence score: 3/5\n\n• This PR introduces some risk due to potential NullPointerException issues and incomplete error handling in critical authentication paths\n• The score reflects concerns about unsafe Optional handling in RecoveryAuthnCodeInputLoginBean and lack of comprehensive error handling in the backwards compatibility provider\n• Files needing attention: `RecoveryAuthnCodeInputLoginBean.java` for the unsafe `.get()` calls on Optional, and `BackwardsCompatibilityUserStorage.java` for error handling improvements\n\n<sub>8 files reviewed, 7 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_9)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237885589,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:01Z",
+   "path": "services/src/main/java/org/keycloak/forms/login/freemarker/model/RecoveryAuthnCodeInputLoginBean.java",
+   "start_line": null,
+   "line": 19,
+   "original_start_line": null,
+   "original_line": 19,
+   "body": "logic: Calling .get() on Optional without checking if present first will throw NoSuchElementException if no recovery credential exists. Should check credentialModelOpt.isPresent() or use orElseThrow() with meaningful error message.\n\n```suggestion\n        RecoveryAuthnCodesCredentialModel recoveryCodeCredentialModel = RecoveryAuthnCodesCredentialModel.createFromCredentialModel(credentialModelOpt.orElseThrow(() -> new IllegalStateException(\"No recovery authentication codes credential found for user\")));\n```"
+  },
+  {
+   "id": 2237885607,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:02Z",
+   "path": "services/src/main/java/org/keycloak/forms/login/freemarker/model/RecoveryAuthnCodeInputLoginBean.java",
+   "start_line": null,
+   "line": 21,
+   "original_start_line": null,
+   "original_line": 21,
+   "body": "logic: Double .get() calls without null checks - both getNextRecoveryAuthnCode() and the outer get() can throw exceptions if no next code exists.\n\n```suggestion\n        this.codeNumber = recoveryCodeCredentialModel.getNextRecoveryAuthnCode().orElseThrow(() -> new IllegalStateException(\"No next recovery authentication code available\")).getNumber();\n```"
+  },
+  {
+   "id": 2237885807,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:11Z",
+   "path": "server-spi/src/main/java/org/keycloak/models/utils/RecoveryAuthnCodesUtils.java",
+   "start_line": null,
+   "line": 54,
+   "original_start_line": null,
+   "original_line": 54,
+   "body": "syntax: Minor typo in comment: 'a optional' should be 'an optional'\n\n```suggestion\n     * @return - an optional credential model\n```"
+  },
+  {
+   "id": 2237886016,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:19Z",
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "start_line": 238,
+   "line": 240,
+   "original_start_line": 238,
+   "original_line": 240,
+   "body": "logic: Recovery codes are deserialized as raw `List.class` but should be typed as `List<String>` to match the expected data structure"
+  },
+  {
+   "id": 2237886022,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:19Z",
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "start_line": null,
+   "line": 244,
+   "original_start_line": null,
+   "original_line": 244,
+   "body": "syntax: Error message has double space between 'deserialize' and 'credential'\n\n```suggestion\n                log.error(\"Could not deserialize credential of type: recovery-codes\");\n```"
+  },
+  {
+   "id": 2237886031,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:20Z",
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "start_line": 332,
+   "line": 334,
+   "original_start_line": 332,
+   "original_line": 334,
+   "body": "style: Raw `List` type should be `List<String>` to properly handle recovery code validation"
+  },
+  {
+   "id": 2237886561,
+   "pull_request_review_id": 3064646530,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:42Z",
+   "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/federation/storage/BackwardsCompatibilityUserStorageTest.java",
+   "start_line": null,
+   "line": 135,
+   "original_start_line": null,
+   "original_line": 135,
+   "body": "syntax: Typo in config alias: 'delayed-suthenticator-config' should be 'delayed-authenticator-config'\n\n```suggestion\n                                            config.setAlias(\"delayed-authenticator-config\");\n```"
+  }
+ ]
+}

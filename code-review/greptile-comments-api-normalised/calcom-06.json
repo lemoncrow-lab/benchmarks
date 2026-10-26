@@ -1,0 +1,61 @@
+{
+ "reviewer": "competitor bot (author greptile-apps[bot])",
+ "repo": "cal.com",
+ "pull": 6,
+ "title": "Comprehensive workflow reminder management for booking lifecycle events",
+ "base_branch": "workflow-queue-base",
+ "head_branch": "workflow-queue-enhanced",
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/6",
+ "fetched_with": "gh api (REST), exact text",
+ "extraction": {
+  "first_review_id": 3064822774,
+  "bot_comments": 7,
+  "unique_inline_kept": 7,
+  "page_truncated": false,
+  "dropped": []
+ },
+ "comments": [
+  {
+   "id": "c1",
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "lines": "54",
+   "text": "syntax: Incorrect type definition. Should be `Promise<WorkflowReminder>[]` instead of the Prisma client type\n\n```suggestion\n    const workflowRemindersToDelete: Promise<WorkflowReminder>[] = [];\n```"
+  },
+  {
+   "id": "c2",
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "lines": "56-64",
+   "text": "logic: Missing null check for `reminder.referenceId` - this will cause SendGrid API errors if referenceId is null"
+  },
+  {
+   "id": "c3",
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "lines": "966-972",
+   "text": "style: The reminder cancellation logic should await the deletion operations to ensure they complete before proceeding with the reschedule"
+  },
+  {
+   "id": "c4",
+   "path": "packages/trpc/server/routers/viewer/workflows.tsx",
+   "lines": "573-580",
+   "text": "logic: Using `forEach` with async functions can cause race conditions and doesn't wait for completion. Consider using `Promise.all()` with `map()` or a `for...of` loop to ensure proper async handling.\n\n```suggestion\n          //cancel all workflow reminders from steps that were edited\n          await Promise.all(remindersToUpdate.map(async (reminder) => {\n            if (reminder.method === WorkflowMethods.EMAIL) {\n              deleteScheduledEmailReminder(reminder.id, reminder.referenceId);\n            } else if (reminder.method === WorkflowMethods.SMS) {\n              deleteScheduledSMSReminder(reminder.id, reminder.referenceId);\n            }\n          }));\n```"
+  },
+  {
+   "id": "c5",
+   "path": "packages/trpc/server/routers/viewer/workflows.tsx",
+   "lines": "212-218",
+   "text": "logic: The `forEach` calls to delete reminders are not awaited, which could lead to the workflow being deleted before all reminders are properly cancelled. This could leave orphaned scheduled reminders.\n\n```suggestion\n        await Promise.all(scheduledReminders.map(async (reminder) => {\n          if (reminder.method === WorkflowMethods.EMAIL) {\n            deleteScheduledEmailReminder(reminder.id, reminder.referenceId, true);\n          } else if (reminder.method === WorkflowMethods.SMS) {\n            deleteScheduledSMSReminder(reminder.id, reminder.referenceId);\n          }\n        }));\n```"
+  },
+  {
+   "id": "c6",
+   "path": "packages/features/ee/workflows/lib/reminders/emailReminderManager.ts",
+   "lines": "213-222",
+   "text": "logic: When `immediateDelete` is true, only the SendGrid cancellation happens but the database record remains. This could leave orphaned records if the SendGrid cancellation succeeds but the calling code expects the database record to be cleaned up."
+  },
+  {
+   "id": "c7",
+   "path": "packages/prisma/migrations/20230217230604_add_cancelled_to_workflow_reminder/migration.sql",
+   "lines": "2",
+   "text": "style: Consider adding a default value (likely FALSE) to ensure consistent behavior for existing and new records"
+  }
+ ]
+}

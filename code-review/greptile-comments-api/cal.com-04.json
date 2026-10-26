@@ -1,0 +1,91 @@
+{
+ "fork": "ai-code-review-evaluation/cal.com-greptile",
+ "pull": 4,
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/4",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "fix: handle collective multiple host on destinationCalendar",
+ "base": "enhance-collective-scheduling-foundation",
+ "head": "fix/handle-collective-multiple-host-destinations",
+ "reviews": [
+  {
+   "id": 3064822566,
+   "submitted_at": "2025-07-28T23:36:27Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements support for collective scheduling with multiple hosts by converting the `destinationCalendar` field from a single object to an array throughout the codebase. The core architectural change transforms `DestinationCalendar` to `DestinationCalendar[]` in the `CalendarEvent` interface, enabling events to be created across multiple calendars when multiple hosts are involved.\n\nThe changes span the entire calendar management system:\n\n- **Type System Updates**: The `CalendarEvent` interface now expects `destinationCalendar` as an array, and the `Calendar` interface's `createEvent` method accepts a `credentialId` parameter to identify which specific calendar to use\n- **Calendar Services**: Google Calendar, Office365, and Lark Calendar services were updated to extract the main host's calendar using array destructuring (`[mainHostDestinationCalendar] = event.destinationCalendar ?? []`)\n- **EventManager**: Modified to iterate through multiple destination calendars during event creation/updates, with database credential fallback logic for accessing team member credentials\n- **Booking Handlers**: All booking-related operations (create, cancel, confirm, reschedule) now wrap single destination calendars in arrays to maintain compatibility\n- **Email Templates**: Updated to use the first destination calendar for display purposes in broken integration emails\n\nThe implementation follows a consistent pattern: existing single-calendar logic is preserved by using the first element of the array as the \"main host\" calendar, while the array structure enables future expansion to handle multiple calendars simultaneously. This maintains backward compatibility while enabling collective scheduling scenarios where each team member can have events created in their preferred calendar.\n\n## Confidence score: 2/5\n\n- This PR has significant architectural changes that could cause runtime errors if the array structure isn't handled properly\n- Multiple files contain logic that assumes non-empty arrays without proper validation, particularly in GoogleCalendarService's update/delete methods\n- The EventManager contains duplicated database query logic and potential performance issues with queries in loops\n- Several calendar services have incomplete error handling for empty destination calendar arrays\n\n<sub>22 files reviewed, 6 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=cal.com-greptile_4)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238029702,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:52Z",
+   "path": "packages/emails/src/templates/BrokenIntegrationEmail.tsx",
+   "start_line": 89,
+   "line": 91,
+   "original_start_line": 89,
+   "original_line": 91,
+   "body": "style: The optional chaining on `mainHostDestinationCalendar?.integration` is redundant since you already check `mainHostDestinationCalendar` in the ternary condition.\n\n```suggestion\n    let calendar = mainHostDestinationCalendar\n      ? mainHostDestinationCalendar.integration.split(\"_\")\n      : \"calendar\";\n```"
+  },
+  {
+   "id": 2238029747,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:56Z",
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "start_line": null,
+   "line": 256,
+   "original_start_line": null,
+   "original_line": 256,
+   "body": "logic: Logic error: when `externalCalendarId` is provided, you're searching for a calendar where `externalId === externalCalendarId`, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic."
+  },
+  {
+   "id": 2238029757,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:56Z",
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "start_line": null,
+   "line": 317,
+   "original_start_line": null,
+   "original_line": 317,
+   "body": "logic: Same logic error as in updateEvent: searching for calendar with `externalId === externalCalendarId` will not work as intended"
+  },
+  {
+   "id": 2238029768,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:57Z",
+   "path": "packages/lib/CalendarService.ts",
+   "start_line": null,
+   "line": 509,
+   "original_start_line": null,
+   "original_line": 509,
+   "body": "style: Consider extracting this pattern into a helper function since it's repeated twice in the file"
+  },
+  {
+   "id": 2238029822,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:01Z",
+   "path": "packages/core/EventManager.ts",
+   "start_line": null,
+   "line": 119,
+   "original_start_line": null,
+   "original_line": 119,
+   "body": "logic: Potential null reference if `mainHostDestinationCalendar` is undefined when array is empty\n\n```suggestion\n    if (evt.location === MeetLocationType && mainHostDestinationCalendar?.integration !== \"google_calendar\") {\n```"
+  },
+  {
+   "id": 2238029828,
+   "pull_request_review_id": 3064822566,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:01Z",
+   "path": "packages/core/EventManager.ts",
+   "start_line": null,
+   "line": 370,
+   "original_start_line": null,
+   "original_line": 370,
+   "body": "logic: Third parameter `destination.externalId` is passed but the fallback calls without this parameter - inconsistent usage"
+  }
+ ]
+}

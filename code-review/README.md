@@ -16,7 +16,8 @@ Every run below used Sonnet through the `claude` CLI, and every score used the s
 | **run 3, published** | thorough | 47 / 62 / 50 | 43 / 48 / 46 | `holdout-private/reports/golden50-run3-{thorough,score}.*`, `holdout-private/records-run3/` |
 | run 2 | auto | 41 / 48 / 56 | 46 / 42 / 44 | `holdout-private/reports/golden50-run2-{auto,score,score-v2}.*`, `holdout-private/records-run2/` |
 | run 1 (earlier engine) | auto | 26 / 26 / 71 | 50 / 27 / 35 | `holdout-private/reports/golden50-lemoncrow-{auto,score}.*`, `holdout-private/records-run1/` |
-| other reviewer, same judge | n/a | 49 / 175 / 48 | 22 / 51 / 31 | `reports/golden50-competitor.*`, input `greptile-comments-normalised/` |
+| **other reviewer, same judge (exact comments, published)** | n/a | 49 / 196 / 48 | 20 / 51 / 29 | `reports/golden50-greptile-api.*`, input `greptile-comments-api-normalised/` |
+| other reviewer, same judge (page extraction, superseded) | n/a | 49 / 175 / 48 | 22 / 51 / 31 | `reports/golden50-competitor.*`, input `greptile-comments-normalised/` |
 
 `holdout-private/` is a historical name. Keycloak and Discourse (20 pull requests) were held out
 of tuning until the result was published on 2026-10-26, so they no longer count as a hold-out;
@@ -27,7 +28,9 @@ first attempt at run 3, kept for the record (not scored into anything published)
 
 | Path | What |
 | --- | --- |
-| `greptile-comments/<repo>-<NN>.json` | one raw extraction per fork pull request (`NN` is the number in `ai-code-review-evaluation/<repo>-greptile`), read from the public pages on 2026-10-26. The reading tool quotes at most 125 characters, so long comments are faithful paraphrases. Holds the bot's summary line, every bot item with date and path, other authors seen, and `files_tab` additions where the conversation page hid threads. Three pages came back cut off; re-collecting them with `gh api` is still open. |
+| `greptile-comments/<repo>-<NN>.json` | one raw extraction per fork pull request (`NN` is the number in `ai-code-review-evaluation/<repo>-greptile`), read from the public pages on 2026-10-26. The reading tool quotes at most 125 characters, so long comments are faithful paraphrases. Holds the bot's summary line, every bot item with date and path, other authors seen, and `files_tab` additions where the conversation page hid threads. Three pages came back cut off; superseded by `greptile-comments-api/`. |
+| `greptile-comments-api/<repo>-<NN>.json` | every review and inline comment by the bot on each fork pull request, exact text, read with the GitHub REST API by `tools/gh_collect.py` on 2026-10-26 (no truncation, no paraphrase). |
+| `greptile-comments-api-normalised/<id>.json` | the same reduced to the scorer's input by `tools/gh_collect.py`: inline comments of the bot's first review in the benchmark period only, replies and exact (path, text) repeats dropped (267 comments, against 246 from the page extraction). |
 | `greptile-comments-normalised/<id>.json` | the same reduced by `tools/normalise.py` to the scorer's input (`{"comments": [{id, path, lines, text}], "extraction": {...}}`), named by corpus id. Inline items from the first review only; collapsed placeholders, items marked duplicate and exact (path, text) repeats dropped. |
 | `gitfacts_raw.json`, `gitcheck.json`, `pr_sizes.json` | head, base-branch tip, merge ref, merge base and diff size of each pull request, from git. |
 | `tools/` | the scripts that made the files above (`save.py`, `add_files_tab.py`, `normalise.py`, `gitfacts.py`, `gitcheck.py`, `titlematch.py`, `make_corpus.py`, `sizes.py`). |

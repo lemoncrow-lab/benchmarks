@@ -1,0 +1,79 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 3,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/3",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Add AuthzClientCryptoProvider for authorization client cryptographic operations",
+ "base": "feature-authz-crypto-baseline",
+ "head": "feature-authz-crypto-implementation",
+ "reviews": [
+  {
+   "id": 3064645470,
+   "submitted_at": "2025-07-28T21:20:47Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR introduces a new `AuthzClientCryptoProvider` to provide specialized cryptographic capabilities for Keycloak's authorization client module. The implementation focuses primarily on ECDSA signature format conversion between ASN.1 DER encoding and concatenated R|S format, which is essential for JWT signature processing in authorization flows.\n\n**Key Changes:**\n- **New ASN.1 utilities**: Added `ASN1Encoder` and `ASN1Decoder` classes to handle ASN.1 DER encoding/decoding operations without external dependencies like BouncyCastle\n- **AuthzClientCryptoProvider**: A minimal `CryptoProvider` implementation that only supports ECDSA operations and basic keystore functionality, throwing `UnsupportedOperationException` for most other crypto operations\n- **Provider ordering system**: Enhanced the `CryptoProvider` interface with an `order()` method to enable prioritized provider selection when multiple providers exist on the classpath\n- **Integration updates**: Modified `CryptoIntegration` to sort providers by order (descending) and select the highest priority provider, plus initialized crypto integration in `AuthzClient.create()`\n- **Comprehensive testing**: Added `ECDSAAlgorithmTest` to validate signature format conversions for ES256, ES384, and ES512 algorithms\n\nThe new provider has an order value of 100, making it lower priority than existing providers (DefaultCryptoProvider, FIPS1402Provider, WildFlyElytronProvider all at 200). This architectural approach allows the authorization client to have lightweight crypto capabilities while ensuring full-featured providers take precedence in server environments. The implementation enables the authz-client to handle JWT signature format conversions independently without requiring heavy cryptographic dependencies.\n\n## Confidence score: 2/5\n\n- This PR has several critical implementation issues that could cause runtime failures and security vulnerabilities\n- The `getBouncyCastleProvider()` method incorrectly returns a keystore provider instead of BouncyCastle, the ASN.1 parsing has potential buffer overflow vulnerabilities, and there are integer overflow risks in length calculations\n- Files needing attention: `AuthzClientCryptoProvider.java`, `ASN1Decoder.java`, `ASN1Encoder.java`\n\n<sub>12 files reviewed, 5 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_3)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237884781,
+   "pull_request_review_id": 3064645470,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:29Z",
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/ASN1Decoder.java",
+   "start_line": null,
+   "line": 153,
+   "original_start_line": null,
+   "original_line": 153,
+   "body": "logic: bit shifting could cause integer overflow for large length values, consider using Math.addExact() or similar overflow checking"
+  },
+  {
+   "id": 2237885245,
+   "pull_request_review_id": 3064645470,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:46Z",
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java",
+   "start_line": null,
+   "line": 44,
+   "original_start_line": null,
+   "original_line": 44,
+   "body": "logic: method lacks `default` implementation which will break existing CryptoProvider implementations that don't override this method\n\n```suggestion\n    default int order() {\n        return 0;\n    }\n```"
+  },
+  {
+   "id": 2237885310,
+   "pull_request_review_id": 3064645470,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:49Z",
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "start_line": 60,
+   "line": 67,
+   "original_start_line": 60,
+   "original_line": 67,
+   "body": "logic: incorrect provider returned - this returns the default keystore provider instead of BouncyCastle provider, which will break cryptographic operations expecting BC functionality"
+  },
+  {
+   "id": 2237885321,
+   "pull_request_review_id": 3064645470,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:49Z",
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "start_line": 114,
+   "line": 115,
+   "original_start_line": 114,
+   "original_line": 115,
+   "body": "style: these encoder calls create objects that are immediately discarded - remove these unused lines\n\n```suggestion\n                return ASN1Encoder.create()\n                        .writeDerSeq(\n                                ASN1Encoder.create().write(rBigInteger),\n                                ASN1Encoder.create().write(sBigInteger))\n                        .toByteArray();\n```"
+  },
+  {
+   "id": 2237885334,
+   "pull_request_review_id": 3064645470,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:50Z",
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java",
+   "start_line": null,
+   "line": 67,
+   "original_start_line": null,
+   "original_line": 67,
+   "body": "logic: Trailing comma will be added to the logged string for all ignored providers"
+  }
+ ]
+}

@@ -1,0 +1,37 @@
+{
+ "fork": "ai-code-review-evaluation/grafana-greptile",
+ "pull": 8,
+ "source_url": "https://github.com/ai-code-review-evaluation/grafana-greptile/pull/8",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Frontend Asset Optimization",
+ "base": "asset-loading-baseline",
+ "head": "asset-loading-optimized",
+ "reviews": [
+  {
+   "id": 3064741628,
+   "submitted_at": "2025-07-28T22:22:08Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements thread-safe caching for web assets in the Grafana application by adding synchronization to the global `entryPointAssetsCache` variable. The change introduces a read-write mutex (`entryPointAssetsCacheMu`) to protect concurrent access to the cache and implements the double-checked locking pattern for optimal performance.\n\nThe modification affects the `GetWebAssets` function in `pkg/api/webassets/webassets.go`, which is responsible for serving frontend assets like JavaScript bundles, CSS files, and other static resources. In the existing codebase, this function was vulnerable to race conditions when multiple HTTP requests simultaneously accessed the global cache variable.\n\nThe implementation uses `sync.RWMutex` to allow multiple concurrent read operations (the common case when serving cached assets) while ensuring exclusive access during cache population. The function first acquires a read lock to check if the cache exists, and only upgrades to a write lock if the cache needs to be populated - a standard optimization pattern that minimizes lock contention.\n\nThis change maintains the existing caching behavior where assets are cached in production mode but reloaded on every request in development mode (when `cfg.Env == setting.Dev`). The fix addresses a critical concurrency issue without changing the public API or existing functionality, making it a safe improvement for production deployments.\n\n## Confidence score: 4/5\n\n• This PR is very safe to merge and fixes a critical race condition in production systems\n• High confidence due to the standard, well-tested double-checked locking pattern implementation\n• No files need additional attention - the change is focused and follows Go concurrency best practices\n\n<sub>1 file reviewed, 1 comment</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=grafana-greptile_8)</sub>"
+  },
+  {
+   "id": 3217682597,
+   "submitted_at": "2025-09-12T16:23:35Z",
+   "state": "COMMENTED",
+   "body": "Your free trial has ended. If you'd like to continue receiving code reviews, you can add a payment method [here](https://app.greptile.com/review/github)."
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237961938,
+   "pull_request_review_id": 3064741628,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:21:51Z",
+   "path": "pkg/api/webassets/webassets.go",
+   "start_line": 48,
+   "line": 49,
+   "original_start_line": 48,
+   "original_line": 49,
+   "body": "logic: Missing double-checked locking validation - should re-check cache after acquiring write lock to prevent race condition where another goroutine populated cache between lock upgrade\n\n```suggestion\n\tentryPointAssetsCacheMu.Lock()\n\tdefer entryPointAssetsCacheMu.Unlock()\n\n\t// Double-check cache after acquiring write lock\n\tif cfg.Env != setting.Dev && entryPointAssetsCache != nil {\n\t\treturn entryPointAssetsCache, nil\n\t}\n```"
+  }
+ ]
+}

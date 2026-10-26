@@ -1,0 +1,103 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 8,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/8",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Implement access token context encoding framework",
+ "base": "feature-token-context-baseline",
+ "head": "feature-token-context-implementation",
+ "reviews": [
+  {
+   "id": 3064646389,
+   "submitted_at": "2025-07-28T21:21:36Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements a comprehensive access token context encoding framework for Keycloak's OIDC implementation. The framework embeds contextual metadata directly into access token IDs using a 6-character prefix format followed by the raw token ID (e.g., `{sessionType}{tokenType}{grantType}:{rawTokenId}`).\n\n**Key Components Added:**\n- **AccessTokenContext**: A data container that encapsulates token metadata including session type (online/offline/transient), token type (regular/lightweight), grant type, and raw token ID\n- **TokenContextEncoderProvider SPI**: A pluggable interface for encoding/decoding token context information\n- **DefaultTokenContextEncoderProvider**: The default implementation using 2-character shortcuts for each context type\n- **TokenContextEncoderProviderFactory**: Factory interface following Keycloak's standard provider pattern\n\n**Grant Type System Enhancement:**\nAll OAuth2GrantTypeFactory implementations now provide compact shortcuts (e.g., \"ac\" for authorization code, \"cc\" for client credentials, \"rt\" for refresh token) through a new `getShortcut()` method. This enables efficient encoding of grant type information in tokens.\n\n**Integration Points:**\n- Modified TokenManager to use the new encoder during token generation\n- Updated all grant type implementations to set grant type context in client sessions\n- Enhanced test infrastructure to validate the new encoded token ID format\n- Made `getShouldUseLightweightToken` method public to support token type determination\n\n**Architecture Benefits:**\nThis framework allows retrieval of token metadata without database lookups or proprietary JWT claims, potentially improving performance while maintaining OAuth2/OIDC compliance. The design supports backward compatibility with existing tokens that don't have encoded prefixes.\n\n## Confidence score: 2/5\n\n- This PR contains critical bugs that will cause immediate production failures, including incorrect parameter validation and broken test logic\n- Several implementation issues could lead to runtime exceptions and test failures\n- Files requiring immediate attention: `AccessTokenContext.java` (constructor validation bug), `AssertEvents.java` (inverted logic in matcher), and `DefaultTokenContextEncoderProviderTest.java` (brittle test setup)\n\n<sub>27 files reviewed, 7 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_8)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237885314,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:49Z",
+   "path": "services/src/main/java/org/keycloak/protocol/oidc/encode/AccessTokenContext.java",
+   "start_line": null,
+   "line": 73,
+   "original_start_line": null,
+   "original_line": 73,
+   "body": "syntax: Wrong parameter validated - should be `rawTokenId` instead of `grantType`\n\n```suggestion\n        Objects.requireNonNull(rawTokenId, \"Null rawTokenId not allowed\");\n```"
+  },
+  {
+   "id": 2237885804,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:11Z",
+   "path": "services/src/test/java/org/keycloak/protocol/oidc/encode/DefaultTokenContextEncoderProviderTest.java",
+   "start_line": null,
+   "line": 82,
+   "original_start_line": null,
+   "original_line": 82,
+   "body": "style: Catching generic `RuntimeException` is too broad. The implementation throws `IllegalArgumentException` specifically - catch that instead for more precise testing.\n\n```suggestion\n        } catch (IllegalArgumentException iae) {\n```"
+  },
+  {
+   "id": 2237885825,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:11Z",
+   "path": "services/src/test/java/org/keycloak/protocol/oidc/encode/DefaultTokenContextEncoderProviderTest.java",
+   "start_line": null,
+   "line": 81,
+   "original_start_line": null,
+   "original_line": 81,
+   "body": "syntax: Typo: 'Not expected to success' should be 'Not expected to succeed'\n\n```suggestion\n            Assert.fail(\"Not expected to succeed due to incorrect grant type\");\n```"
+  },
+  {
+   "id": 2237886005,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:18Z",
+   "path": "services/src/main/java/org/keycloak/protocol/oidc/encode/DefaultTokenContextEncoderProviderFactory.java",
+   "start_line": 41,
+   "line": 42,
+   "original_start_line": 41,
+   "original_line": 42,
+   "body": "style: These fields should be private to follow encapsulation principles\n\n```suggestion\n    private Map<String, String> grantsByShortcuts;\n    private Map<String, String> grantsToShortcuts;\n```"
+  },
+  {
+   "id": 2237886177,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:26Z",
+   "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/AssertEvents.java",
+   "start_line": null,
+   "line": 483,
+   "original_start_line": null,
+   "original_line": 483,
+   "body": "logic: Critical logic error: this condition returns false when grant shortcuts MATCH. Should be `!items[0].substring(3, 5).equals(expectedGrantShortcut)`\n\n```suggestion\n                if (!items[0].substring(3, 5).equals(expectedGrantShortcut)) return false;\n```"
+  },
+  {
+   "id": 2237886286,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:31Z",
+   "path": "services/src/main/java/org/keycloak/protocol/oidc/TokenManager.java",
+   "start_line": 1052,
+   "line": 1054,
+   "original_start_line": 1052,
+   "original_line": 1054,
+   "body": "logic: No null check for encoder provider - could cause NPE if provider not registered"
+  },
+  {
+   "id": 2237887272,
+   "pull_request_review_id": 3064646389,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:21:17Z",
+   "path": "server-spi-private/src/main/java/org/keycloak/protocol/oidc/grants/OAuth2GrantTypeFactory.java",
+   "start_line": 30,
+   "line": 31,
+   "original_start_line": 30,
+   "original_line": 31,
+   "body": "style: Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.\n\n```suggestion\n     * @return usually like 2-3 letters shortcut of specific grants. It can be useful for example in the tokens when the amount of characters should be limited and hence using full grant name\n     * is not ideal. Shortcut should be unique across grants.\n```"
+  }
+ ]
+}

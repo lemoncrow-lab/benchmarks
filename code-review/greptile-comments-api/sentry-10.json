@@ -1,0 +1,55 @@
+{
+ "fork": "ai-code-review-evaluation/sentry-greptile",
+ "pull": 10,
+ "source_url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/10",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "feat(workflow_engine): Add in hook for producing occurrences from the stateful detector",
+ "base": "workflow-engine-stateful-detector-before",
+ "head": "workflow-engine-stateful-detector-after",
+ "reviews": [
+  {
+   "id": 3068149216,
+   "submitted_at": "2025-07-29T15:43:15Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements a significant architectural enhancement to Sentry's workflow engine by adding the ability for stateful detectors to produce issue occurrences. The changes span across four main files:\n\n**Core Model Enhancement (`detector.py`)**: A new `group_type` property is added to the `Detector` model, providing typed access to the GroupType instance associated with each detector. This refactors the existing `detector_handler` property to eliminate code duplication and improve type safety by centralizing the group type lookup logic.\n\n**Handler Migration (`grouptype.py`)**: The `MetricAlertDetectorHandler` is refactored to inherit from `StatefulDetectorHandler` instead of `DetectorHandler`, removing its concrete `evaluate()` method implementation. This aligns with the broader migration towards stateful detection capabilities.\n\n**Processor Core Logic (`detector.py`)**: The most substantial changes occur in the processor, where the detector evaluation pipeline is enhanced to support occurrence production. Key modifications include:\n- Changing return types from lists to dictionaries keyed by `DetectorGroupKey` to eliminate duplicate handling\n- Adding a new abstract method `build_occurrence_and_event_data` that subclasses must implement\n- Integrating Kafka occurrence production when detectors transition to non-OK status\n- Removing redundant duplicate detection logic in favor of dictionary-based deduplication\n\n**Test Infrastructure (`test_detector.py`)**: Comprehensive test updates validate the new occurrence production functionality, including mock implementations of the abstract method and verification of Kafka integration.\n\nThese changes enable the workflow engine to create and emit proper `IssueOccurrence` objects to Kafka when detectors identify problems, completing the integration between the detection system and Sentry's issue tracking infrastructure. The architecture now supports both issue creation (via occurrences) and resolution (via status change messages).\n\n## Confidence score: 2/5\n\n- This PR introduces significant architectural changes but has several implementation gaps that make it risky to merge\n- The score reflects incomplete abstract method implementations and potential runtime failures in the `MetricAlertDetectorHandler`\n- Files needing attention: `src/sentry/incidents/grouptype.py` (incomplete implementation), `src/sentry/workflow_engine/processors/detector.py` (verify abstract method contracts)\n\n<sub>4 files reviewed, 3 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=sentry-greptile_10)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2240257576,
+   "pull_request_review_id": 3068149216,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:42:42Z",
+   "path": "src/sentry/incidents/grouptype.py",
+   "start_line": 11,
+   "line": 12,
+   "original_start_line": 11,
+   "original_line": 12,
+   "body": "logic: StatefulDetectorHandler is an abstract base class that requires implementing several abstract methods: `counter_names`, `get_dedupe_value`, `get_group_key_values`, and `build_occurrence_and_event_data`. This class will not be instantiable without these implementations."
+  },
+  {
+   "id": 2240258217,
+   "pull_request_review_id": 3068149216,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:42:59Z",
+   "path": "tests/sentry/workflow_engine/processors/test_detector.py",
+   "start_line": 190,
+   "line": 191,
+   "original_start_line": 190,
+   "original_line": 191,
+   "body": "logic: The hardcoded value 6 for group_2 seems inconsistent - the test data shows group_2 has value 10, but the expected occurrence is built with value 6\n\n```suggestion\n        occurrence_2, event_data_2 = build_mock_occurrence_and_event(\n            detector.detector_handler, \"group_2\", 10, PriorityLevel.HIGH\n```"
+  },
+  {
+   "id": 2240258248,
+   "pull_request_review_id": 3068149216,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:43:00Z",
+   "path": "tests/sentry/workflow_engine/processors/test_detector.py",
+   "start_line": 536,
+   "line": 537,
+   "original_start_line": 536,
+   "original_line": 537,
+   "body": "logic: The test builds an expected result using build_mock_occurrence_and_event with 'val1' and value 6, but this doesn't match the test's group_key parameter 'group_key' - potential test logic error"
+  }
+ ]
+}

@@ -1,0 +1,151 @@
+{
+ "fork": "ai-code-review-evaluation/cal.com-greptile",
+ "pull": 8,
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/8",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "OAuth credential sync and app integration enhancements",
+ "base": "oauth-security-base",
+ "head": "oauth-security-enhanced",
+ "reviews": [
+  {
+   "id": 3064822929,
+   "submitted_at": "2025-07-28T23:37:23Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR introduces a comprehensive OAuth credential sync and app integration enhancement system across the Cal.com codebase. The changes implement two main improvements:\n\n**1. OAuth Utility Reorganization**: The PR systematically moves OAuth-related utilities (`encodeOAuthState`, `decodeOAuthState`, `createOAuthAppCredential`, etc.) from the general `_utils` directory into a dedicated `_utils/oauth` subdirectory across all app store integrations. This affects 20+ app integrations including Google Calendar, Office 365, HubSpot, Salesforce, Zoom, and others, creating better code organization and separation of concerns.\n\n**2. Centralized OAuth Token Management**: The core enhancement introduces a new credential sharing system that allows OAuth token refresh requests to be optionally routed through a centralized endpoint when `APP_CREDENTIAL_SHARING_ENABLED` is configured. Key components include:\n\n- A new `refreshOAuthTokens` utility that wraps existing token refresh logic and conditionally routes to an external credential sync endpoint\n- A `parseRefreshTokenResponse` utility for standardized token response validation\n- A webhook handler (`/api/webhook/app-credential`) for receiving encrypted credential updates\n- Environment variables for configuring webhook authentication, encryption keys, and sync endpoints\n- A feature flag (`APP_CREDENTIAL_SHARING_ENABLED`) that requires both webhook secret and encryption key to be present\n\nThis system enables self-hosted Cal.com instances embedded within larger applications to sync OAuth credentials rather than requiring users to re-authenticate with services they've already connected to in the parent application. The implementation uses AES256 encryption for secure credential transmission and maintains backward compatibility by falling back to standard OAuth flows when credential sharing is disabled.\n\nThe changes integrate across 15+ calendar and app services (Google Calendar, Office 365, Salesforce, HubSpot, Zoom, Webex, Lark, Zoho, etc.), applying the centralized token refresh pattern consistently while preserving existing functionality.\n\n## Confidence score: 2/5\n\n- This PR introduces significant security-sensitive changes with multiple critical implementation issues that could cause authentication failures and security vulnerabilities\n- Several files contain logic errors, missing imports, unsafe JSON parsing, hardcoded fallback values, and improper error handling that will likely break OAuth flows\n- Files requiring immediate attention: `packages/app-store/salesforce/lib/CalendarService.ts` (missing prisma import), `packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts` (invalid Zod schema syntax), `apps/web/pages/api/webhook/app-credential.ts` (security vulnerabilities), `packages/app-store/_utils/oauth/createOAuthAppCredential.ts` (incorrect team validation logic), and `packages/app-store/googlecalendar/api/callback.ts` (unsafe credential creation)\n\n<sub>40 files reviewed, 11 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=cal.com-greptile_8)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238029881,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:05Z",
+   "path": "packages/lib/constants.ts",
+   "start_line": 103,
+   "line": 104,
+   "original_start_line": 103,
+   "original_line": 104,
+   "body": "style: Consider using explicit boolean conversion `!!()` for clarity, as this currently relies on JavaScript's truthy evaluation of strings"
+  },
+  {
+   "id": 2238029985,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:10Z",
+   "path": "packages/app-store/hubspot/lib/CalendarService.ts",
+   "start_line": 177,
+   "line": 189,
+   "original_start_line": 177,
+   "original_line": 189,
+   "body": "logic: The `refreshOAuthTokens` wrapper now handles credential sync routing, but the return type may not match the expected `HubspotToken`. The utility returns a raw fetch Response when using the sync endpoint, which would break the subsequent property access on line 192."
+  },
+  {
+   "id": 2238030068,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:17Z",
+   "path": "packages/app-store/salesforce/lib/CalendarService.ts",
+   "start_line": null,
+   "line": 96,
+   "original_start_line": null,
+   "original_line": 96,
+   "body": "syntax: Missing import for `prisma`. Add `import prisma from \"@calcom/prisma\";` to the imports section.\n\n```suggestion\n    import type { TokenResponse } from \"jsforce\";\nimport jsforce from \"jsforce\";\nimport { RRule } from \"rrule\";\nimport { z } from \"zod\";\n\nimport { getLocation } from \"@calcom/lib/CalEventParser\";\nimport { WEBAPP_URL } from \"@calcom/lib/constants\";\nimport { HttpError } from \"@calcom/lib/http-error\";\nimport logger from \"@calcom/lib/logger\";\nimport prisma from \"@calcom/prisma\";\nimport type {\n  Calendar,\n  CalendarEvent,\n  IntegrationCalendar,\n  NewCalendarEventType,\n  Person,\n} from \"@calcom/types/Calendar\";\nimport type { CredentialPayload } from \"@calcom/types/Credential\";\n\nimport getAppKeysFromSlug from \"../../_utils/getAppKeysFromSlug\";\nimport parseRefreshTokenResponse from \"../../_utils/oauth/parseRefreshTokenResponse\";\n```"
+  },
+  {
+   "id": 2238030105,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:20Z",
+   "path": "packages/app-store/zoho-bigin/lib/CalendarService.ts",
+   "start_line": null,
+   "line": 93,
+   "original_start_line": null,
+   "original_line": 93,
+   "body": "logic: Parameter mismatch: `refreshOAuthTokens` expects `userId` but receives `credentialId`. Check other integrations - Google Calendar passes `credential.userId`."
+  },
+  {
+   "id": 2238030184,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:27Z",
+   "path": "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+   "start_line": 8,
+   "line": 10,
+   "original_start_line": 8,
+   "original_line": 10,
+   "body": "syntax: Invalid Zod schema syntax. Computed property keys like `[z.string().toString()]` are not valid in Zod object schemas and will cause runtime errors.\n\n```suggestion\n  // Assume that any property with a number is the expiry\n  // Allow other properties in the token response\n```"
+  },
+  {
+   "id": 2238030212,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:29Z",
+   "path": "packages/app-store/_utils/oauth/refreshOAuthTokens.ts",
+   "start_line": 10,
+   "line": 13,
+   "original_start_line": 10,
+   "original_line": 13,
+   "body": "style: Consider adding Content-Type header when sending URLSearchParams to ensure proper parsing by the endpoint"
+  },
+  {
+   "id": 2238030246,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:31Z",
+   "path": ".env.example",
+   "start_line": null,
+   "line": 243,
+   "original_start_line": null,
+   "original_line": 243,
+   "body": "logic: The encryption key generation command suggests 24 bytes (`openssl rand -base64 24`) but the comment states 32 bytes are required for AES256. Base64 encoding of 24 bytes produces 32 characters, but AES256 needs 32 actual bytes (256 bits). Should be `openssl rand -base64 32` or clarify the requirement."
+  },
+  {
+   "id": 2238030255,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:32Z",
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "start_line": null,
+   "line": 17,
+   "original_start_line": null,
+   "original_line": 17,
+   "body": "logic: Missing HTTP method validation - any HTTP method is accepted including GET, PUT, DELETE which could expose this endpoint to CSRF attacks\n\n```suggestion\nexport default async function handler(req: NextApiRequest, res: NextApiResponse) {\n  if (req.method !== 'POST') {\n    return res.status(405).json({ message: 'Method not allowed' });\n  }\n```"
+  },
+  {
+   "id": 2238030263,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:33Z",
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "start_line": 24,
+   "line": 27,
+   "original_start_line": 24,
+   "original_line": 27,
+   "body": "logic: Direct string comparison is vulnerable to timing attacks - use `crypto.timingSafeEqual()` for webhook secret validation"
+  },
+  {
+   "id": 2238030276,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:34Z",
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "start_line": 57,
+   "line": 59,
+   "original_start_line": 57,
+   "original_line": 59,
+   "body": "logic: Missing error handling for `JSON.parse()` and `symmetricDecrypt()` - malformed data will cause runtime errors"
+  },
+  {
+   "id": 2238030284,
+   "pull_request_review_id": 3064822929,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:34Z",
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "start_line": null,
+   "line": 58,
+   "original_start_line": null,
+   "original_line": 58,
+   "body": "logic: Using empty string fallback for encryption key defeats the security check on line 19 - should throw error if key is missing"
+  }
+ ]
+}

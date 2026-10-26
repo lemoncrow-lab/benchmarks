@@ -1,0 +1,91 @@
+{
+ "fork": "ai-code-review-evaluation/sentry-greptile",
+ "pull": 3,
+ "source_url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "feat(upsampling) - Support upsampled error count with performance optimizations",
+ "base": "master",
+ "head": "error-upsampling-race-condition",
+ "reviews": [
+  {
+   "id": 3068028569,
+   "submitted_at": "2025-07-29T15:10:11Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR introduces a comprehensive error upsampling feature that transforms `count()` queries to `upsampled_count()` for allowlisted projects when querying error events. The implementation addresses the problem of inaccurate error counts when client-side sampling is applied by using sample weights to extrapolate true error volumes.\n\nThe key components added include:\n\n1. **Core upsampling logic** (`src/sentry/api/helpers/error_upsampling.py`) - Contains eligibility checking, query transformation, and caching mechanisms with a 60-second TTL to optimize performance\n2. **Database integration** - Adds the `upsampled_count` function to the Discover dataset that sums `sample_weight` columns instead of counting rows\n3. **API endpoint integration** - Implements upsampling in the organization events stats endpoint across three query execution paths (top events, RPC, and standard queries)\n4. **Test infrastructure** - Adds comprehensive test coverage and updates test factories to handle error sampling context\n5. **Git submodule** - Adds a new `sentry-repo` submodule (though the content appears empty)\n\nThe feature uses an allowlist-based approach where ALL projects in a query must be on the allowlist to enable upsampling, ensuring data consistency. The system includes dataset-specific logic to apply transformations only to error-related queries where sample weights exist, avoiding issues with transaction data.\n\n## Confidence score: 2/5\n\n- This PR has significant implementation concerns that make it risky to merge without addressing critical issues\n- The main issues are an empty git submodule, potential race conditions in caching logic, and assumptions about database schema without verification\n- Files needing attention: `sentry-repo` (empty submodule), `src/sentry/api/helpers/error_upsampling.py` (race condition and schema assumptions), `src/sentry/api/endpoints/organization_events_stats.py` (code duplication)\n\n<sub>7 files reviewed, 6 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=sentry-greptile_3)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2240171942,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:19Z",
+   "path": "src/sentry/testutils/factories.py",
+   "start_line": null,
+   "line": 353,
+   "original_start_line": null,
+   "original_line": 353,
+   "body": "logic: The condition `if client_sample_rate:` will be False for valid sample rate of 0.0. Consider using `if client_sample_rate is not None:` to handle zero sample rates correctly.\n\n```suggestion\n    if client_sample_rate is not None:\n```"
+  },
+  {
+   "id": 2240172863,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:36Z",
+   "path": "src/sentry/search/events/datasets/discover.py",
+   "start_line": null,
+   "line": 1051,
+   "original_start_line": null,
+   "original_line": 1051,
+   "body": "logic: The `default_result_type` is set to \"number\" but the comment and typical count operations suggest this should be \"integer\". This could cause type inconsistencies in query results."
+  },
+  {
+   "id": 2240173041,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:40Z",
+   "path": "src/sentry/api/endpoints/organization_events_stats.py",
+   "start_line": 232,
+   "line": 233,
+   "original_start_line": 232,
+   "original_line": 233,
+   "body": "style: Transformation logic is duplicated in three places (lines 232-233, 276-277, 295-296). Consider extracting to a helper function"
+  },
+  {
+   "id": 2240173672,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:55Z",
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "start_line": null,
+   "line": 95,
+   "original_start_line": null,
+   "original_line": 95,
+   "body": "logic: The transformation assumes `upsampled_count()` function exists in the database schema. This could cause query failures if the function isn't available."
+  },
+  {
+   "id": 2240173702,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:55Z",
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "start_line": 31,
+   "line": 32,
+   "original_start_line": 31,
+   "original_line": 32,
+   "body": "logic: Caching eligibility but not the dataset/request check could lead to inconsistent behavior - eligibility might be cached as `true` but dataset check could return different results between calls."
+  },
+  {
+   "id": 2240173722,
+   "pull_request_review_id": 3068028569,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T15:09:56Z",
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "start_line": null,
+   "line": 135,
+   "original_start_line": null,
+   "original_line": 135,
+   "body": "style: Using simple string containment check for 'event.type:error' could match unintended queries like 'event.type:error_custom' or within quoted strings."
+  }
+ ]
+}

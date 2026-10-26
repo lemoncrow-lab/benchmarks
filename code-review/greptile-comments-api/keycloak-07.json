@@ -1,0 +1,115 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 7,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/7",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Add HTML sanitizer for translated message resources",
+ "base": "feature-html-sanitizer-baseline",
+ "head": "feature-html-sanitizer-implementation",
+ "reviews": [
+  {
+   "id": 3064646180,
+   "submitted_at": "2025-07-28T21:21:16Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements HTML sanitization for translated message resources across Keycloak's theme system. The implementation adds a comprehensive validation layer using OWASP HTML Sanitizer to ensure that internationalized message properties files only contain safe HTML content.\n\n### Core Implementation\n\nThe central component is the enhanced `VerifyMessageProperties.java` class in the theme-verifier module, which now includes HTML sanitization policies using OWASP HTML Sanitizer. The system defines two main policies:\n- `POLICY_NO_HTML`: Strips all HTML content for messages where the English source contains no HTML\n- `POLICY_SOME_HTML`: Allows only safe HTML elements (`<br>`, `<p>`, `<strong>`, `<b>`) for messages where HTML is present in the English source\n\nThe verification process compares each translated message against its English counterpart to ensure HTML consistency. Special handling is implemented for anchor tags to prevent URL injection through translations.\n\n### Testing Infrastructure\n\nComprehensive test coverage has been added with new test resource files:\n- `illegalHtmlTag_en.properties`: Tests detection of malformed HTML (unclosed `<div>` tag)\n- `noHtml_en.properties` and `noHtml_de.properties`: Test HTML rejection where none should exist\n- `changedAnchor_en.properties` and `changedAnchor_de.properties`: Test anchor tag validation between languages\n- `duplicateKeys_en.properties`: Renamed and standardized existing duplicate key test\n\n### Mass Translation Updates\n\nThe PR includes systematic updates across 25+ language files to standardize HTML formatting:\n- Converting `<br/>` to `<br />` (adding space before closing slash) for XHTML compliance\n- Fixing malformed HTML tags (missing closing brackets, extra spaces)\n- Removing unauthorized HTML content like external links in TOTP setup instructions\n- Correcting HTML entity issues and parameter reference bugs\n\n### Integration with Build Process\n\nTwo new Maven dependencies were added to the theme-verifier:\n- OWASP Java HTML Sanitizer (20240325.1) for security validation\n- Apache Commons Text (1.13.0) for HTML entity processing\n\nThe theme verifier runs during build time to validate all message properties files, ensuring only sanitized content reaches production.\n\n## Confidence score: 2/5\n\n• This PR contains critical implementation issues that could cause build failures and localization bugs\n• The implementation has potential infinite loops, hardcoded assumptions, and contains at least one case where Italian text replaced Lithuanian content\n• Files `misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java`, `themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties`, and `themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties` need immediate attention\n\n<sub>44 files reviewed, 8 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_7)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237885306,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:49Z",
+   "path": "misc/theme-verifier/src/test/resources/changedAnchor_en.properties",
+   "start_line": null,
+   "line": 17,
+   "original_start_line": null,
+   "original_line": 17,
+   "body": "style: Missing final newline - should end with a newline character according to .editorconfig"
+  },
+  {
+   "id": 2237885331,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:50Z",
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties",
+   "start_line": null,
+   "line": 101,
+   "original_start_line": null,
+   "original_line": 101,
+   "body": "logic: This line contains Italian text in a Lithuanian translation file. Should be Lithuanian text: 'Installa una delle seguenti applicazioni sul tuo cellulare:' should be replaced with proper Lithuanian translation.\n\n```suggestion\ntotpStep1=Įdiekite <a href=\"https://freeotp.github.io/\" target=\"_blank\">FreeOTP</a> arba Google Authenticator savo įrenginyje. Programėlės prieinamos <a href=\"https://play.google.com\">Google Play</a> ir Apple App Store.\n```"
+  },
+  {
+   "id": 2237885359,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:19:51Z",
+   "path": "misc/theme-verifier/src/test/resources/noHtml_de.properties",
+   "start_line": null,
+   "line": 17,
+   "original_start_line": null,
+   "original_line": 17,
+   "body": "style: missing final newline according to `.editorconfig` rules"
+  },
+  {
+   "id": 2237885588,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:01Z",
+   "path": "misc/theme-verifier/src/test/resources/noHtml_en.properties",
+   "start_line": null,
+   "line": 17,
+   "original_start_line": null,
+   "original_line": 17,
+   "body": "style: missing newline at end of file, violates `.editorconfig` rule `insert_final_newline = true`"
+  },
+  {
+   "id": 2237885671,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:04Z",
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "start_line": 58,
+   "line": 61,
+   "original_start_line": 58,
+   "original_line": 61,
+   "body": "style: instance fields should be `private static final` for thread safety and memory efficiency\n\n```suggestion\n    private static final PolicyFactory POLICY_SOME_HTML = new org.owasp.html.HtmlPolicyBuilder()\n            .allowElements(\n                    \"br\", \"p\", \"strong\", \"b\"\n            ).toFactory();\n```"
+  },
+  {
+   "id": 2237885685,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:05Z",
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "start_line": null,
+   "line": 150,
+   "original_start_line": null,
+   "original_line": 150,
+   "body": "syntax: method name has typo: `santizeAnchors` should be `sanitizeAnchors`\n\n```suggestion\n    private String sanitizeAnchors(String key, String value, String englishValue) {\n```"
+  },
+  {
+   "id": 2237885738,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:07Z",
+   "path": "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties",
+   "start_line": null,
+   "line": 71,
+   "original_start_line": null,
+   "original_line": 71,
+   "body": "logic: Critical localization error: Italian text replaced Lithuanian translation for TOTP setup instructions. This breaks the user experience for Lithuanian users and removes essential download links for authenticator apps.\n\n```suggestion\nloginTotpStep1=Įdiekite <a href=\"https://freeotp.github.io/\" target=\"_blank\">FreeOTP</a> arba Google Authenticator savo įrenginyje. Programėlės prieinamos <a href=\"https://play.google.com\">Google Play</a> ir Apple App Store.\n```"
+  },
+  {
+   "id": 2237886485,
+   "pull_request_review_id": 3064646180,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:40Z",
+   "path": "misc/theme-verifier/pom.xml",
+   "start_line": 83,
+   "line": 84,
+   "original_start_line": 83,
+   "original_line": 84,
+   "body": "style: The `<scope>compile</scope>` is redundant since compile is the default scope\n\n```suggestion\n            <version>1.13.0</version>\n```"
+  }
+ ]
+}

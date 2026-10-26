@@ -1,0 +1,55 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 10,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/10",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Fix concurrent group access to prevent NullPointerException",
+ "base": "feature-group-concurrency-update",
+ "head": "feature-group-concurrency-implementation",
+ "reviews": [
+  {
+   "id": 3064646697,
+   "submitted_at": "2025-07-28T21:20:51Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements a fix for concurrent group access issues to prevent NullPointerExceptions in Keycloak's group management system. The changes span across multiple layers of the architecture:\n\n1. **Caching Layer Enhancement**: In `CachedGroup.java`, the `@Override` annotation is added to the `getRealm()` method to ensure proper interface implementation compliance with the `InRealm` interface, improving code maintainability and compile-time verification.\n\n2. **Group Adapter Null Safety**: The `GroupAdapter.java` file receives a critical fix in the `getSubGroupsCount()` method, where null-safety is added by checking if the model from `modelSupplier.get()` is null before calling operations on it. This prevents NPEs in concurrent scenarios where groups might be deleted while other threads access them.\n\n3. **GroupUtils Refactoring**: The `GroupUtils.java` class has the `groupMatchesSearchOrIsPathElement` method removed as part of the broader refactoring. This appears to consolidate functionality and eliminate potentially redundant code paths.\n\n4. **Comprehensive Test Coverage**: A new concurrency test `createMultiDeleteMultiReadMulti()` is added to `GroupTest.java` that creates 100 groups, performs concurrent read operations in a background thread while deletion is happening, and verifies no exceptions occur. This serves as a regression test for the concurrent access fixes.\n\nThese changes work together to address race conditions in Keycloak's group caching and access mechanisms, particularly in Infinispan-based implementations where concurrent modifications can lead to inconsistent states.\n\n## Confidence score: 2/5\n\n- This PR has significant null safety issues that could cause immediate production problems\n- While the caching layer fix is solid, the GroupUtils.java file still contains multiple potential NullPointerExceptions that weren't addressed\n- Files needing more attention: `services/src/main/java/org/keycloak/utils/GroupUtils.java` contains unaddressed NPE risks on lines 47 and 71\n\n<sub>4 files reviewed, 3 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_10)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237886025,
+   "pull_request_review_id": 3064646697,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:19Z",
+   "path": "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/GroupAdapter.java",
+   "start_line": 274,
+   "line": 276,
+   "original_start_line": 274,
+   "original_line": 276,
+   "body": "style: This pattern differs from other methods like `getSubGroupsStream()` which call `getDelegateForUpdate()` when encountering null models. Consider consistency with the existing error handling pattern."
+  },
+  {
+   "id": 2237886417,
+   "pull_request_review_id": 3064646697,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:37Z",
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "start_line": 139,
+   "line": 149,
+   "original_start_line": 139,
+   "original_line": 149,
+   "body": "logic: Thread is started but not joined, creating a race condition where the test might complete before the reader thread finishes executing\n\n```suggestion\n        Thread readerThread = new Thread(() -> {\n            while (!deletedAll.get()) {\n                try {\n                    // just loading briefs\n                    managedRealm.admin().groups().groups(null, 0, Integer.MAX_VALUE, true);\n                } catch (Exception e) {\n\n                    caughtExceptions.add(e);\n                }\n            }\n        });\n        readerThread.start();\n\n        // delete groups\n        groupUuuids.forEach(groupUuid -> {\n            managedRealm.admin().groups().group(groupUuid).remove();\n        });\n        deletedAll.set(true);\n\n        try {\n            readerThread.join(5000); // Wait up to 5 seconds for thread to complete\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();\n            fail(\"Test interrupted while waiting for reader thread\");\n        }\n```"
+  },
+  {
+   "id": 2237886427,
+   "pull_request_review_id": 3064646697,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:20:37Z",
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "start_line": null,
+   "line": 121,
+   "original_start_line": null,
+   "original_line": 121,
+   "body": "syntax: Variable name has typo: `groupUuuids` should be `groupUuids`"
+  }
+ ]
+}

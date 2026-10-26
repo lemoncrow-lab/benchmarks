@@ -1,0 +1,175 @@
+{
+ "fork": "ai-code-review-evaluation/discourse-greptile",
+ "pull": 3,
+ "source_url": "https://github.com/ai-code-review-evaluation/discourse-greptile/pull/3",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Add comprehensive email validation for blocked users",
+ "base": "blocked-email-validation-pre",
+ "head": "blocked-email-validation-post",
+ "reviews": [
+  {
+   "id": 3064871404,
+   "submitted_at": "2025-07-29T00:28:35Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements a comprehensive email validation system for blocked users by adding a new `BlockedEmail` model and associated validation infrastructure. The changes introduce database-backed email blocking capabilities that extend beyond the existing domain-based whitelist/blacklist system.\n\nThe core functionality centers around a new `blocked_emails` table that stores specific email addresses with action types (block/do_nothing), match counts, and timestamps for tracking usage attempts. A new `EmailValidator` class replaces inline validation methods in the User model, centralizing email validation logic and integrating the blocked email checking via `BlockedEmail.should_block?`.\n\nOn the client side, the account creation controller now tracks rejected emails to provide immediate feedback without requiring server round-trips for previously blocked addresses. The system maintains backward compatibility with existing domain-based restrictions while adding granular email-level blocking capabilities.\n\nThe implementation includes proper test coverage with new fabricators and comprehensive specs for the BlockedEmail model and EmailValidator. Error messaging is enhanced in both the API responses (providing structured error data) and localization (adding a 'blocked' message variant).\n\n## Confidence score: 1/5\n\n- This PR contains several critical security vulnerabilities and logic flaws that make it unsafe to merge\n- The EmailValidator has ReDoS vulnerabilities, race conditions in BlockedEmail.should_block?, and flawed whitelist/blacklist logic that prevents both from working simultaneously\n- Files requiring immediate attention: `lib/validators/email_validator.rb`, `app/models/blocked_email.rb`, `spec/models/blocked_email_spec.rb`\n\n<sub>10 files reviewed, 13 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=discourse-greptile_3)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238071512,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:27:58Z",
+   "path": "spec/components/validators/email_validator_spec.rb",
+   "start_line": null,
+   "line": 7,
+   "original_start_line": null,
+   "original_line": 7,
+   "body": "style: Missing space after comma in method call parameters"
+  },
+  {
+   "id": 2238071632,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:07Z",
+   "path": "spec/models/blocked_email_spec.rb",
+   "start_line": null,
+   "line": 9,
+   "original_start_line": null,
+   "original_line": 9,
+   "body": "style: Use modern RSpec syntax: `expect(BlockedEmail.create(email: email).action_type).to eq(BlockedEmail.actions[:block])`\n\n```suggestion\n      expect(BlockedEmail.create(email: email).action_type).to eq(BlockedEmail.actions[:block])\n```"
+  },
+  {
+   "id": 2238071643,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:08Z",
+   "path": "spec/models/blocked_email_spec.rb",
+   "start_line": null,
+   "line": 30,
+   "original_start_line": null,
+   "original_line": 30,
+   "body": "logic: Custom matcher `be_within_one_second_of` is not defined. Need to implement this matcher or use built-in alternatives like `be_within(1.second).of(Time.zone.now)`\n\n```suggestion\n          expect(blocked_email.last_match_at).to be_within(1.second).of(Time.zone.now)\n```"
+  },
+  {
+   "id": 2238071656,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:09Z",
+   "path": "spec/models/blocked_email_spec.rb",
+   "start_line": null,
+   "line": 23,
+   "original_start_line": null,
+   "original_line": 23,
+   "body": "style: Use modern RSpec syntax: `expect(subject).to be_falsey`\n\n```suggestion\n      expect(subject).to be_falsey\n```"
+  },
+  {
+   "id": 2238071667,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:09Z",
+   "path": "spec/models/blocked_email_spec.rb",
+   "start_line": null,
+   "line": 37,
+   "original_start_line": null,
+   "original_line": 37,
+   "body": "style: Use modern RSpec syntax: `expect(subject).to be_truthy`\n\n```suggestion\n      it { expect(subject).to be_truthy }\n```"
+  },
+  {
+   "id": 2238071775,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:16Z",
+   "path": "lib/validators/email_validator.rb",
+   "start_line": 18,
+   "line": 22,
+   "original_start_line": 18,
+   "original_line": 22,
+   "body": "logic: ReDoS vulnerability: `setting` input is passed directly to regex construction without sanitization. Malicious settings could cause catastrophic backtracking."
+  },
+  {
+   "id": 2238071797,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:17Z",
+   "path": "lib/validators/email_validator.rb",
+   "start_line": null,
+   "line": 8,
+   "original_start_line": null,
+   "original_line": 8,
+   "body": "logic: Using `elsif` prevents both whitelist and blacklist from being applied simultaneously - this may not be the intended behavior for security restrictions."
+  },
+  {
+   "id": 2238071811,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:17Z",
+   "path": "lib/validators/email_validator.rb",
+   "start_line": null,
+   "line": 20,
+   "original_start_line": null,
+   "original_line": 20,
+   "body": "logic: Regex pattern `@(#{domains})` only matches domain suffixes, not full domains. `evil.example.com` would match whitelist entry `example.com`.\n\n```suggestion\n    regexp = Regexp.new(\"@(#{domains})$\", true)\n```"
+  },
+  {
+   "id": 2238071820,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:18Z",
+   "path": "lib/validators/email_validator.rb",
+   "start_line": null,
+   "line": 13,
+   "original_start_line": null,
+   "original_line": 13,
+   "body": "style: Use `&&` instead of `and` for boolean operations to avoid precedence issues in Ruby.\n\n```suggestion\n    if record.errors[attribute].blank? && BlockedEmail.should_block?(value)\n```"
+  },
+  {
+   "id": 2238071825,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:19Z",
+   "path": "app/models/blocked_email.rb",
+   "start_line": 11,
+   "line": 19,
+   "original_start_line": 11,
+   "original_line": 19,
+   "body": "logic: This method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading."
+  },
+  {
+   "id": 2238071828,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:19Z",
+   "path": "app/models/blocked_email.rb",
+   "start_line": null,
+   "line": 12,
+   "original_start_line": null,
+   "original_line": 12,
+   "body": "style: Using `.first` instead of `.find_by(email: email)` is less idiomatic and potentially less performant.\n\n```suggestion\n    record = BlockedEmail.find_by(email: email)\n```"
+  },
+  {
+   "id": 2238071844,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:20Z",
+   "path": "app/models/blocked_email.rb",
+   "start_line": 14,
+   "line": 16,
+   "original_start_line": 14,
+   "original_line": 16,
+   "body": "logic: The increment and save operations should use `increment!` or be wrapped in a transaction to prevent race conditions when multiple requests check the same email simultaneously."
+  },
+  {
+   "id": 2238071861,
+   "pull_request_review_id": 3064871404,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-29T00:28:21Z",
+   "path": "app/assets/javascripts/discourse/controllers/create_account_controller.js",
+   "start_line": 69,
+   "line": 74,
+   "original_start_line": 69,
+   "original_line": 74,
+   "body": "style: Using generic 'invalid' message instead of specific 'blocked' message may confuse users who don't understand why their email was rejected"
+  }
+ ]
+}

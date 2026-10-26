@@ -1,0 +1,55 @@
+{
+ "fork": "ai-code-review-evaluation/keycloak-greptile",
+ "pull": 2,
+ "source_url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/2",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Add caching support for IdentityProviderStorageProvider.getForLogin operations",
+ "base": "feature-idp-cache-baseline",
+ "head": "feature-idp-cache-implementation",
+ "reviews": [
+  {
+   "id": 3064660613,
+   "submitted_at": "2025-07-28T21:32:09Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements comprehensive caching support for `IdentityProviderStorageProvider.getForLogin()` operations to optimize login page performance. The changes span multiple layers of the Keycloak architecture:\n\n**Core Implementation**: The `InfinispanIdentityProviderStorageProvider` now caches `getForLogin` results using the existing `IdentityProviderListQuery` infrastructure, with cache keys based on realm ID, fetch mode, and organization ID. The caching follows established patterns in the codebase and includes sophisticated invalidation logic that only clears caches when changes actually affect login availability (enabled/disabled states, hideOnLogin flags, or organization associations).\n\n**Business Logic Enhancement**: The `IdentityProviderStorageProvider` interface adds a new filter condition ensuring organization-associated identity providers are only included in login flows if they have the `BROKER_PUBLIC` configuration set to true. This maintains proper organizational isolation and security boundaries.\n\n**UI Layer Protection**: `OrganizationAwareIdentityProviderBean` adds defensive `idp.isEnabled()` checks after the `getForLogin()` calls. These re-checks handle cases where cached IDPs might be wrapped in proxy objects that could potentially bypass the original enabled state filtering applied by the storage provider.\n\n**Test Coverage**: A comprehensive test suite validates the caching behavior across different fetch modes (REALM_ONLY, ORG_ONLY, ALL) and verifies that cache invalidation occurs appropriately for login-affecting changes while avoiding unnecessary invalidations for other updates.\n\nThe implementation integrates seamlessly with Keycloak's existing caching infrastructure and organization features, providing performance benefits for login page rendering while maintaining data consistency and security requirements.\n\n## Confidence score: 4/5\n\n• This PR appears safe to merge with proper caching implementation and comprehensive test coverage\n• High confidence due to defensive programming measures and sophisticated invalidation logic that maintains cache consistency\n• The `OrganizationAwareIdentityProviderBean` file needs more attention as the defensive enabled checks suggest potential issues with cached IDP wrapper behavior\n\n<sub>4 files reviewed, 3 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=keycloak-greptile_2)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237900103,
+   "pull_request_review_id": 3064660613,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:30:21Z",
+   "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java",
+   "start_line": null,
+   "line": 381,
+   "original_start_line": null,
+   "original_line": 381,
+   "body": "logic: Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'\n\n```suggestion\n            getCleanup().addCleanup(testRealm().identityProviders().get(\"idp-alias-\" + i)::remove);\n```"
+  },
+  {
+   "id": 2237900118,
+   "pull_request_review_id": 3064660613,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:30:22Z",
+   "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java",
+   "start_line": null,
+   "line": 425,
+   "original_start_line": null,
+   "original_line": 425,
+   "body": "logic: Same cleanup issue - incorrect alias reference\n\n```suggestion\n        getCleanup().addCleanup(testRealm().identityProviders().get(\"idp-alias-20\")::remove);\n```"
+  },
+  {
+   "id": 2237900569,
+   "pull_request_review_id": 3064660613,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T21:30:39Z",
+   "path": "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java",
+   "start_line": null,
+   "line": 246,
+   "original_start_line": null,
+   "original_line": 246,
+   "body": "logic: using `session.identityProviders().getById(id)` calls the same provider recursively, which could lead to inconsistent caching behavior\n\n```suggestion\n            IdentityProviderModel idp = idpDelegate.getById(id);\n```"
+  }
+ ]
+}

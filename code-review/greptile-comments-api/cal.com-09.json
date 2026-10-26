@@ -1,0 +1,43 @@
+{
+ "fork": "ai-code-review-evaluation/cal.com-greptile",
+ "pull": 9,
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/9",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "SMS workflow reminder retry count tracking",
+ "base": "sms-retry-base",
+ "head": "sms-retry-enhanced",
+ "reviews": [
+  {
+   "id": 3064823013,
+   "submitted_at": "2025-07-28T23:36:50Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements SMS workflow reminder retry count tracking for the Cal.com application. The changes add infrastructure to track failed SMS delivery attempts and implement cleanup logic to prevent infinite retry loops.\n\nThe implementation consists of three main components:\n\n1. **Database Schema Changes**: A new `retryCount` field is added to the `WorkflowReminder` model in the Prisma schema with a default value of 0. This allows the system to persist retry attempt counts across multiple cron job executions.\n\n2. **Database Migration**: A corresponding migration file adds the `retryCount` column to the existing `WorkflowReminder` table with appropriate constraints (INTEGER NOT NULL DEFAULT 0).\n\n3. **API Logic Updates**: The `scheduleSMSReminders.ts` file is modified to include retry tracking functionality. The system now increments the `retryCount` when SMS scheduling fails or encounters errors, and includes cleanup logic to delete reminders that have exceeded the retry threshold.\n\nThis change integrates with Cal.com's existing workflow reminder system, which handles automated SMS notifications for booking events. The retry mechanism ensures that temporary SMS delivery failures (such as Twilio API issues or network problems) don't result in permanently lost notifications, while also preventing infinite retry attempts that could overwhelm the system.\n\n## Confidence score: 2/5\n\n• This PR has significant logical issues that could cause production problems if merged\n• The cleanup logic deletes reminders after only 1 retry attempt (retryCount > 1), which may be too aggressive and could result in legitimate reminders being discarded prematurely\n• The `scheduleSMSReminders.ts` file needs careful review due to potential retry logic flaws and missing maximum retry limits\n\n<sub>3 files reviewed, 2 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=cal.com-greptile_9)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238030287,
+   "pull_request_review_id": 3064823013,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:35Z",
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "start_line": 39,
+   "line": 42,
+   "original_start_line": 39,
+   "original_line": 42,
+   "body": "logic: This condition deletes reminders with retryCount &gt; 1, meaning reminders are deleted after just one retry attempt. This seems too aggressive - consider if this should be a higher threshold like &gt; 3 or &gt; 5 to allow multiple retry attempts."
+  },
+  {
+   "id": 2238030301,
+   "pull_request_review_id": 3064823013,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:36Z",
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "start_line": null,
+   "line": 184,
+   "original_start_line": null,
+   "original_line": 184,
+   "body": "logic: No maximum retry limit is enforced. Without a cap (e.g., retryCount &lt; 5), reminders could be retried indefinitely, potentially causing performance issues over time."
+  }
+ ]
+}

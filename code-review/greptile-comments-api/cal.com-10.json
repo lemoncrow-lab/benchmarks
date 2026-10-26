@@ -1,0 +1,127 @@
+{
+ "fork": "ai-code-review-evaluation/cal.com-greptile",
+ "pull": 10,
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/10",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Add guest management functionality to existing bookings",
+ "base": "guest-management-base",
+ "head": "guest-management-enhanced",
+ "reviews": [
+  {
+   "id": 3064823237,
+   "submitted_at": "2025-07-28T23:38:14Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements guest management functionality for existing bookings, allowing users to add additional attendees after a booking has been created. The implementation introduces a complete end-to-end feature spanning frontend UI, backend API, and email notifications.\n\n**Frontend Changes:**\n- Adds an \"Add Guests\" action to the booking list item menu that opens a modal dialog\n- Creates a new `AddGuestsDialog` component with proper form validation using Zod schemas\n- Introduces a reusable `MultiEmail` component (with lazy loading) for managing multiple email addresses\n- Integrates with the existing TRPC mutation system and provides appropriate loading states and error handling\n\n**Backend API:**\n- Adds a new `addGuests` TRPC endpoint in the bookings router with comprehensive authorization checks\n- Implements permission validation ensuring only organizers, attendees, or team admins/owners can add guests\n- Includes duplicate prevention and blacklist filtering for guest emails\n- Integrates with calendar systems to update external calendar events when guests are added\n\n**Email System:**\n- Creates specialized email templates for both organizers (`OrganizerAddGuestsEmail`) and attendees (`AttendeeAddGuestsEmail`)\n- Implements a new `sendAddGuestsEmails` function that differentiates between newly added guests (who receive scheduled emails) and existing attendees (who receive guest addition notifications)\n- Email templates reuse existing scheduled email components with customized titles and subjects for the guest addition context\n\nThe implementation follows Cal.com's established architectural patterns including lazy-loaded TRPC handlers, component composition for email templates, and the existing UI component library structure. The feature integrates seamlessly with existing systems like database operations, calendar synchronization, and internationalization.\n\n## Confidence score: 2/5\n\n- This PR has significant security and logic issues that make it unsafe to merge without major revisions\n- Critical permission validation logic uses AND instead of OR operators, potentially breaking authorization checks completely\n- Multiple areas lack proper error handling, input validation, and could cause runtime failures\n- Files that need more attention: `packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts`, `packages/emails/templates/organizer-add-guests-email.ts`, `packages/ui/form/MultiEmail.tsx`\n\n<sub>14 files reviewed, 7 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=cal.com-greptile_10)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238030428,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:44Z",
+   "path": "packages/trpc/server/routers/viewer/bookings/_router.tsx",
+   "start_line": null,
+   "line": 79,
+   "original_start_line": null,
+   "original_line": 79,
+   "body": "logic: Using `authedProcedure` instead of `bookingsProcedure` means this endpoint bypasses the existing booking authorization middleware in `util.ts`. This creates inconsistent security patterns compared to other booking operations like `editLocation`."
+  },
+  {
+   "id": 2238030879,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:20Z",
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+   "start_line": null,
+   "line": 4,
+   "original_start_line": null,
+   "original_line": 4,
+   "body": "style: Consider using `.int().positive()` for more explicit booking ID validation"
+  },
+  {
+   "id": 2238030894,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:21Z",
+   "path": "packages/emails/templates/organizer-add-guests-email.ts",
+   "start_line": null,
+   "line": 28,
+   "original_start_line": null,
+   "original_line": 28,
+   "body": "logic: Unsafe array access - `calEvent.attendees[0]` will throw if attendees array is empty. Add validation or use optional chaining."
+  },
+  {
+   "id": 2238031197,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:46Z",
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "start_line": null,
+   "line": 32,
+   "original_start_line": null,
+   "original_line": 32,
+   "body": "style: Consider using an empty array `[]` instead of `[\"\"]` as the initial state to be more semantically correct and avoid the validation issue mentioned above"
+  },
+  {
+   "id": 2238031204,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:46Z",
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "start_line": 26,
+   "line": 29,
+   "original_start_line": 26,
+   "original_line": 29,
+   "body": "style: The Zod schema is duplicated from the backend schema file. Consider importing the schema from `packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts` to maintain single source of truth"
+  },
+  {
+   "id": 2238031228,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:49Z",
+   "path": "packages/ui/form/MultiEmail.tsx",
+   "start_line": null,
+   "line": 14,
+   "original_start_line": null,
+   "original_line": 14,
+   "body": "logic: Mutating props directly can cause unexpected behavior. Use a derived state or default value instead.\n\n```suggestion\n  const emails = value || [];\n```"
+  },
+  {
+   "id": 2238031232,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:49Z",
+   "path": "packages/ui/form/MultiEmail.tsx",
+   "start_line": 25,
+   "line": 26,
+   "original_start_line": 25,
+   "original_line": 26,
+   "body": "logic: Using array index as React key can cause rendering issues when items are reordered. Consider using a unique ID for each email entry."
+  },
+  {
+   "id": 2238031238,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:50Z",
+   "path": "packages/ui/form/MultiEmail.tsx",
+   "start_line": 80,
+   "line": 82,
+   "original_start_line": 80,
+   "original_line": 82,
+   "body": "syntax: The `variant=\"button\"` prop may not be valid for Button component based on the component's interface."
+  },
+  {
+   "id": 2238031271,
+   "pull_request_review_id": 3064823237,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:37:52Z",
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "start_line": 70,
+   "line": 72,
+   "original_start_line": 70,
+   "original_line": 72,
+   "body": "logic: Case sensitivity issue: blacklisted emails are converted to lowercase but guest emails aren't, potentially allowing blacklisted emails through\n\n```suggestion\n  const uniqueGuests = guests.filter(\n    (guest) =>\n      !booking.attendees.some((attendee) => guest === attendee.email) &&\n      !blacklistedGuestEmails.includes(guest.toLowerCase())\n  );\n```"
+  }
+ ]
+}

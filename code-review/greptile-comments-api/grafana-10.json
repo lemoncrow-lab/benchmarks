@@ -1,0 +1,49 @@
+{
+ "fork": "ai-code-review-evaluation/grafana-greptile",
+ "pull": 10,
+ "source_url": "https://github.com/ai-code-review-evaluation/grafana-greptile/pull/10",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Unified Storage Performance Optimizations",
+ "base": "performance-optimization-baseline",
+ "head": "unified-storage-enhancements",
+ "reviews": [
+  {
+   "id": 3064737702,
+   "submitted_at": "2025-07-28T22:19:30Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements several performance optimizations for Grafana's unified storage system. The changes focus on reducing request latency and improving observability while addressing some technical debt.\n\nThe most significant change is in `pkg/storage/unified/resource/server.go`, which refactors the ResourceServer initialization pattern. Instead of calling `server.Init()` on every request (which still incurred atomic operation overhead despite using `sync.Once`), initialization now happens once during server construction. This eliminates per-request initialization overhead and ensures the server is ready immediately after creation. The initialization sequence is also reordered to set up the search index before starting the watcher, preventing potential race conditions.\n\nIn `pkg/storage/unified/resource/search.go`, several improvements enhance observability and fix context handling. The changes properly capture contexts from `tracer.Start()` calls, ensuring distributed tracing works correctly and context cancellation propagates through search operations. New logging provides visibility into search index performance metrics, including initialization duration and document count.\n\nThe `pkg/storage/unified/sql/backend.go` file receives a critical fix for context propagation in the `GetResourceStats` method, ensuring the enriched context from OpenTelemetry's tracer is properly used for trace linking.\n\nIn `pkg/storage/unified/search/bleve.go`, the cache mutex lock duration is reduced by moving it from protecting the entire index building process to only the final cache update operation. This optimization aims to reduce lock contention during resource-intensive index building.\n\nFinally, `pkg/server/module_server_test.go` adds a skip condition for PostgreSQL tests in the CI environment, addressing a Drone-specific test failure while acknowledging this as technical debt.\n\nThese changes align with the unified storage performance optimization goals by reducing per-request overhead, improving observability, and addressing bottlenecks in the search and storage systems.\n\n## Confidence score: 3/5\n\n• This PR contains mostly solid optimizations but has one concerning race condition risk that could cause production issues\n• The Bleve cache lock optimization introduces a potential race condition where multiple goroutines could simultaneously build the same index, leading to duplicate work and cache inconsistency\n• Files `pkg/storage/unified/search/bleve.go` needs more attention due to the race condition risk in the cache lock optimization\n\n<sub>5 files reviewed, 1 comment</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=grafana-greptile_10)</sub>"
+  },
+  {
+   "id": 3217682699,
+   "submitted_at": "2025-09-12T16:23:36Z",
+   "state": "COMMENTED",
+   "body": "Your free trial has ended. If you'd like to continue receiving code reviews, you can add a payment method [here](https://app.greptile.com/review/github)."
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237958736,
+   "pull_request_review_id": 3064737702,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:19:01Z",
+   "path": "pkg/storage/unified/search/bleve.go",
+   "start_line": null,
+   "line": 87,
+   "original_start_line": null,
+   "original_line": 87,
+   "body": "logic: Race condition: Multiple goroutines can now build the same index simultaneously, causing duplicate work and potential cache inconsistency"
+  },
+  {
+   "id": 2237958880,
+   "pull_request_review_id": 3064737702,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:19:08Z",
+   "path": "pkg/storage/unified/search/bleve.go",
+   "start_line": null,
+   "line": 87,
+   "original_start_line": null,
+   "original_line": 87,
+   "body": "logic: Race condition: Multiple goroutines can now build the same index simultaneously, causing duplicate work and potential cache inconsistency"
+  }
+ ]
+}

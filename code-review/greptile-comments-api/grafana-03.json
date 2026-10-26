@@ -1,0 +1,85 @@
+{
+ "fork": "ai-code-review-evaluation/grafana-greptile",
+ "pull": 3,
+ "source_url": "https://github.com/ai-code-review-evaluation/grafana-greptile/pull/3",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "Plugins: Chore: Renamed instrumentation middleware to metrics middleware",
+ "base": "main",
+ "head": "plugins/rename-instrumentation-middleware-to-metrics-middleware",
+ "reviews": [
+  {
+   "id": 3064744740,
+   "submitted_at": "2025-07-28T22:24:58Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR refactors the plugin middleware architecture by renaming \"instrumentation middleware\" to \"metrics middleware\" and introducing a dedicated contextual logger middleware. The changes separate concerns that were previously handled by a single middleware component.\n\nThe core change renames `InstrumentationMiddleware` to `MetricsMiddleware` across the codebase, making its purpose clearer - it exclusively handles Prometheus metrics collection (request counts, durations, and sizes). The middleware file is renamed from `instrumentation_middleware.go` to `metrics_middleware.go`, and related test files are updated accordingly.\n\nA new `ContextualLoggerMiddleware` is introduced to handle the logging responsibilities that were previously mixed into the instrumentation middleware. This new middleware extracts plugin context information (plugin ID, datasource details, user info) and adds it to the logging context using structured logging attributes.\n\nThe existing `LoggerMiddleware` is simplified to focus solely on basic request timing and status logging, removing plugin-specific metadata collection that is now handled by the contextual logger middleware. It now relies on `FromContext()` to access contextual information added by upstream middlewares.\n\nTo support the new contextual logging pattern, the `Logger` interface is updated with a `FromContext(ctx context.Context) Logger` method, and implementations in both `TestLogger` and `grafanaInfraLogWrapper` are added. The interface also modernizes by replacing `interface{}` with the Go 1.18+ `any` type alias.\n\nThe middleware chain is reordered in `pluginsintegration.go` to: MetricsMiddleware → ContextualLoggerMiddleware → LoggerMiddleware, ensuring contextual information is available for downstream logging.\n\n## Confidence score: 1/5\n\n• This PR has critical compilation errors that will prevent it from building successfully\n• The newly added `ContextualLoggerMiddleware` references undefined constants (`endpointQueryData`, `endpointCallResource`, etc.) that exist in other middleware files but are not imported or defined in the new file\n• Additionally, there's an inconsistent test function name in `metrics_middleware_test.go` that still uses the old \"Instrumentation\" naming convention\n\nThe file `pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go` needs immediate attention to resolve the undefined constant references before this can be merged.\n\n<sub>8 files reviewed, 5 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=grafana-greptile_3)</sub>"
+  },
+  {
+   "id": 3217682130,
+   "submitted_at": "2025-09-12T16:23:31Z",
+   "state": "COMMENTED",
+   "body": "Your free trial has ended. If you'd like to continue receiving code reviews, you can add a payment method [here](https://app.greptile.com/review/github)."
+  }
+ ],
+ "comments": [
+  {
+   "id": 2237964222,
+   "pull_request_review_id": 3064744740,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:24:10Z",
+   "path": "pkg/services/pluginsintegration/pluginsintegration.go",
+   "start_line": null,
+   "line": 161,
+   "original_start_line": null,
+   "original_line": 161,
+   "body": "style: Logger still references 'plugin.instrumentation' in logger name - consider updating to 'plugin.metrics' for consistency\n\n```suggestion\n\t\tclientmiddleware.NewLoggerMiddleware(cfg, log.New(\"plugin.metrics\")),\n```"
+  },
+  {
+   "id": 2237964680,
+   "pull_request_review_id": 3064744740,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:24:39Z",
+   "path": "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+   "start_line": null,
+   "line": 40,
+   "original_start_line": null,
+   "original_line": 40,
+   "body": "logic: endpointQueryData is not defined in this file or imported. This will cause a compilation error."
+  },
+  {
+   "id": 2237964695,
+   "pull_request_review_id": 3064744740,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:24:39Z",
+   "path": "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+   "start_line": null,
+   "line": 45,
+   "original_start_line": null,
+   "original_line": 45,
+   "body": "logic: endpointCallResource is not defined in this file or imported. This will cause a compilation error."
+  },
+  {
+   "id": 2237964702,
+   "pull_request_review_id": 3064744740,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:24:40Z",
+   "path": "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+   "start_line": null,
+   "line": 50,
+   "original_start_line": null,
+   "original_line": 50,
+   "body": "logic: endpointCheckHealth is not defined in this file or imported. This will cause a compilation error."
+  },
+  {
+   "id": 2237964714,
+   "pull_request_review_id": 3064744740,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T22:24:40Z",
+   "path": "pkg/services/pluginsintegration/clientmiddleware/contextual_logger_middleware.go",
+   "start_line": null,
+   "line": 55,
+   "original_start_line": null,
+   "original_line": 55,
+   "body": "logic: endpointCollectMetrics is not defined in this file or imported. This will cause a compilation error."
+  }
+ ]
+}

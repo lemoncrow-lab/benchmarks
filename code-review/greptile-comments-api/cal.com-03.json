@@ -1,0 +1,127 @@
+{
+ "fork": "ai-code-review-evaluation/cal.com-greptile",
+ "pull": 3,
+ "source_url": "https://github.com/ai-code-review-evaluation/cal.com-greptile/pull/3",
+ "fetched_with": "gh api (REST), exact text",
+ "title": "feat: 2fa backup codes",
+ "base": "enhance-two-factor-security-foundation",
+ "head": "improve-two-factor-authentication-features",
+ "reviews": [
+  {
+   "id": 3064822480,
+   "submitted_at": "2025-07-28T23:37:21Z",
+   "state": "COMMENTED",
+   "body": "## Greptile Summary\n\nThis PR implements backup codes for two-factor authentication (2FA), a critical security feature that provides users with recovery access when their primary TOTP device is unavailable. The implementation spans multiple layers:\n\n**Database Changes**: Adds a nullable `backupCodes` field to the User model in Prisma schema with corresponding migration, allowing encrypted storage of recovery codes.\n\n**Authentication Flow**: Enhances the login process to support backup code entry as an alternative to TOTP codes. The login page now includes a toggle between standard 2FA and backup code modes, with proper state management and error handling for backup code scenarios.\n\n**2FA Setup Enhancement**: Modifies the 2FA setup flow to generate 10 cryptographically secure backup codes during TOTP setup, encrypt them for database storage, and display them to users with download/copy functionality in a new setup step.\n\n**2FA Management**: Updates the disable 2FA flow to accept backup codes as an alternative authentication method, allowing users to disable 2FA even without access to their authenticator app.\n\n**Security Implementation**: Uses AES256 encryption for backup code storage, implements one-time use patterns where backup codes are consumed after validation, and includes proper error handling with new error codes (`IncorrectBackupCode`, `MissingBackupCodes`).\n\n**UI Components**: Introduces a new `BackupCode` component for backup code input and updates existing components to support the toggle between TOTP and backup code authentication methods.\n\nThe feature integrates seamlessly with the existing 2FA infrastructure while following security best practices for backup code implementation.\n\n## Confidence score: 3/5\n\n• This PR introduces significant authentication changes with some implementation concerns that need attention before merging\n• The core backup codes functionality is well-implemented, but there are naming inconsistencies, validation issues, and potential security concerns in the BackupCode component and authentication flow\n• Files needing more attention: `apps/web/components/auth/BackupCode.tsx` (function naming mismatch, validation issues), `packages/features/auth/lib/next-auth-options.ts` (error handling, input validation), `apps/web/pages/auth/login.tsx` (state management complexity)\n\n<sub>15 files reviewed, 9 comments</sub>\n\n<sub>[Edit Code Review Bot Settings](https://app.greptile.com/review/github) | [Greptile](https://greptile.com?utm_source=greptile_expert&utm_medium=github&utm_campaign=code_reviews&utm_content=cal.com-greptile_3)</sub>"
+  }
+ ],
+ "comments": [
+  {
+   "id": 2238029563,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:40Z",
+   "path": "apps/web/pages/auth/login.tsx",
+   "start_line": null,
+   "line": 221,
+   "original_start_line": null,
+   "original_line": 221,
+   "body": "style: Complex conditional rendering logic - consider extracting to a helper function for better readability"
+  },
+  {
+   "id": 2238029683,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:51Z",
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "start_line": 139,
+   "line": 141,
+   "original_start_line": 139,
+   "original_line": 141,
+   "body": "logic: JSON.parse could throw if backup codes are corrupted - should wrap in try-catch block\n\n```suggestion\n        let backupCodes;\n        try {\n          backupCodes = JSON.parse(\n            symmetricDecrypt(user.backupCodes, process.env.CALENDSO_ENCRYPTION_KEY)\n          );\n        } catch (error) {\n          console.error(\"Failed to parse backup codes\", error);\n          throw new Error(ErrorCode.InternalServerError);\n        }\n```"
+  },
+  {
+   "id": 2238029729,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:54Z",
+   "path": "apps/web/playwright/login.2fa.e2e.ts",
+   "start_line": 50,
+   "line": 53,
+   "original_start_line": 50,
+   "original_line": 53,
+   "body": "logic: This FIXME indicates a real test reliability issue. The `isChecked()` assertion may pass incorrectly. Consider using the same pattern as line 127 with `data-state=\"checked\"`.\n\n```suggestion\n      // FIXME: this passes even when switch is not checked, compare to test\n      // below which checks for data-state=\"checked\" and works as expected\n      await page.waitForSelector(`[data-testid=two-factor-switch]`);\n      await expect(page.locator(`[data-testid=two-factor-switch][data-state=\"checked\"]`)).toBeVisible();\n```"
+  },
+  {
+   "id": 2238029775,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:57Z",
+   "path": "apps/web/components/settings/TwoFactorAuthAPI.ts",
+   "start_line": null,
+   "line": 22,
+   "original_start_line": null,
+   "original_line": 22,
+   "body": "style: The `backupCode` parameter should be optional since users may use either TOTP code or backup code, not both. Consider making it optional: `backupCode?: string`"
+  },
+  {
+   "id": 2238029782,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:35:58Z",
+   "path": "apps/web/components/settings/TwoFactorAuthAPI.ts",
+   "start_line": null,
+   "line": 25,
+   "original_start_line": null,
+   "original_line": 25,
+   "body": "logic: Sending empty/undefined backup codes in the request body may cause issues. Consider only including non-empty values in the JSON payload."
+  },
+  {
+   "id": 2238029840,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:02Z",
+   "path": "apps/web/components/auth/BackupCode.tsx",
+   "start_line": null,
+   "line": 7,
+   "original_start_line": null,
+   "original_line": 7,
+   "body": "logic: Function name 'TwoFactor' doesn't match the component's purpose or file name. Should be 'BackupCode' or similar.\n\n```suggestion\nexport default function BackupCode({ center = true }) {\n```"
+  },
+  {
+   "id": 2238029849,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:03Z",
+   "path": "apps/web/components/auth/BackupCode.tsx",
+   "start_line": 22,
+   "line": 23,
+   "original_start_line": 22,
+   "original_line": 23,
+   "body": "logic: Validation logic is flawed. If backup codes are 'XXXXX-XXXXX' format (11 chars), minLength of 10 allows invalid shorter inputs. Consider using exact length validation or regex pattern."
+  },
+  {
+   "id": 2238029975,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:10Z",
+   "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+   "start_line": null,
+   "line": 51,
+   "original_start_line": null,
+   "original_line": 51,
+   "body": "style: Error message mentions 'backup code login' but this is a disable endpoint, not login\n\n```suggestion\n      console.error(\"Missing encryption key; cannot proceed with backup code verification.\");\n```"
+  },
+  {
+   "id": 2238030013,
+   "pull_request_review_id": 3064822480,
+   "in_reply_to_id": null,
+   "created_at": "2025-07-28T23:36:12Z",
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "start_line": null,
+   "line": 95,
+   "original_start_line": null,
+   "original_line": 95,
+   "body": "logic: calls formatBackupCode before it's defined (line 163), causing a reference error\n\n```suggestion\n        const formatBackupCode = (code: string) => `${code.slice(0, 5)}-${code.slice(5, 10)}`;\n        const textBlob = new Blob([body.backupCodes.map(formatBackupCode).join(\"\\n\")], {\n```"
+  }
+ ]
+}
