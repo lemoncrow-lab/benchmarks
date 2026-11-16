@@ -20,6 +20,11 @@ harbor/
 embedding/
   corpus.jsonl     Semantic search training corpus
   queries.jsonl    Evaluation query set
+
+review/
+  results/         LemonCrow Review benchmarks: read-burden_<date>/ is how much a reviewer
+                   must read again when a coding agent pushes again, on 53 public pull
+                   requests (report, sources, fetcher; no third-party code)
 ```
 
 ## Usage
